@@ -74,7 +74,17 @@ subtrack automatically encrypts the database file on disk using **AES-256-GCM**.
 
 This means your subscription data is encrypted at rest. Backups can also be encrypted with `subtrack backup --encrypt`.
 
-> ⚠️ **Back up your key file or remember your passphrase.** Without it, the database and encrypted backups cannot be recovered.
+### Key integrity verification
+
+subtrack maintains a SHA-256 integrity hash for the encryption key file at `~/.config/subtrack/.key.sha256`. On every startup, the key's SHA-256 hash is compared against the stored hash:
+
+- **Hash matches** — key is intact, operation proceeds normally
+- **No sidecar file** (first run or migration) — sidecar is created automatically
+- **Hash mismatch** — an error is shown and the operation is aborted
+
+This detects file corruption and tampering before any encryption/decryption operation. If the integrity check fails, restore the `.key` file from a backup, or delete it to generate a new key (note: this will make encrypted backups unrecoverable).
+
+> ⚠️ **Back up your key file or remember your passphrase.** Without it, the database and encrypted backups cannot be recovered. Consider backing up both `.key` and `.key.sha256` together.
 
 ## Backup
 
