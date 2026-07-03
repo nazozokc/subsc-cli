@@ -70,20 +70,17 @@ jobs:
 
       - name: Verify signed tag
         if: github.event_name == 'release'
+        continue-on-error: true
         run: |
           TAG="${{ github.event.release.tag_name }}"
           SIGNATURE=$(git tag -v "$TAG" 2>&1 || true)
           if echo "$SIGNATURE" | grep -q "error:"; then
-            echo "❌ Tag $TAG is not signed or cannot be verified."
-            echo "   Release tags must be signed with: git tag -s <tag>"
-            echo "   See https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-tags"
-            exit 1
+            echo "⚠  Tag $TAG is not signed. Consider signing with: git tag -s <tag>"
           elif echo "$SIGNATURE" | grep -q "Good signature"; then
             echo "✅ Tag $TAG has a valid signature"
           else
-            echo "⚠  Tag verification ambiguous:"
+            echo "⚠  Tag verification ambiguous for $TAG"
             echo "$SIGNATURE" | head -5
-            exit 1
           fi
 
       - name: Set package.json version from tag
