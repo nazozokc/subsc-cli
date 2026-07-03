@@ -1,14 +1,17 @@
 import { consola } from "consola"
 import pc from "picocolors"
 import { getSubscriptions } from "./db.ts"
-import type { SharedArgs } from "./types.ts"
+import type { SharedArgs, Currency } from "./types.ts"
 import { periodFactor } from "./date-utils.ts"
 import { formatPrice } from "./price.ts"
+import { fetchFxRates, convertPrice } from "./fx.ts"
+import type { FxRates } from "./fx.ts"
 
 export type TimelineOptions = {
   months?: number
   categories?: boolean
   json?: boolean
+  currency?: string
 }
 
 type MonthTotal = {
@@ -111,7 +114,7 @@ function calcMonthlyTotalsByCategory(
 /**
  * Render a bar chart showing monthly spending.
  */
-function renderBarChart(totals: MonthTotal[]): string {
+function renderBarChart(totals: MonthTotal[], currency: string = "USD"): string {
   const max = Math.max(...totals.map((t) => t.total), 1)
   const barWidth = 40
   const labelWidth = 4 // "Dec " or "Jun "
@@ -131,7 +134,7 @@ function renderBarChart(totals: MonthTotal[]): string {
     const label = `${shortMon} ${String(t.year).slice(2)}`.padEnd(labelWidth + 3)
     const barLen = Math.round((t.total / max) * barWidth)
     const bar = "█".repeat(barLen) + "░".repeat(barWidth - barLen)
-    const price = formatPrice(t.total, "USD")
+    const price = formatPrice(t.total, currency)
     lines.push(` ${label} ${bar} ${pc.dim(price)}`)
   }
 
@@ -141,7 +144,7 @@ function renderBarChart(totals: MonthTotal[]): string {
   const avg = Math.round(totals.reduce((s, t) => s + t.total, 0) / totals.length)
   const totalSum = totals.reduce((s, t) => s + t.total, 0)
   lines.push(
-    ` ${pc.dim(`Avg: ${formatPrice(avg, "USD")}/mo  │  Total: ${formatPrice(totalSum, "USD")}`)}`,
+    ` ${pc.dim(`Avg: ${formatPrice(avg, currency)}/mo  │  Total: ${formatPrice(totalSum, currency)}`)}`,
   )
 
   return lines.join("\n")
@@ -153,6 +156,7 @@ function renderBarChart(totals: MonthTotal[]): string {
 function renderCategoryChart(
   totals: MonthTotal[],
   catData: CategoryMonth[],
+  currency: string = "USD",
 ): string {
   const lines: string[] = []
   const monthNames = [
@@ -178,7 +182,7 @@ function renderCategoryChart(
       const label = `  ${shortMon}`.padEnd(6)
       const barLen = Math.round((cd.months[i] / maxCatTotal) * barWidth)
       const bar = "█".repeat(Math.max(barLen, 1))
-      lines.push(` ${label} ${bar} ${pc.dim(formatPrice(cd.months[i], "USD"))}`)
+      lines.push(` ${label} ${bar} ${pc.dim(formatPrice(cd.months[i], currency))}`)
     }
     lines.push("")
   }
@@ -186,7 +190,7 @@ function renderCategoryChart(
   return lines.join("\n")
 }
 
-export function handleTimeline(options: TimelineOptions = {}): void {
+export async function handleTimeline(options: TimelineOptions = {}): Promise<void> {
   const months = options.months ?? 12
 
   if (months < 1) {
@@ -202,12 +206,33 @@ export function handleTimeline(options: TimelineOptions = {}): void {
   }
 
   // Filter to non-cancelled for active analysis
-  const activeSubs = subs.filter((s) => s.status !== "cancelled")
+  let activeSubs = subs.filter((s) => s.status !== "cancelled")
+
+  // Currency conversion at the top level
+  let displayCurrency = "USD" as string
+  if (options.currency) {
+    displayCurrency = options.currency
+    try {
+      const rates = await fetchFxRates()
+      activeSubs = activeSubs.map((s) => ({
+        ...s,
+        price: Math.round(convertPrice(s.price, s.currency, displayCurrency as Currency, rates.rates)),
+        currency: displayCurrency,
+      }))
+    } catch {
+      consola.warn("Failed to fetch exchange rates; showing in original currencies")
+      displayCurrency = "USD"
+    }
+  }
+
+  // Determine display currency for chart labels
+  const ccy = displayCurrency
 
   if (options.json) {
     const totals = calcMonthlyTotals(activeSubs, months)
-    const data = {
+    const data: Record<string, unknown> = {
       months,
+      currency: ccy,
       total: totals.reduce((s, t) => s + t.total, 0),
       average:
         totals.length > 0
@@ -224,7 +249,7 @@ export function handleTimeline(options: TimelineOptions = {}): void {
       for (const cd of categories) {
         catData[cd.category] = cd.months
       }
-      ;(data as Record<string, unknown>).categories = catData
+      data.categories = catData
     }
     process.stdout.write(JSON.stringify(data, null, 2) + "\n")
     return
@@ -232,11 +257,11 @@ export function handleTimeline(options: TimelineOptions = {}): void {
 
   if (options.categories) {
     const { totals, categories } = calcMonthlyTotalsByCategory(activeSubs, months)
-    consola.log(renderBarChart(totals))
+    consola.log(renderBarChart(totals, ccy))
     consola.log("")
-    consola.log(renderCategoryChart(totals, categories))
+    consola.log(renderCategoryChart(totals, categories, ccy))
   } else {
     const totals = calcMonthlyTotals(activeSubs, months)
-    consola.log(renderBarChart(totals))
+    consola.log(renderBarChart(totals, ccy))
   }
 }

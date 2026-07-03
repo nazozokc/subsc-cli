@@ -3,13 +3,18 @@ import { homedir } from "node:os"
 import path from "node:path"
 import { consola } from "consola"
 import { safeJsonParse } from "./safe-json.ts"
-import type { SubtrackConfig } from "./types.ts"
+import type { SubtrackConfig, NotifyChannel } from "./types.ts"
 
 export const CONFIG_KEYS = [
   "defaultCurrency",
   "monthlyBudget",
   "theme",
   "notifyDays",
+  "yearlyBudget",
+  "notifyEmail",
+  "slackWebhook",
+  "webhookUrl",
+  "notifyChannels",
 ] as const
 
 export type ConfigKey = (typeof CONFIG_KEYS)[number]
@@ -19,6 +24,10 @@ const DEFAULT_CONFIG: SubtrackConfig = {
   monthlyBudget: 0,
   theme: "default",
   notifyDays: 7,
+  yearlyBudget: 0,
+  notifyEmail: "",
+  slackWebhook: "",
+  webhookUrl: "",
 }
 
 function getConfigDir(): string {
@@ -85,6 +94,39 @@ export function setConfig(key: ConfigKey, value: string): boolean {
         return false
       }
       config.notifyDays = num
+      break
+    }
+    case "yearlyBudget": {
+      const num = Number(value)
+      if (isNaN(num) || num < 0) {
+        consola.error("yearlyBudget must be a non-negative number")
+        return false
+      }
+      config.yearlyBudget = num
+      break
+    }
+    case "notifyEmail": {
+      config.notifyEmail = value
+      break
+    }
+    case "slackWebhook": {
+      config.slackWebhook = value
+      break
+    }
+    case "webhookUrl": {
+      config.webhookUrl = value
+      break
+    }
+    case "notifyChannels": {
+      const channels = value.split(",").map((s) => s.trim().toLowerCase()) as NotifyChannel[]
+      const valid: NotifyChannel[] = ["os", "email", "slack", "webhook"]
+      for (const c of channels) {
+        if (!(valid as string[]).includes(c)) {
+          consola.error(`Invalid notify channel: "${c}". Valid: ${valid.join(", ")}`)
+          return false
+        }
+      }
+      config.notifyChannels = channels
       break
     }
     default:

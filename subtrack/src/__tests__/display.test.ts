@@ -266,10 +266,18 @@ test("currency with empty list shows info", async () => {
 
 // ── exportCsv tests ──────────────────────────────────────
 
+function expectedCsvHeader(): string {
+  return "\uFEFFname,status,cycle,tags,price,currency,notes,payment_method,contract_start,contract_end,auto_renewal,vendor_name,vendor_url,plan_tier,discount_amount,discount_type"
+}
+
+function expectedCsvRow(name: string, cycle = "monthly", tags = "", price = "1000", currency = "JPY", status = "active"): string {
+  return `${name},${status},${cycle},${tags},${price},${currency},,,,,false,,,,,`
+}
+
 test("exportCsv returns header-only when no subscriptions", async () => {
   const { exportCsv } = await import("../export.ts")
   const csv = exportCsv([])
-  expect(csv).toBe("\uFEFFname,cycle,tags,price,currency,notes")
+  expect(csv).toBe(expectedCsvHeader())
 })
 
 test("exportCsv produces correct csv for single subscription", async () => {
@@ -277,8 +285,8 @@ test("exportCsv produces correct csv for single subscription", async () => {
   const csv = exportCsv([makeSub({ name: "Netflix", price: 1500, currency: "JPY" })])
   const lines = csv.split("\n")
   expect(lines).toHaveLength(2)
-  expect(lines[0]).toBe("\uFEFFname,cycle,tags,price,currency,notes")
-  expect(lines[1]).toBe("Netflix,monthly,,1500,JPY,")
+  expect(lines[0]).toBe(expectedCsvHeader())
+  expect(lines[1]).toBe(expectedCsvRow("Netflix", "monthly", "", "1500", "JPY"))
 })
 
 test("exportCsv handles tags correctly", async () => {
@@ -287,7 +295,7 @@ test("exportCsv handles tags correctly", async () => {
     makeSub({ name: "Netflix", tags: ["video", "entertainment"] }),
   ])
   const lines = csv.split("\n")
-  expect(lines[1]).toBe("Netflix,monthly,video;entertainment,1000,JPY,")
+  expect(lines[1]).toBe(expectedCsvRow("Netflix", "monthly", "video;entertainment", "1000", "JPY"))
 })
 
 test("exportCsv escapes commas in name", async () => {
@@ -296,7 +304,7 @@ test("exportCsv escapes commas in name", async () => {
     makeSub({ name: "Service, Inc.", price: 100 }),
   ])
   const lines = csv.split("\n")
-  expect(lines[1]).toBe('"Service, Inc.",monthly,,100,JPY,')
+  expect(lines[1]).toBe(expectedCsvRow('"Service, Inc."', "monthly", "", "100", "JPY"))
 })
 
 test("exportCsv handles multiple subscriptions", async () => {
@@ -307,8 +315,8 @@ test("exportCsv handles multiple subscriptions", async () => {
   ])
   const lines = csv.split("\n")
   expect(lines).toHaveLength(3)
-  expect(lines[1]).toBe("A,monthly,x,10,USD,")
-  expect(lines[2]).toBe("B,monthly,y,20,USD,")
+  expect(lines[1]).toBe(expectedCsvRow("A", "monthly", "x", "10", "USD"))
+  expect(lines[2]).toBe(expectedCsvRow("B", "monthly", "y", "20", "USD"))
 })
 
 test("exportCsv begins with BOM", async () => {
@@ -322,7 +330,7 @@ test("exportCsv begins with BOM", async () => {
 test("exportMd returns header and separator when no subscriptions", async () => {
   const { exportMd } = await import("../export.ts")
   const md = exportMd([])
-  expect(md).toBe("| name | cycle | tags | price | currency | notes |\n| --- | --- | --- | --- | --- | --- |")
+  expect(md).toBe("| name | status | cycle | tags | price | currency | notes | payment_method | contract | vendor | plan | discount |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |")
 })
 
 test("exportMd produces correct markdown for single subscription", async () => {
@@ -330,7 +338,7 @@ test("exportMd produces correct markdown for single subscription", async () => {
   const md = exportMd([makeSub({ name: "Netflix", price: 1500, currency: "JPY" })])
   const lines = md.split("\n")
   expect(lines).toHaveLength(3)
-  expect(lines[2]).toBe("| Netflix | monthly | - | ¥1,500 | JPY | - |")
+  expect(lines[2]).toBe("| Netflix | active | monthly | - | ¥1,500 | JPY | - | - | - | - | - | - |")
 })
 
 test("exportMd handles tags correctly", async () => {
@@ -339,7 +347,7 @@ test("exportMd handles tags correctly", async () => {
     makeSub({ name: "Netflix", tags: ["video", "entertainment"] }),
   ])
   const lines = md.split("\n")
-  expect(lines[2]).toBe("| Netflix | monthly | video, entertainment | ¥1,000 | JPY | - |")
+  expect(lines[2]).toBe("| Netflix | active | monthly | video, entertainment | ¥1,000 | JPY | - | - | - | - | - | - |")
 })
 
 test("exportMd handles multiple subscriptions", async () => {
@@ -350,8 +358,8 @@ test("exportMd handles multiple subscriptions", async () => {
   ])
   const lines = md.split("\n")
   expect(lines).toHaveLength(4)
-  expect(lines[2]).toBe("| A | monthly | x | $10 | USD | - |")
-  expect(lines[3]).toBe("| B | monthly | - | $20 | USD | - |")
+  expect(lines[2]).toBe("| A | active | monthly | x | $10 | USD | - | - | - | - | - | - |")
+  expect(lines[3]).toBe("| B | active | monthly | - | $20 | USD | - | - | - | - | - | - |")
 })
 
 // ── showPayment tests ────────────────────────────────────

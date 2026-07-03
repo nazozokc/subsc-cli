@@ -98,7 +98,15 @@ beforeAll(async () => {
     billing_day INTEGER,
     created_at TEXT NOT NULL DEFAULT (date('now')),
     notes TEXT,
-    payment_method TEXT
+    payment_method TEXT,
+    contract_start TEXT,
+    contract_end TEXT,
+    auto_renewal INTEGER NOT NULL DEFAULT 1,
+    vendor_name TEXT,
+    vendor_url TEXT,
+    plan_tier TEXT,
+    discount_amount INTEGER,
+    discount_type TEXT
   )`)
   testDb.run(`CREATE TABLE IF NOT EXISTS tags (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -253,13 +261,13 @@ test("handleTagList displays tags with counts", async () => {
 
 test("handleTagRename shows error when names are empty", async () => {
   const { handleTagRename } = await import("../commands.ts")
-  handleTagRename("", "")
+  await handleTagRename("", "")
   expect(errorMessages.length).toBeGreaterThan(0)
 })
 
 test("handleTagRename shows error for non-existent tag", async () => {
   const { handleTagRename } = await import("../commands.ts")
-  handleTagRename("nonexistent", "new")
+  await handleTagRename("nonexistent", "new")
   expect(errorMessages.some((m) => m.includes("not found"))).toBe(true)
 })
 
@@ -268,7 +276,7 @@ test("handleTagRename renames a tag successfully", async () => {
   db.writeSubscription({ name: "S1", price: 100, currency: "USD", cycle: "monthly", tags: ["old"] })
 
   const { handleTagRename } = await import("../commands.ts")
-  handleTagRename("old", "new")
+  await handleTagRename("old", "new")
   expect(successMessages.some((m) => m.includes("old") && m.includes("new"))).toBe(true)
 
   const tags = db.getTagsWithCount()
@@ -280,13 +288,13 @@ test("handleTagRename renames a tag successfully", async () => {
 
 test("handleTagDelete shows error when name is empty", async () => {
   const { handleTagDelete } = await import("../commands.ts")
-  handleTagDelete("")
+  await handleTagDelete("")
   expect(errorMessages.length).toBeGreaterThan(0)
 })
 
 test("handleTagDelete shows error for non-existent tag", async () => {
   const { handleTagDelete } = await import("../commands.ts")
-  handleTagDelete("nonexistent")
+  await handleTagDelete("nonexistent")
   expect(errorMessages.some((m) => m.includes("not found"))).toBe(true)
 })
 
@@ -295,7 +303,7 @@ test("handleTagDelete deletes a tag successfully", async () => {
   db.writeSubscription({ name: "S1", price: 100, currency: "USD", cycle: "monthly", tags: ["delete-me"] })
 
   const { handleTagDelete } = await import("../commands.ts")
-  handleTagDelete("delete-me")
+  await handleTagDelete("delete-me")
   expect(successMessages.some((m) => m.includes("delete-me"))).toBe(true)
   expect(db.getTagsWithCount()).toHaveLength(0)
 })
@@ -304,7 +312,7 @@ test("handleTagDelete deletes a tag successfully", async () => {
 
 test("handleTagPrune shows info when no orphaned tags", async () => {
   const { handleTagPrune } = await import("../commands.ts")
-  handleTagPrune()
+  await handleTagPrune()
   expect(infoMessages.some((m) => m.includes("No orphaned"))).toBe(true)
 })
 
@@ -316,7 +324,7 @@ test("handleTagPrune removes orphaned tags", async () => {
   testDb.run("INSERT INTO tags (name) VALUES ('orphan1'), ('orphan2')")
 
   const { handleTagPrune } = await import("../commands.ts")
-  handleTagPrune()
+  await handleTagPrune()
   expect(successMessages.some((m) => m.includes("3 orphaned"))).toBe(true)
 })
 
@@ -633,12 +641,26 @@ test("handleImport shows error for non-existent file", async () => {
   expect(errorMessages.some((m) => m.includes("not found"))).toBe(true)
 })
 
-test("handleImport shows error for invalid CSV header", async () => {
-  const filePath = writeTempFile("bad-header.csv", "name,price\na,100")
+test("handleImport shows error for CSV with no recognizable columns", async () => {
+  const filePath = writeTempFile("bad-header.csv", "foo,bar\na,100")
   const { handleImport } = await import("../import-csv.ts")
   await handleImport(filePath, {})
   expect(errorMessages.length).toBeGreaterThan(0)
-  expect(errorMessages[0].toLowerCase()).toContain("invalid csv header")
+  expect(
+    errorMessages.some((m) => m.toLowerCase().includes("name")),
+  ).toBe(true)
+})
+
+test("handleImport succeeds with minimal columns (name + price)", async () => {
+  const filePath = writeTempFile("minimal.csv", "name,price\na,100")
+  const { handleImport } = await import("../import-csv.ts")
+  await handleImport(filePath, {})
+
+  const db = await import("../db.ts")
+  const subs = db.getSubscriptions()
+  expect(subs.length).toBeGreaterThan(0)
+  expect(subs[0].name).toBe("a")
+  expect(subs[0].price).toBe(100)
 })
 
 test("handleImport imports valid CSV data", async () => {
@@ -796,15 +818,27 @@ test("handleCompare with --currency converts prices", async () => {
 // ── handleAdd ─────────────────────────────────────────────
 
 test("handleAdd shows info when cancelled at confirm", async () => {
-  // Mock prompts for resolveAddOptions
+  // Mock all prompts in resolveAddOptions order
   vi.mocked(input)
     .mockResolvedValueOnce("New Service")   // name
     .mockResolvedValueOnce("2500")           // price
     .mockResolvedValueOnce("my-tag")         // tags
+    .mockResolvedValueOnce("")               // notes (empty)
+    .mockResolvedValueOnce("")               // paymentMethod (empty)
+    .mockResolvedValueOnce("")               // billingDay (empty)
+    .mockResolvedValueOnce("")               // contractStart (empty)
+    .mockResolvedValueOnce("")               // contractEnd (empty)
+    .mockResolvedValueOnce("")               // vendorName (empty)
+    .mockResolvedValueOnce("")               // vendorUrl (empty)
+    .mockResolvedValueOnce("")               // planTier (empty)
+    .mockResolvedValueOnce("")               // discountAmount (empty)
   vi.mocked(select)
     .mockResolvedValueOnce("JPY")            // currency
     .mockResolvedValueOnce("monthly")        // cycle
-  vi.mocked(confirm).mockResolvedValueOnce(false) // decline
+    .mockResolvedValueOnce("active")         // status
+  vi.mocked(confirm)
+    .mockResolvedValueOnce(true)             // autoRenewal
+    .mockResolvedValueOnce(false)            // decline save
 
   const { handleAdd } = await import("../commands.ts")
   await handleAdd({})
@@ -816,10 +850,22 @@ test("handleAdd creates subscription with prompted fields", async () => {
     .mockResolvedValueOnce("Spotify")
     .mockResolvedValueOnce("980")
     .mockResolvedValueOnce("music")
+    .mockResolvedValueOnce("")               // notes (empty)
+    .mockResolvedValueOnce("")               // paymentMethod (empty)
+    .mockResolvedValueOnce("")               // billingDay (empty)
+    .mockResolvedValueOnce("")               // contractStart (empty)
+    .mockResolvedValueOnce("")               // contractEnd (empty)
+    .mockResolvedValueOnce("")               // vendorName (empty)
+    .mockResolvedValueOnce("")               // vendorUrl (empty)
+    .mockResolvedValueOnce("")               // planTier (empty)
+    .mockResolvedValueOnce("")               // discountAmount (empty)
   vi.mocked(select)
     .mockResolvedValueOnce("JPY")
     .mockResolvedValueOnce("monthly")
-  vi.mocked(confirm).mockResolvedValueOnce(true)
+    .mockResolvedValueOnce("active")         // status
+  vi.mocked(confirm)
+    .mockResolvedValueOnce(true)             // autoRenewal
+    .mockResolvedValueOnce(true)             // save
 
   const { handleAdd } = await import("../commands.ts")
   await handleAdd({})

@@ -22,7 +22,15 @@ beforeAll(async () => {
     billing_day INTEGER,
     created_at TEXT NOT NULL DEFAULT (date('now')),
     notes TEXT,
-    payment_method TEXT
+    payment_method TEXT,
+    contract_start TEXT,
+    contract_end TEXT,
+    auto_renewal INTEGER NOT NULL DEFAULT 1,
+    vendor_name TEXT,
+    vendor_url TEXT,
+    plan_tier TEXT,
+    discount_amount INTEGER,
+    discount_type TEXT
   )`)
   testDb.run(`CREATE TABLE IF NOT EXISTS tags (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,7 +82,7 @@ afterEach(() => {
 
 test("showUpcoming shows info when no subscriptions", async () => {
   const { showUpcoming } = await import("../upcoming.ts")
-  showUpcoming(7)
+  await showUpcoming(7)
   expect(infoMessages.some((m) => m.includes("No upcoming bills"))).toBe(true)
 })
 
@@ -84,7 +92,7 @@ test("showUpcoming shows info when no upcoming bills", async () => {
   db.writeSubscription({ name: "Yearly", price: 1000, currency: "USD", cycle: "yearly", tags: [], status: "active", createdAt: "2025-01-01", billingDay: 1 })
 
   const { showUpcoming } = await import("../upcoming.ts")
-  showUpcoming(7)
+  await showUpcoming(7)
   expect(infoMessages.some((m) => m.includes("No upcoming bills"))).toBe(true)
 })
 
@@ -96,7 +104,7 @@ test("showUpcoming shows upcoming monthly subscription", async () => {
   db.writeSubscription({ name: "Netflix", price: 1500, currency: "JPY", cycle: "monthly", tags: ["video"], status: "active", billingDay, createdAt: "2026-01-15" })
 
   const { showUpcoming } = await import("../upcoming.ts")
-  showUpcoming(30)
+  await showUpcoming(30)
   expect(logMessages.length).toBeGreaterThan(0)
   const output = logMessages.join("\n")
   expect(output).toContain("Netflix")
@@ -109,7 +117,7 @@ test("showUpcoming excludes cancelled subscriptions", async () => {
   db.writeSubscription({ name: "Cancelled", price: 200, currency: "USD", cycle: "monthly", tags: [], status: "cancelled", billingDay: 28, createdAt: "2026-01-01" })
 
   const { showUpcoming } = await import("../upcoming.ts")
-  showUpcoming(30)
+  await showUpcoming(30)
   const output = logMessages.join("\n")
   expect(output).toContain("Active")
   expect(output).not.toContain("Cancelled")

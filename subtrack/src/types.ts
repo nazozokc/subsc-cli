@@ -6,6 +6,8 @@ export type Cycle =
   | "weekly" | "bi-weekly" | "monthly"
   | "quarterly" | "semi-annual" | "yearly"
 
+export type DiscountType = "percentage" | "fixed" | null
+
 export type SharedArgs = {
   id: number
   name: string
@@ -18,6 +20,14 @@ export type SharedArgs = {
   createdAt: string // YYYY-MM-DD
   notes: string | null
   paymentMethod: string | null
+  contractStart: string | null // YYYY-MM-DD
+  contractEnd: string | null // YYYY-MM-DD
+  autoRenewal: boolean
+  vendorName: string | null
+  vendorUrl: string | null
+  planTier: string | null
+  discountAmount: number | null
+  discountType: DiscountType
 }
 
 export type AddSharedArgs = {
@@ -31,6 +41,14 @@ export type AddSharedArgs = {
   createdAt?: string // YYYY-MM-DD
   notes?: string | null
   paymentMethod?: string | null
+  contractStart?: string | null
+  contractEnd?: string | null
+  autoRenewal?: boolean
+  vendorName?: string | null
+  vendorUrl?: string | null
+  planTier?: string | null
+  discountAmount?: number | null
+  discountType?: DiscountType
 }
 
 export type LlmUsageEntry = {
@@ -84,6 +102,14 @@ export type AddFlags = {
   status?: string
   notes?: string
   paymentMethod?: string
+  contractStart?: string
+  contractEnd?: string
+  autoRenewal?: string
+  vendorName?: string
+  vendorUrl?: string
+  planTier?: string
+  discountAmount?: string
+  discountType?: string
 }
 
 export type UsageRefreshFlags = {
@@ -128,11 +154,56 @@ export type BackupFileInfo = {
   size: number
 }
 
+export type ListFlags = {
+  currency?: string
+  sort?: string
+  desc?: boolean
+  api?: boolean
+  notes?: boolean
+  method?: boolean
+  tags?: string
+  showContract?: boolean
+  showVendor?: boolean
+  json?: boolean
+  status?: string
+  all?: boolean
+  minPrice?: number
+  maxPrice?: number
+  limit?: number
+}
+
+export type TagListFlags = {
+  json?: boolean
+  sort?: "name" | "count"
+}
+
+export type AnalyticsOptions = {
+  json?: boolean
+  currency?: string
+  period?: "monthly" | "yearly"
+}
+
+export type CompareOptions = {
+  currency?: string
+  api?: boolean
+  json?: boolean
+}
+
 export type ProfileFilter = {
   tags?: string[]
   status?: Status
   paymentMethod?: string
 }
+
+export type BudgetEntry = {
+  name: string
+  amount: number
+  currency: string
+  categories?: string[] // filter by tags
+  period?: "monthly" | "yearly"
+}
+
+export type NotifyChannel = "os" | "email" | "slack" | "webhook"
 
 export type SubtrackConfig = {
   defaultCurrency: string
@@ -149,4 +220,16 @@ export type SubtrackConfig = {
     showNotesCol?: boolean
     showMethodCol?: boolean
   }
+  /** Multiple named budgets for budget vs actual tracking */
+  budgets?: BudgetEntry[]
+  /** Yearly budget target (can be separate from monthlyBudget) */
+  yearlyBudget?: number
+  /** Notification channels (default: ["os"]) */
+  notifyChannels?: NotifyChannel[]
+  /** Email for notifications via sendmail/smtp */
+  notifyEmail?: string
+  /** Slack webhook URL */
+  slackWebhook?: string
+  /** Generic webhook URL for notifications */
+  webhookUrl?: string
 }

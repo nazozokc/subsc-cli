@@ -22,6 +22,8 @@ export type ForecastOptions = {
   addCurrency?: string
   addCycle?: string
   currency?: string
+  json?: boolean
+  maxRows?: number
 }
 
 type ForecastEntry = {
@@ -163,6 +165,36 @@ export async function handleForecast(
     currencyGroups[ccy].total += Math.round(monthly)
   }
 
+  // ── JSON output ──────────────────────────────────
+
+  if (options.json) {
+    const result: Record<string, unknown> = {
+      months,
+      currency: targetCurrency ?? null,
+      groups: {},
+    }
+    if (cancelNames.length > 0) {
+      result.excluded = cancelNames
+    }
+    const groups: Record<string, unknown> = {}
+    for (const [ccy, group] of Object.entries(currencyGroups).sort()) {
+      groups[ccy] = {
+        total: Math.round(group.total),
+        monthlyTotal: Math.round(group.total),
+        periodTotal: Math.round(group.total * months),
+        entries: group.entries.map((e) => ({
+          name: e.name,
+          monthly: Math.round(e.monthly),
+          currency: e.currency,
+          periodTotal: Math.round(e.monthly * months),
+        })),
+      }
+    }
+    result.groups = groups
+    process.stdout.write(JSON.stringify(result, null, 2) + "\n")
+    return
+  }
+
   // ── Display ────────────────────────────────────────
 
   const periodLabel = months === 12 ? "Year" : `${months} Months`
@@ -177,7 +209,8 @@ export async function handleForecast(
     const isMultiCurrency = Object.keys(currencyGroups).length > 1
 
     // Limit displayed columns
-    const displayEntries = entriesForTable.slice(0, 8)
+    const maxRows = options.maxRows ?? 8
+    const displayEntries = entriesForTable.slice(0, maxRows)
     const overflow = entriesForTable.length - displayEntries.length
 
     const headers = ["Subscription", `Monthly`, periodLabel]
