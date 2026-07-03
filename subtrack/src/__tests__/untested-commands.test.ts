@@ -214,8 +214,8 @@ test("handleNotify dry-run shows no upcoming when no subscriptions", async () =>
 })
 
 test("handleNotify dry-run shows upcoming bills", async () => {
-  // Billing on day 2 from a previous month — next billing will be July 2 (within 7 days from July 1)
-  insertSub({ name: "Netflix", price: 1500, billingDay: 2, createdAt: "2026-06-01" })
+  // Billing on day 10 — next billing will be this month's 10th (within 7 days from July 3)
+  insertSub({ name: "Netflix", price: 1500, billingDay: 10, createdAt: "2026-06-01" })
 
   const { handleNotify } = await import("../notify.ts")
   await handleNotify({ days: 7, dryRun: true })
