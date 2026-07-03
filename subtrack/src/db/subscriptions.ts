@@ -4,6 +4,14 @@ import type { SharedArgs, AddSharedArgs } from "../types.ts"
 
 const SORT_FIELDS = ["id", "name", "price", "currency", "cycle", "status"] as const
 
+/** Cast raw DB row to SharedArgs, converting integer booleans. */
+export function toSharedArgs(raw: Record<string, unknown>): SharedArgs {
+  return {
+    ...raw,
+    autoRenewal: Boolean(raw.autoRenewal),
+  } as unknown as SharedArgs
+}
+
 export function mapTags(subs: SharedArgs[]): SharedArgs[] {
   if (subs.length === 0) return subs
 
@@ -36,15 +44,44 @@ export function mapTags(subs: SharedArgs[]): SharedArgs[] {
   return subs
 }
 
-export const getSubscriptions = (sort?: string, desc?: boolean): SharedArgs[] => {
+export const SUBSCRIPTION_COLS = `
+  id, name, price, currency, cycle, status,
+  billing_day AS billingDay, created_at AS createdAt,
+  notes, payment_method AS paymentMethod,
+  contract_start AS contractStart, contract_end AS contractEnd,
+  auto_renewal AS autoRenewal, vendor_name AS vendorName,
+  vendor_url AS vendorUrl, plan_tier AS planTier,
+  discount_amount AS discountAmount, discount_type AS discountType
+`
+
+export const getSubscriptions = (sort?: string, desc?: boolean, status?: string): SharedArgs[] => {
   const db = getDb()
   const field = sort && (SORT_FIELDS as readonly string[]).includes(sort) ? sort : "id"
   const order = desc ? "DESC" : "ASC"
-  const subs = execObjs<SharedArgs>(
+
+  let whereClause = ""
+  const params: SqlValue[] = []
+  if (status !== undefined) {
+    if (status === "all") {
+      // no filter — include all
+    } else {
+      const statuses = status.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean)
+      if (statuses.length > 0) {
+        whereClause = `WHERE status IN (${statuses.map(() => "?").join(",")})`
+        params.push(...statuses)
+      }
+    }
+  } else {
+    // Default: include all (backward compatible)
+    whereClause = ""
+  }
+
+  const raw = execObjs<Record<string, unknown>>(
     db,
-    `SELECT id, name, price, currency, cycle, status, billing_day AS billingDay, created_at AS createdAt, notes, payment_method AS paymentMethod FROM subscriptions ORDER BY ${field} ${order}`,
+    `SELECT ${SUBSCRIPTION_COLS} FROM subscriptions ${whereClause} ORDER BY ${field} ${order}`,
+    params.length > 0 ? params : undefined,
   )
-  return mapTags(subs)
+  return mapTags(raw.map(toSharedArgs))
 }
 
 export const writeSubscription = (data: AddSharedArgs): void => {
@@ -54,8 +91,18 @@ export const writeSubscription = (data: AddSharedArgs): void => {
   db.run("BEGIN TRANSACTION")
   try {
     db.run(
-      "INSERT INTO subscriptions (name, price, currency, cycle, status, billing_day, created_at, notes, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      [data.name, data.price, data.currency, data.cycle, data.status ?? "active", data.billingDay ?? null, data.createdAt ?? new Date().toISOString().split("T")[0], data.notes ?? null, data.paymentMethod ?? null],
+      `INSERT INTO subscriptions (name, price, currency, cycle, status, billing_day, created_at, notes, payment_method,
+        contract_start, contract_end, auto_renewal, vendor_name, vendor_url, plan_tier, discount_amount, discount_type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        data.name, data.price, data.currency, data.cycle, data.status ?? "active",
+        data.billingDay ?? null, data.createdAt ?? new Date().toISOString().split("T")[0],
+        data.notes ?? null, data.paymentMethod ?? null,
+        data.contractStart ?? null, data.contractEnd ?? null,
+        data.autoRenewal !== false ? 1 : 0,
+        data.vendorName ?? null, data.vendorUrl ?? null, data.planTier ?? null,
+        data.discountAmount ?? null, data.discountType ?? null,
+      ],
     )
 
     const idRow = execObj<Record<string, SqlValue>>(
@@ -102,13 +149,13 @@ export const deleteSubscription = (id: number): boolean => {
 
 export const getSubscription = (id: number): SharedArgs | undefined => {
   const db = getDb()
-  const sub = execObj<SharedArgs>(
+  const raw = execObj<Record<string, unknown>>(
     db,
-    "SELECT id, name, price, currency, cycle, status, billing_day AS billingDay, created_at AS createdAt, notes, payment_method AS paymentMethod FROM subscriptions WHERE id = ?",
+    `SELECT ${SUBSCRIPTION_COLS} FROM subscriptions WHERE id = ?`,
     [id],
   )
-  if (!sub) return undefined
-  return mapTags([sub])[0]
+  if (!raw) return undefined
+  return mapTags([toSharedArgs(raw)])[0]
 }
 
 export const updateSubscription = (
@@ -130,6 +177,14 @@ export const updateSubscription = (
     if (fields.billingDay !== undefined) { sets.push("billing_day = ?"); params.push(fields.billingDay) }
     if (fields.notes !== undefined) { sets.push("notes = ?"); params.push(fields.notes || null) }
     if (fields.paymentMethod !== undefined) { sets.push("payment_method = ?"); params.push(fields.paymentMethod || null) }
+    if (fields.contractStart !== undefined) { sets.push("contract_start = ?"); params.push(fields.contractStart || null) }
+    if (fields.contractEnd !== undefined) { sets.push("contract_end = ?"); params.push(fields.contractEnd || null) }
+    if (fields.autoRenewal !== undefined) { sets.push("auto_renewal = ?"); params.push(fields.autoRenewal ? 1 : 0) }
+    if (fields.vendorName !== undefined) { sets.push("vendor_name = ?"); params.push(fields.vendorName || null) }
+    if (fields.vendorUrl !== undefined) { sets.push("vendor_url = ?"); params.push(fields.vendorUrl || null) }
+    if (fields.planTier !== undefined) { sets.push("plan_tier = ?"); params.push(fields.planTier || null) }
+    if (fields.discountAmount !== undefined) { sets.push("discount_amount = ?"); params.push(fields.discountAmount) }
+    if (fields.discountType !== undefined) { sets.push("discount_type = ?"); params.push(fields.discountType || null) }
 
     if (sets.length > 0) {
       params.push(id)

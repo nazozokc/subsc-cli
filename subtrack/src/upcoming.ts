@@ -1,8 +1,10 @@
 import { consola } from "consola"
 import pc from "picocolors"
-import type { SharedArgs, Cycle } from "./types.ts"
+import type { SharedArgs, Cycle, Currency } from "./types.ts"
 import { getSubscriptions } from "./db.ts"
 import { formatPrice } from "./price.ts"
+import { fetchFxRates, convertPrice } from "./fx.ts"
+import type { FxRates } from "./fx.ts"
 
 
 function toDate(dateStr: string): Date {
@@ -123,8 +125,30 @@ export function calcUpcoming(days: number = 7): UpcomingEntry[] {
   return entries
 }
 
-export function showUpcoming(days: number = 7): void {
+export async function calcUpcomingWithCurrency(days: number = 7, targetCurrency?: string): Promise<UpcomingEntry[]> {
   const entries = calcUpcoming(days)
+  if (!targetCurrency || entries.length === 0) return entries
+
+  try {
+    const rates = await fetchFxRates()
+    for (const entry of entries) {
+      try {
+        const converted = convertPrice(entry.amount, entry.sub.currency, targetCurrency as Currency, rates.rates)
+        entry.amount = Math.round(converted)
+        entry.sub = { ...entry.sub, price: Math.round(converted), currency: targetCurrency }
+      } catch {
+        // Keep original currency
+      }
+    }
+  } catch {
+    consola.warn("Failed to fetch exchange rates; showing in original currencies")
+  }
+
+  return entries
+}
+
+export async function showUpcoming(days: number = 7, options: { currency?: string } = {}): Promise<void> {
+  const entries = await calcUpcomingWithCurrency(days, options.currency)
 
   if (entries.length === 0) {
     consola.info(`No upcoming bills in the next ${days} day${days > 1 ? "s" : ""}`)

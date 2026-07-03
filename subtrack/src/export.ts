@@ -13,13 +13,27 @@ function escapeCsv(value: string): string {
   return value
 }
 
+function csvField(val: unknown): string {
+  if (val === null || val === undefined) return ""
+  return escapeCsv(String(val))
+}
+
 export function exportCsv(subs: SharedArgs[]): string {
-  const header = "name,cycle,tags,price,currency,notes"
+  const header = "name,status,cycle,tags,price,currency,notes,payment_method,contract_start,contract_end,auto_renewal,vendor_name,vendor_url,plan_tier,discount_amount,discount_type"
   const rows = subs.map((s) => {
     const tags = s.tags.map((t) => escapeCsv(t)).join(";")
     const name = escapeCsv(s.name)
     const notes = escapeCsv(s.notes ?? "")
-    return `${name},${s.cycle},${tags},${s.price},${s.currency},${notes}`
+    const fields = [
+      name, s.status, s.cycle, tags, s.price, s.currency, notes,
+      csvField(s.paymentMethod),
+      csvField(s.contractStart), csvField(s.contractEnd),
+      s.autoRenewal ? "true" : "false",
+      csvField(s.vendorName), csvField(s.vendorUrl),
+      csvField(s.planTier),
+      csvField(s.discountAmount), csvField(s.discountType),
+    ]
+    return fields.join(",")
   })
   return "\uFEFF" + [header, ...rows].join("\n")
 }
@@ -36,13 +50,22 @@ function escapeMdCell(value: string): string {
 }
 
 export function exportMd(subs: SharedArgs[]): string {
-  const header = "| name | cycle | tags | price | currency | notes |"
-  const separator = "| --- | --- | --- | --- | --- | --- |"
+  const header = "| name | status | cycle | tags | price | currency | notes | payment_method | contract | vendor | plan | discount |"
+  const separator = "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"
   const rows = subs.map((s) => {
     const tags = s.tags.map(escapeMdCell).join(", ") || "-"
     const price = formatPrice(s.price, s.currency)
     const notes = escapeMdCell(s.notes ?? "") || "-"
-    return `| ${escapeMdCell(s.name)} | ${s.cycle} | ${tags} | ${price} | ${s.currency} | ${notes} |`
+    const pm = escapeMdCell(s.paymentMethod ?? "") || "-"
+    const contract = s.contractStart
+      ? `${s.contractStart}${s.contractEnd ? `~${s.contractEnd}` : "~ongoing"}`
+      : "-"
+    const vendor = escapeMdCell(s.vendorName ?? "") || "-"
+    const tier = escapeMdCell(s.planTier ?? "") || "-"
+    const discount = s.discountAmount != null
+      ? `${s.discountAmount}${s.discountType === "percentage" ? "%" : ""}`
+      : "-"
+    return `| ${escapeMdCell(s.name)} | ${s.status} | ${s.cycle} | ${tags} | ${price} | ${s.currency} | ${notes} | ${pm} | ${contract} | ${vendor} | ${tier} | ${discount} |`
   })
   return [header, separator, ...rows].join("\n")
 }
@@ -63,6 +86,14 @@ export async function exportExcel(subs: SharedArgs[]): Promise<Buffer> {
     "Tags",
     "Notes",
     "Created At",
+    "Contract Start",
+    "Contract End",
+    "Auto Renewal",
+    "Vendor Name",
+    "Vendor URL",
+    "Plan Tier",
+    "Discount Amount",
+    "Discount Type",
   ]
 
   const headerRow = sheet.addRow(headers)
@@ -89,6 +120,14 @@ export async function exportExcel(subs: SharedArgs[]): Promise<Buffer> {
       tags,
       s.notes ?? "",
       s.createdAt,
+      s.contractStart ?? "",
+      s.contractEnd ?? "",
+      s.autoRenewal ? "Yes" : "No",
+      s.vendorName ?? "",
+      s.vendorUrl ?? "",
+      s.planTier ?? "",
+      s.discountAmount ?? "",
+      s.discountType ?? "",
     ])
   }
 

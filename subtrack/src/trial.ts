@@ -138,21 +138,61 @@ export async function handleTrialAdd(flags: TrialAddFlags): Promise<void> {
   }
 }
 
-export function handleTrialList(): void {
+export function handleTrialList(options: { json?: boolean } = {}): void {
   const trials = getTrials()
   if (trials.length === 0) {
+    if (options.json) {
+      process.stdout.write(JSON.stringify({ trials: [] }, null, 2) + "\n")
+      return
+    }
     consola.info("No trials found")
     return
   }
+
+  if (options.json) {
+    const data = trials.map((t) => ({
+      id: t.id,
+      name: t.name,
+      expiresAt: t.expiresAt,
+      daysLeft: daysUntil(t.expiresAt),
+      price: t.price,
+      currency: t.currency,
+      cycle: t.cycle,
+      notes: t.notes,
+    }))
+    process.stdout.write(JSON.stringify({ trials: data }, null, 2) + "\n")
+    return
+  }
+
   renderTrialTable(trials)
 }
 
-export function handleTrialExpiring(days: number = 7): void {
+export function handleTrialExpiring(days: number = 7, options: { json?: boolean } = {}): void {
   const trials = getTrialsExpiringSoon(days)
   if (trials.length === 0) {
+    if (options.json) {
+      process.stdout.write(JSON.stringify({ trials: [], days }, null, 2) + "\n")
+      return
+    }
     consola.info(`No trials expiring within ${days} day${days > 1 ? "s" : ""}`)
     return
   }
+
+  if (options.json) {
+    const data = trials.map((t) => ({
+      id: t.id,
+      name: t.name,
+      expiresAt: t.expiresAt,
+      daysLeft: daysUntil(t.expiresAt),
+      price: t.price,
+      currency: t.currency,
+      cycle: t.cycle,
+      notes: t.notes,
+    }))
+    process.stdout.write(JSON.stringify({ trials: data, days }, null, 2) + "\n")
+    return
+  }
+
   consola.info(`Trials expiring within ${days} day${days > 1 ? "s" : ""}:`)
   renderTrialTable(trials)
 }

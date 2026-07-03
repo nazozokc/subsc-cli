@@ -104,6 +104,49 @@ export function validatePaymentMethod(v: string): string | true {
   return true
 }
 
+export function validateDateString(v: string): string | true {
+  if (!v.trim()) return true // empty = not set
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return "Use YYYY-MM-DD format"
+  const d = new Date(v + "T00:00:00")
+  if (isNaN(d.getTime())) return "Invalid date"
+  return true
+}
+
+export function validateVendorName(v: string): string | true {
+  if (v.length > 100) return "Vendor name too long (max 100 chars)"
+  return true
+}
+
+export function validateVendorUrl(v: string): string | true {
+  if (!v.trim()) return true
+  if (v.length > 500) return "URL too long (max 500 chars)"
+  try {
+    new URL(v)
+    return true
+  } catch {
+    return "Invalid URL (must start with http:// or https://)"
+  }
+}
+
+export function validatePlanTier(v: string): string | true {
+  if (v.length > 100) return "Plan tier too long (max 100 chars)"
+  return true
+}
+
+export function validateDiscountValue(v: string): string | true {
+  if (!v.trim()) return true
+  const n = Number(v)
+  if (isNaN(n) || n < 0) return "Please enter a non-negative number"
+  if (n > 99999999) return "Value too high"
+  return true
+}
+
+export function validateDiscountType(v: string): string | true {
+  if (!v.trim()) return true
+  if (v !== "percentage" && v !== "fixed") return 'Must be "percentage" or "fixed"'
+  return true
+}
+
 export function validateTrialName(v: string): string | true {
   if (!v.trim()) return "Name cannot be empty"
   if (v.length > 100) return "Name too long (max 100 chars)"

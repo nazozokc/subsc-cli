@@ -1,5 +1,6 @@
 import { consola } from "consola"
 import pc from "picocolors"
+import { input, select } from "@inquirer/prompts"
 import { loadConfig, saveConfig } from "./config.ts"
 import type { ProfileFilter, Status } from "./types.ts"
 
@@ -142,7 +143,7 @@ export function buildFilterParams(
 
 export type ProfileCommand = "save" | "switch" | "list" | "show" | "delete"
 
-export function handleProfile(command?: ProfileCommand, name?: string, filter?: ProfileFilter): void {
+export async function handleProfile(command?: ProfileCommand, name?: string, filter?: ProfileFilter): Promise<void> {
   if (!command) {
     listProfiles()
     return
@@ -153,7 +154,30 @@ export function handleProfile(command?: ProfileCommand, name?: string, filter?: 
       listProfiles()
       break
     case "save":
-      if (!name) {
+      if (!name && !filter) {
+        // Interactive save mode
+        name = await input({
+          message: "Profile name:",
+          validate: (v: string) => validateName(v) ? true : "Name must be 1-50 chars (letters, numbers, hyphens, underscores)",
+        })
+        const tagsStr = await input({ message: "Filter by tags (comma-separated, optional):" })
+        const statusVal = await select({
+          message: "Filter by status:",
+          choices: [
+            { name: "Any status", value: "" },
+            { name: "Active only", value: "active" },
+            { name: "Paused only", value: "paused" },
+            { name: "Cancelled only", value: "cancelled" },
+          ],
+        })
+        const method = await input({ message: "Filter by payment method (optional):" })
+        const tags = tagsStr.trim() ? tagsStr.split(",").map((t) => t.trim()).filter(Boolean) : undefined
+        filter = {
+          tags: tags && tags.length > 0 ? tags : undefined,
+          status: statusVal || undefined,
+          paymentMethod: method.trim() || undefined,
+        }
+      } else if (!name) {
         consola.error("Profile name required")
         return
       }
@@ -168,15 +192,31 @@ export function handleProfile(command?: ProfileCommand, name?: string, filter?: 
       break
     case "switch":
       if (!name) {
-        consola.error("Profile name required")
-        return
+        const config = loadConfig()
+        const profiles = Object.keys(config.profiles ?? {})
+        if (profiles.length === 0) {
+          consola.info("No saved profiles")
+          return
+        }
+        name = await select({
+          message: "Select profile:",
+          choices: profiles.map((p) => ({ name: p, value: p })),
+        })
       }
       switchProfile(name)
       break
     case "delete":
       if (!name) {
-        consola.error("Profile name required")
-        return
+        const config = loadConfig()
+        const profiles = Object.keys(config.profiles ?? {})
+        if (profiles.length === 0) {
+          consola.info("No saved profiles")
+          return
+        }
+        name = await select({
+          message: "Select profile to delete:",
+          choices: profiles.map((p) => ({ name: p, value: p })),
+        })
       }
       deleteProfile(name)
       break

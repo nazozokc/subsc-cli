@@ -2,7 +2,9 @@ import { consola } from "consola"
 import pc from "picocolors"
 import { getSubscriptions } from "./db.ts"
 import { formatPrice } from "./price.ts"
-import type { SharedArgs } from "./types.ts"
+import type { SharedArgs, Currency } from "./types.ts"
+import { fetchFxRates, convertPrice } from "./fx.ts"
+import type { FxRates } from "./fx.ts"
 
 /** Options for the calendar command */
 export type CalendarOptions = {
@@ -12,6 +14,8 @@ export type CalendarOptions = {
   year?: number
   /** If true, output JSON to stdout instead of table */
   json?: boolean
+  /** Convert all prices to target currency */
+  currency?: string
 }
 
 /** A single day's billing events in the calendar */
@@ -74,7 +78,7 @@ const MONTH_NAMES = [
  * Display (or JSON-print) a monthly calendar with billing days highlighted.
  * When `options.json` is true, writes JSON array to stdout instead of rendering.
  */
-export function showCalendar(options: CalendarOptions): void {
+export async function showCalendar(options: CalendarOptions): Promise<void> {
   const now = new Date()
   const rawMonth = options.month ?? now.getMonth() + 1
   const rawYear = options.year ?? now.getFullYear()
@@ -82,13 +86,32 @@ export function showCalendar(options: CalendarOptions): void {
   const month = rawMonth >= 1 && rawMonth <= 12 ? rawMonth : now.getMonth() + 1
   const year = rawYear >= 1 ? rawYear : now.getFullYear()
 
+  // Handle currency conversion
+  let entries = calcCalendarEntries(month, year)
+  const targetCcy = options.currency
+  if (targetCcy) {
+    try {
+      const rates = await fetchFxRates()
+      entries = entries.map((entry) => ({
+        day: entry.day,
+        subs: entry.subs.map((sub) => {
+          try {
+            const converted = convertPrice(sub.price, sub.currency, targetCcy as Currency, rates.rates)
+            return { ...sub, price: Math.round(converted), currency: targetCcy }
+          } catch {
+            return sub
+          }
+        }),
+      }))
+    } catch {
+      consola.warn("Failed to fetch exchange rates; showing in original currencies")
+    }
+  }
+
   if (options.json) {
-    const entries = calcCalendarEntries(month, year)
     process.stdout.write(JSON.stringify(entries, null, 2) + "\n")
     return
   }
-
-  const entries = calcCalendarEntries(month, year)
   const entryMap = new Map(entries.map((e) => [e.day, e.subs]))
 
   consola.log(pc.bold(`      ${MONTH_NAMES[month - 1]} ${year}`))

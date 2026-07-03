@@ -18,7 +18,7 @@ function statusColor(status: Status): string {
   }
 }
 
-function buildRow(sub: SharedArgs, price: string, showNotes: boolean, showMethod: boolean): string[] {
+function buildRow(sub: SharedArgs, price: string, showNotes: boolean, showMethod: boolean, showContract?: boolean, showVendor?: boolean): string[] {
   const row = [
     String(sub.name),
     statusColor(sub.status),
@@ -26,17 +26,38 @@ function buildRow(sub: SharedArgs, price: string, showNotes: boolean, showMethod
     sub.tags.length > 0 ? sub.tags.join(", ") : "-",
     price,
   ]
-  // Insert method column before price (at index 4) when shown
+
+  // Insert columns before price (at index 4, shifting as needed)
+  let insertIdx = 4
+
   if (showMethod) {
     const method = sub.paymentMethod ?? ""
-    row.splice(4, 0, method.length > 20 ? method.slice(0, 17) + "..." : method)
+    row.splice(insertIdx++, 0, method.length > 20 ? method.slice(0, 17) + "..." : method)
   }
-  // Insert notes column before the last column (price or method+price)
+
+  if (showContract) {
+    const period = sub.contractStart
+      ? `${sub.contractStart}${sub.contractEnd ? ` ~ ${sub.contractEnd}` : " ~ ongoing"}`
+      : "-"
+    const renewal = sub.autoRenewal ? "auto" : "manual"
+    row.splice(insertIdx++, 0, period.length > 16 ? period.slice(0, 13) + "..." : period)
+    row.splice(insertIdx++, 0, renewal)
+  }
+
+  if (showVendor) {
+    const vendor = sub.vendorName ?? "-"
+    const tier = sub.planTier ?? "-"
+    row.splice(insertIdx++, 0, vendor.length > 15 ? vendor.slice(0, 12) + "..." : vendor)
+    row.splice(insertIdx++, 0, tier.length > 12 ? tier.slice(0, 9) + "..." : tier)
+  }
+
+  // Insert notes column before the last column
   if (showNotes) {
     const insertAt = row.length - 1
     const notes = sub.notes ?? ""
     row.splice(insertAt, 0, notes.length > 40 ? notes.slice(0, 37) + "..." : notes)
   }
+
   return row
 }
 
@@ -68,6 +89,30 @@ const ALL_COLS: ColumnConfig = {
   headers: ["name", "status", "cycle", "tags", "method", "notes", "price"] as const,
   minWidths: [10, 8, 6, 8, 10, 15, 8] as const,
   maxWidths: [40, 12, 20, 60, 30, 50, 20] as const,
+}
+
+const CONTRACT_COLS: ColumnConfig = {
+  headers: ["name", "status", "cycle", "tags", "contract", "renewal", "price"] as const,
+  minWidths: [10, 8, 6, 8, 18, 6, 8] as const,
+  maxWidths: [40, 12, 20, 60, 30, 10, 20] as const,
+}
+
+const VENDOR_COLS: ColumnConfig = {
+  headers: ["name", "status", "cycle", "tags", "vendor", "plan", "price"] as const,
+  minWidths: [10, 8, 6, 8, 10, 8, 8] as const,
+  maxWidths: [40, 12, 20, 60, 30, 20, 20] as const,
+}
+
+const CONTRACT_VENDOR_COLS: ColumnConfig = {
+  headers: ["name", "status", "cycle", "tags", "contract", "renewal", "vendor", "plan", "price"] as const,
+  minWidths: [10, 8, 6, 8, 18, 6, 10, 8, 8] as const,
+  maxWidths: [40, 12, 20, 60, 30, 10, 30, 20, 20] as const,
+}
+
+const ALL_EXTRA_COLS: ColumnConfig = {
+  headers: ["name", "status", "cycle", "tags", "method", "contract", "renewal", "vendor", "plan", "notes", "price"] as const,
+  minWidths: [8, 8, 6, 8, 10, 18, 6, 10, 8, 15, 8] as const,
+  maxWidths: [30, 12, 20, 50, 30, 30, 10, 30, 20, 50, 20] as const,
 }
 
 const BORDER_AND_PADDING = 16
@@ -172,6 +217,8 @@ export const spreadSubscription = async (
   currency?: Currency,
   showNotes?: boolean,
   showMethod?: boolean,
+  showContract?: boolean,
+  showVendor?: boolean,
 ): Promise<void> => {
   const list = get ?? getSubscriptions()
 
@@ -180,7 +227,22 @@ export const spreadSubscription = async (
     return
   }
 
-  const config = showNotes && showMethod ? ALL_COLS : showNotes ? NOTES_COLS : showMethod ? METHOD_COLS : BASE_COLS
+  let config = BASE_COLS
+  if (showNotes && showMethod && showContract && showVendor) {
+    config = ALL_EXTRA_COLS
+  } else if (showContract && showVendor) {
+    config = CONTRACT_VENDOR_COLS
+  } else if (showContract) {
+    config = CONTRACT_COLS
+  } else if (showVendor) {
+    config = VENDOR_COLS
+  } else if (showNotes && showMethod) {
+    config = ALL_COLS
+  } else if (showNotes) {
+    config = NOTES_COLS
+  } else if (showMethod) {
+    config = METHOD_COLS
+  }
   const rows: string[][] = []
 
   if (currency) {
@@ -207,11 +269,11 @@ export const spreadSubscription = async (
             rates.rates,
           )
           total += converted
-          rows.push(buildRow(sub, formatPrice(Math.round(converted), currency), showNotes ?? false, showMethod ?? false))
+          rows.push(buildRow(sub, formatPrice(Math.round(converted), currency), showNotes ?? false, showMethod ?? false, showContract, showVendor))
         } catch {
           hasMissingRate = true
           rows.push(
-            buildRow(sub, `? (${formatPrice(sub.price, sub.currency)})`, showNotes ?? false, showMethod ?? false),
+            buildRow(sub, `? (${formatPrice(sub.price, sub.currency)})`, showNotes ?? false, showMethod ?? false, showContract, showVendor),
           )
         }
       }
@@ -246,7 +308,7 @@ export const spreadSubscription = async (
 
     let total = 0
     for (const sub of subs) {
-      groupRows.push(buildRow(sub, formatPrice(sub.price, sub.currency), showNotes ?? false, showMethod ?? false))
+      groupRows.push(buildRow(sub, formatPrice(sub.price, sub.currency), showNotes ?? false, showMethod ?? false, showContract, showVendor))
       total += sub.price
     }
     const totalRow = new Array<string>(config.headers.length).fill("")

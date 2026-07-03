@@ -64,7 +64,26 @@ afterAll(() => {
 beforeEach(() => {
   const db = new SQL.Database()
   db.run(
-    "CREATE TABLE IF NOT EXISTS subscriptions (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, price INTEGER NOT NULL, currency TEXT NOT NULL, cycle TEXT NOT NULL DEFAULT 'monthly', status TEXT NOT NULL DEFAULT 'active', billing_day INTEGER, created_at TEXT NOT NULL, notes TEXT, payment_method TEXT)",
+    `CREATE TABLE IF NOT EXISTS subscriptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      price INTEGER NOT NULL,
+      currency TEXT NOT NULL,
+      cycle TEXT NOT NULL DEFAULT 'monthly',
+      status TEXT NOT NULL DEFAULT 'active',
+      billing_day INTEGER,
+      created_at TEXT NOT NULL,
+      notes TEXT,
+      payment_method TEXT,
+      contract_start TEXT,
+      contract_end TEXT,
+      auto_renewal INTEGER NOT NULL DEFAULT 1,
+      vendor_name TEXT,
+      vendor_url TEXT,
+      plan_tier TEXT,
+      discount_amount INTEGER,
+      discount_type TEXT
+    )`,
   )
   db.run(
     "CREATE TABLE IF NOT EXISTS tags (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE)",
@@ -223,7 +242,7 @@ test("handleNotify dry-run shows upcoming bills", async () => {
 })
 
 test("handleNotify JSON output", async () => {
-  insertSub({ name: "Netflix", price: 1500, billingDay: 2, createdAt: "2026-06-01" })
+  insertSub({ name: "Netflix", price: 1500, billingDay: 5, createdAt: "2026-06-01" })
 
   const writes: string[] = []
   const origWrite = process.stdout.write.bind(process.stdout)

@@ -1,13 +1,18 @@
 import { consola } from "consola"
 import pc from "picocolors"
 import { getSubscriptions, getAllPriceChanges } from "./db.ts"
-import type { SharedArgs } from "./types.ts"
+import type { SharedArgs, Currency } from "./types.ts"
 import { periodFactor, OCCURRENCES_PER_YEAR } from "./date-utils.ts"
 import { formatPrice } from "./price.ts"
+import { fetchFxRates, convertPrice } from "./fx.ts"
+import type { FxRates } from "./fx.ts"
 
 export type OptimizeOptions = {
   json?: boolean
   minSavings?: number
+  currency?: string
+  discountRate?: number
+  exclude?: string[]
 }
 
 type CycleSuggestion = {
@@ -64,8 +69,8 @@ type OptimizeResult = {
  * Estimate yearly savings from switching monthly to yearly billing.
  * Uses a conservative 15% discount (common for most SaaS).
  */
-function estimateYearlyDiscount(monthlyPrice: number): number {
-  return Math.round(monthlyPrice * 12 * 0.15)
+function estimateYearlyDiscount(monthlyPrice: number, discountRate: number = 15): number {
+  return Math.round(monthlyPrice * 12 * (discountRate / 100))
 }
 
 /**
@@ -98,7 +103,7 @@ function jaccardSimilarity(a: string[], b: string[]): number {
 
 // ── Analysis functions ────────────────────────────────────
 
-function analyzeCycleOptimization(subs: SharedArgs[]): CycleSuggestion[] {
+function analyzeCycleOptimization(subs: SharedArgs[], discountRate: number = 15): CycleSuggestion[] {
   const results: CycleSuggestion[] = []
 
   for (const sub of subs) {
@@ -107,7 +112,7 @@ function analyzeCycleOptimization(subs: SharedArgs[]): CycleSuggestion[] {
 
     const monthlyCost = sub.price
     const yearlyCost = monthlyCost * 12
-    const estimatedYearlyWithDiscount = Math.round(yearlyCost * 0.85)
+    const estimatedYearlyWithDiscount = Math.round(yearlyCost * (1 - discountRate / 100))
     const savings = yearlyCost - estimatedYearlyWithDiscount
 
     if (savings > 0) {
@@ -232,7 +237,7 @@ function analyzeCancelledSavings(subs: SharedArgs[]): CancelSaving[] {
 
 // ── Rendering ─────────────────────────────────────────────
 
-function renderCycleSuggestions(suggestions: CycleSuggestion[]): string {
+function renderCycleSuggestions(suggestions: CycleSuggestion[], displayCurrency: string = "USD"): string {
   if (suggestions.length === 0) return ""
   const lines: string[] = [
     "",
@@ -246,9 +251,9 @@ function renderCycleSuggestions(suggestions: CycleSuggestion[]): string {
     const suggestedYearly = s.suggestedMonthly * 12
     lines.push(
       `    ${s.name}` +
-        `  ${pc.dim(`${formatPrice(s.currentMonthly, "USD")}/mo → `)}` +
-        `${pc.green(`${formatPrice(s.suggestedMonthly, "USD")}/mo`)}` +
-        `  ${pc.green(`(save ${formatPrice(s.yearlySavings, "USD")}/yr)`)}`,
+        `  ${pc.dim(`${formatPrice(s.currentMonthly, displayCurrency)}/mo → `)}` +
+        `${pc.green(`${formatPrice(s.suggestedMonthly, displayCurrency)}/mo`)}` +
+        `  ${pc.green(`(save ${formatPrice(s.yearlySavings, displayCurrency)}/yr)`)}`,
     )
     totalSavings += s.yearlySavings
   }
@@ -256,14 +261,14 @@ function renderCycleSuggestions(suggestions: CycleSuggestion[]): string {
   if (totalSavings > 0) {
     lines.push(
       `    ${pc.dim("─".repeat(40))}`,
-      `    ${pc.green(pc.bold(`Total savings: ${formatPrice(totalSavings, "USD")}/yr`))}`,
+      `    ${pc.green(pc.bold(`Total savings: ${formatPrice(totalSavings, displayCurrency)}/yr`))}`,
     )
   }
 
   return lines.join("\n")
 }
 
-function renderDuplicateSuggestions(suggestions: DuplicateSuggestion[]): string {
+function renderDuplicateSuggestions(suggestions: DuplicateSuggestion[], displayCurrency: string = "USD"): string {
   if (suggestions.length === 0) return ""
   const lines: string[] = [
     "",
@@ -276,7 +281,7 @@ function renderDuplicateSuggestions(suggestions: DuplicateSuggestion[]): string 
     for (const name of s.names) {
       lines.push(`      • ${name}`)
     }
-    lines.push(`      ${pc.dim(`Combined: ${formatPrice(s.totalMonthly, "USD")}/mo`)}`)
+    lines.push(`      ${pc.dim(`Combined: ${formatPrice(s.totalMonthly, displayCurrency)}/mo`)}`)
     lines.push("")
   }
 
@@ -302,7 +307,7 @@ function renderInactiveSuggestions(suggestions: InactiveSuggestion[]): string {
   return lines.join("\n")
 }
 
-function renderCancelledSavings(suggestions: CancelSaving[]): string {
+function renderCancelledSavings(suggestions: CancelSaving[], displayCurrency: string = "USD"): string {
   if (suggestions.length === 0) return ""
   const totalMonthly = suggestions.reduce((s, c) => s + c.monthly, 0)
   const lines: string[] = [
@@ -317,15 +322,15 @@ function renderCancelledSavings(suggestions: CancelSaving[]): string {
 
   lines.push(
     `    ${pc.dim("─".repeat(40))}`,
-    `    ${pc.dim(`Previously: ${formatPrice(totalMonthly, "USD")}/mo`)}`,
+    `    ${pc.dim(`Previously: ${formatPrice(totalMonthly, displayCurrency)}/mo`)}`,
   )
 
   return lines.join("\n")
 }
 
-function renderReport(result: OptimizeResult): string {
+function renderReport(result: OptimizeResult, displayCurrency: string = "USD"): string {
   const sections: string[] = [
-    pc.bold("📊 Cost Optimization Report"),
+    pc.bold("Cost Optimization Report"),
   ]
 
   const cycleSuggestions = result.suggestions.filter((s) => s.type === "cycle")
@@ -333,10 +338,10 @@ function renderReport(result: OptimizeResult): string {
   const inactiveSuggestions = result.suggestions.filter((s) => s.type === "inactive")
   const cancelledSuggestions = result.suggestions.filter((s) => s.type === "cancelled")
 
-  const cycleSection = renderCycleSuggestions(cycleSuggestions as CycleSuggestion[])
-  const duplicateSection = renderDuplicateSuggestions(duplicateSuggestions as DuplicateSuggestion[])
+  const cycleSection = renderCycleSuggestions(cycleSuggestions as CycleSuggestion[], displayCurrency)
+  const duplicateSection = renderDuplicateSuggestions(duplicateSuggestions as DuplicateSuggestion[], displayCurrency)
   const inactiveSection = renderInactiveSuggestions(inactiveSuggestions as InactiveSuggestion[])
-   const cancelledSection = renderCancelledSavings(cancelledSuggestions as CancelSaving[])
+   const cancelledSection = renderCancelledSavings(cancelledSuggestions as CancelSaving[], displayCurrency)
 
   if (cycleSection) sections.push(cycleSection)
   if (duplicateSection) sections.push(duplicateSection)
@@ -351,7 +356,7 @@ function renderReport(result: OptimizeResult): string {
     sections.push(
       "",
       pc.bold(
-        `  Total potential savings: ${pc.green(formatPrice(result.totalYearlySavings, "USD"))}/yr`,
+        `  Total potential savings: ${pc.green(formatPrice(result.totalYearlySavings, displayCurrency))}/yr`,
       ),
     )
   }
@@ -361,17 +366,40 @@ function renderReport(result: OptimizeResult): string {
 
 // ── Main ──────────────────────────────────────────────────
 
-export function handleOptimize(options: OptimizeOptions = {}): void {
-  const subs = getSubscriptions()
+export async function handleOptimize(options: OptimizeOptions = {}): Promise<void> {
+  let subs = getSubscriptions()
 
   if (subs.length === 0) {
     consola.info("No subscriptions found")
     return
   }
 
-  const minSavings = options.minSavings ?? 0
+  // Apply exclude filter
+  if (options.exclude && options.exclude.length > 0) {
+    subs = subs.filter((s) => !options.exclude!.includes(s.name))
+  }
 
-  const cycleSuggestions = analyzeCycleOptimization(subs)
+  const minSavings = options.minSavings ?? 0
+  const discountRate = options.discountRate ?? 15
+  let displayCurrency = "USD" as string
+
+  // Currency conversion for display
+  if (options.currency) {
+    displayCurrency = options.currency
+    try {
+      const rates = await fetchFxRates()
+      subs = subs.map((s) => ({
+        ...s,
+        price: Math.round(convertPrice(s.price, s.currency, displayCurrency as Currency, rates.rates)),
+        currency: displayCurrency,
+      }))
+    } catch {
+      consola.warn("Failed to fetch exchange rates; showing in original currencies")
+      displayCurrency = "USD"
+    }
+  }
+
+  const cycleSuggestions = analyzeCycleOptimization(subs, discountRate)
   const duplicateSuggestions = analyzeDuplicates(subs)
   const inactiveSuggestions = analyzeInactive(subs)
   const cancelledSuggestions = analyzeCancelledSavings(subs)
@@ -388,7 +416,7 @@ export function handleOptimize(options: OptimizeOptions = {}): void {
 
   if (minSavings > 0 && totalYearlySavings < minSavings) {
     consola.info(
-      `Potential savings (${formatPrice(totalYearlySavings, "USD")}/yr) below minimum threshold (${formatPrice(minSavings, "USD")}/yr)`,
+      `Potential savings (${formatPrice(totalYearlySavings, displayCurrency)}/yr) below minimum threshold (${formatPrice(minSavings, displayCurrency)}/yr)`,
     )
     return
   }
@@ -402,5 +430,5 @@ export function handleOptimize(options: OptimizeOptions = {}): void {
     return
   }
 
-  consola.log(renderReport({ suggestions: allSuggestions, totalYearlySavings }))
+  consola.log(renderReport({ suggestions: allSuggestions, totalYearlySavings }, displayCurrency))
 }

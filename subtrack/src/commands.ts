@@ -23,11 +23,11 @@ export async function handleTui(): Promise<void> {
 
 import { consola } from "consola"
 import { writeFileSync } from "node:fs"
-import type { Currency, Cycle, SubtrackConfig } from "./types.ts"
+import type { Currency, Cycle, SubtrackConfig, AnalyticsOptions, CompareOptions } from "./types.ts"
 import { tagsSubscription, getSubscriptions, getLlmUsageTotal, getLlmUsageTotalByProvider } from "./db.ts"
 import { formatPrice } from "./price.ts"
 import { showPayment, showSummary, calcSummary, getPeriodDateRange } from "./payment.ts"
-import { showUpcoming, calcUpcoming } from "./upcoming.ts"
+import { showUpcoming, calcUpcoming, calcUpcomingWithCurrency } from "./upcoming.ts"
 import { showAnalytics } from "./analytics.ts"
 import { showCompare } from "./compare.ts"
 import { exportCsv, exportMd, exportJson, exportExcel, exportIcs } from "./export.ts"
@@ -50,7 +50,7 @@ export async function handleExport(
 
   let list = options.tags
     ? tagsSubscription(options.tags.split(",").map((t) => t.trim()))
-    : getSubscriptions()
+    : getSubscriptions(undefined, undefined, "all")
 
   if (options.status) {
     const statuses = options.status.split(",").map((s) => s.trim().toLowerCase())
@@ -232,9 +232,9 @@ export async function handleSummary(options: JsonOptions = {}) {
   await showSummary()
 }
 
-export function handleUpcoming(days: number = 7, options: JsonOptions = {}): void {
+export async function handleUpcoming(days: number = 7, options: { json?: boolean; currency?: string } = {}): Promise<void> {
   if (options.json) {
-    const entries = calcUpcoming(days)
+    const entries = options.currency ? await calcUpcomingWithCurrency(days, options.currency) : calcUpcoming(days)
     const data = entries.map((e) => ({
       id: e.sub.id,
       name: e.sub.name,
@@ -248,24 +248,56 @@ export function handleUpcoming(days: number = 7, options: JsonOptions = {}): voi
     process.stdout.write(JSON.stringify(data, null, 2) + "\n")
     return
   }
-  showUpcoming(days)
+  await showUpcoming(days, { currency: options.currency })
 }
 
-export function handleAnalytics(): void {
+export function handleAnalytics(options: AnalyticsOptions = {}): void {
+  if (options.json) {
+    const subs = getSubscriptions(undefined, undefined, "active,paused")
+    if (subs.length === 0) {
+      process.stdout.write(JSON.stringify({ totalCount: 0, monthlyByCurrency: {}, monthlyByTag: {} }, null, 2) + "\n")
+      return
+    }
+    const data = calcSummary(subs)
+    process.stdout.write(JSON.stringify(data, null, 2) + "\n")
+    return
+  }
   showAnalytics()
 }
 
 export async function handleCompare(
   period: Cycle,
-  options: { currency?: string; api?: boolean },
+  options: CompareOptions = {},
 ): Promise<void> {
+  if (options.json) {
+    const subs = getSubscriptions(undefined, undefined, "active,paused")
+    if (subs.length === 0) {
+      process.stdout.write(JSON.stringify({ period, current: {}, previous: {}, change: {} }, null, 2) + "\n")
+      return
+    }
+
+    const activeSubs = subs.filter((s) => s.status !== "cancelled")
+    const currentTotals: Record<string, number> = {}
+    for (const sub of activeSubs) {
+      const { periodFactor } = await import("./date-utils.ts")
+      const monthly = sub.price * periodFactor(sub.cycle, "monthly")
+      currentTotals[sub.currency] = (currentTotals[sub.currency] ?? 0) + monthly
+    }
+
+    process.stdout.write(JSON.stringify({
+      period,
+      currentPeriod: currentTotals,
+      subscriptions: activeSubs.length,
+    }, null, 2) + "\n")
+    return
+  }
   await showCompare(period, options)
 }
 
 // ── Calendar handler ────────────────────────────────────
 
-export function handleCalendar(options: { month?: number; year?: number; json?: boolean }): void {
-  showCalendar(options)
+export async function handleCalendar(options: { month?: number; year?: number; json?: boolean; currency?: string }): Promise<void> {
+  await showCalendar(options)
 }
 
 // ── MCP handler ─────────────────────────────────────────

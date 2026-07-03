@@ -30,7 +30,15 @@ beforeAll(async () => {
     billing_day INTEGER,
     created_at TEXT NOT NULL DEFAULT (date('now')),
     notes TEXT,
-    payment_method TEXT
+    payment_method TEXT,
+    contract_start TEXT,
+    contract_end TEXT,
+    auto_renewal INTEGER NOT NULL DEFAULT 1,
+    vendor_name TEXT,
+    vendor_url TEXT,
+    plan_tier TEXT,
+    discount_amount INTEGER,
+    discount_type TEXT
   )`)
   testDb.run(`CREATE TABLE IF NOT EXISTS tags (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
