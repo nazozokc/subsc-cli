@@ -190,7 +190,7 @@ export function SubscriptionForm({ initial, onSave, onCancel, title }: Props) {
   const [error, setError] = useState<string | null>(null)
   const step = STEPS[stepIdx]
   const setFormActive = useSetFormActive()
-  const fieldRefs = useRef<Record<FormStep, HTMLInputElement | null>>({} as Record<FormStep, HTMLInputElement | null>)
+  const fieldRefs = useRef<Record<FormStep, { focus(): void } | null>>({} as Record<FormStep, { focus(): void } | null>)
 
   // Prevent global key handler conflicts while form is active
   useEffect(() => {
