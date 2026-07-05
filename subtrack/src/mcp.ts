@@ -4,6 +4,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js"
+import { consola } from "consola"
 import {
   getSubscriptions,
   getSubscription,
@@ -103,6 +104,61 @@ function calcPreviousTotals(
     }
   }
   return totals
+}
+
+// ── Security limits ──────────────────────────────────────
+
+const MAX_REQUEST_SIZE = 1024 * 100 // 100 KB max request payload
+const RATE_LIMIT_TOKENS = 60        // max requests per window
+const RATE_LIMIT_WINDOW_MS = 60_000 // 1 minute window
+const MAX_STRING_LENGTH = 500       // max length for string inputs
+const MAX_TAG_COUNT = 20            // max tags per subscription
+
+/** Simple token-bucket rate limiter. */
+class RateLimiter {
+  private tokens: number
+  private lastRefill: number
+
+  constructor(private maxTokens: number, private windowMs: number) {
+    this.tokens = maxTokens
+    this.lastRefill = Date.now()
+  }
+
+  tryConsume(): boolean {
+    const now = Date.now()
+    const elapsed = now - this.lastRefill
+    if (elapsed >= this.windowMs) {
+      this.tokens = this.maxTokens
+      this.lastRefill = now
+    }
+    if (this.tokens <= 0) return false
+    this.tokens--
+    return true
+  }
+}
+
+const rateLimiter = new RateLimiter(RATE_LIMIT_TOKENS, RATE_LIMIT_WINDOW_MS)
+
+/** Validate argument types and lengths to prevent abuse. */
+function validateArgs(
+  args: Record<string, unknown> | undefined,
+  schema: Record<string, { type: string; maxLength?: number }>,
+): string | null {
+  if (!args) return null
+  for (const [key, rules] of Object.entries(schema)) {
+    const value = args[key]
+    if (value === undefined) continue
+    if (rules.type === "string") {
+      if (typeof value !== "string") return `${key} must be a string`
+      const maxLen = rules.maxLength ?? MAX_STRING_LENGTH
+      if (value.length > maxLen) return `${key} too long (max ${maxLen} chars)`
+    } else if (rules.type === "number") {
+      if (typeof value !== "number" || isNaN(value)) return `${key} must be a number`
+      if (value < 0) return `${key} must be non-negative`
+      if (value > 1_000_000_000) return `${key} value too large`
+    }
+  }
+  return null
 }
 
 // ── MCP Server ───────────────────────────────────────────
@@ -343,13 +399,75 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params
 
+  // Rate limiting
+  if (!rateLimiter.tryConsume()) {
+    return {
+      content: [{ type: "text", text: "Rate limit exceeded. Please slow down." }],
+      isError: true,
+    }
+  }
+
+  // Request size check
+  const rawSize = JSON.stringify(request.params).length
+  if (rawSize > MAX_REQUEST_SIZE) {
+    return {
+      content: [{ type: "text", text: `Request too large (${rawSize} bytes, max ${MAX_REQUEST_SIZE})` }],
+      isError: true,
+    }
+  }
+
+  // Input validation per tool
+  if (args) {
+    const validations: Record<string, Record<string, { type: string; maxLength?: number }>> = {
+      add_subscription: {
+        name: { type: "string", maxLength: 100 },
+        price: { type: "number" },
+        currency: { type: "string", maxLength: 3 },
+        cycle: { type: "string", maxLength: 20 },
+        tags: { type: "string", maxLength: 500 },
+        billingDay: { type: "number" },
+        status: { type: "string", maxLength: 10 },
+        paymentMethod: { type: "string", maxLength: 50 },
+        notes: { type: "string", maxLength: 500 },
+      },
+      edit_subscription: {
+        id: { type: "number" },
+        name: { type: "string", maxLength: 100 },
+        price: { type: "number" },
+        currency: { type: "string", maxLength: 3 },
+        cycle: { type: "string", maxLength: 20 },
+        status: { type: "string", maxLength: 10 },
+        tags: { type: "string", maxLength: 500 },
+        paymentMethod: { type: "string", maxLength: 50 },
+        notes: { type: "string", maxLength: 500 },
+      },
+      delete_subscription: {
+        id: { type: "number" },
+      },
+      search_subscriptions: {
+        query: { type: "string", maxLength: 200 },
+      },
+    }
+
+    const schema = validations[name]
+    if (schema) {
+      const err = validateArgs(args as Record<string, unknown>, schema)
+      if (err) {
+        return {
+          content: [{ type: "text", text: `Validation error: ${err}` }],
+          isError: true,
+        }
+      }
+    }
+  }
+
   try {
     switch (name) {
       case "list_subscriptions": {
-        const subs = getSubscriptions(
-          args?.sort as string | undefined,
-          args?.desc as boolean | undefined,
-        )
+        const subs = getSubscriptions({
+          sort: args?.sort as string | undefined,
+          desc: args?.desc as boolean | undefined,
+        })
         return { content: [{ type: "text", text: JSON.stringify(subs) }] }
       }
 
@@ -400,10 +518,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           paymentMethod: args.paymentMethod as string | undefined,
           notes: args.notes as string | undefined,
         }
-        writeSubscription(addArgs)
-        const db = getDb()
-        const row = db.exec("SELECT last_insert_rowid() AS id")
-        const id = row.length > 0 ? Number(row[0].values[0][0]) : 0
+        const id = writeSubscription(addArgs)
         return { content: [{ type: "text", text: JSON.stringify({ id }) }] }
       }
 

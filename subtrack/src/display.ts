@@ -14,6 +14,7 @@ function statusColor(status: Status): string {
     case "active": return pc.green("active")
     case "paused": return pc.yellow("paused")
     case "cancelled": return pc.red("cancelled")
+    case "archived": return pc.dim("archived")
     default: return status
   }
 }

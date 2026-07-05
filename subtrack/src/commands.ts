@@ -1,6 +1,6 @@
 // ── Re-exports from domain modules ──────────────────────
 
-export { handleList, handleAdd, handleDelete, handleEdit, handleTags } from "./subscription.ts"
+export { handleList, handleAdd, handleDelete, handleEdit, handleTags, handleClone, handleArchive, handleUnarchive } from "./subscription.ts"
 export { handleSearch } from "./search.ts"
 export { handleTrialAdd, handleTrialList, handleTrialExpiring, handleTrialDelete } from "./trial.ts"
 export { handleBulkStatus, handleBulkDelete, handleBulkTagAdd, handleBulkTagRemove } from "./bulk.ts"
@@ -11,7 +11,7 @@ export { handleTimeline } from "./timeline.ts"
 export { handleOptimize } from "./optimize.ts"
 export { handleProfile } from "./profile.ts"
 export { handleBackup, handleRestore } from "./backup.ts"
-export { handleTagList, handleTagRename, handleTagDelete, handleTagPrune } from "./tag.ts"
+export { handleTagList, handleTagRename, handleTagDelete, handleTagPrune, handleTagMerge } from "./tag.ts"
 
 // Lazy import for TUI to avoid loading Ink/React/yoga-layout WASM in tests
 export async function handleTui(): Promise<void> {
@@ -50,7 +50,7 @@ export async function handleExport(
 
   let list = options.tags
     ? tagsSubscription(options.tags.split(",").map((t) => t.trim()))
-    : getSubscriptions(undefined, undefined, "all")
+    : getSubscriptions({ includeArchived: true })
 
   if (options.status) {
     const statuses = options.status.split(",").map((s) => s.trim().toLowerCase())
@@ -253,7 +253,7 @@ export async function handleUpcoming(days: number = 7, options: { json?: boolean
 
 export function handleAnalytics(options: AnalyticsOptions = {}): void {
   if (options.json) {
-    const subs = getSubscriptions(undefined, undefined, "active,paused")
+    const subs = getSubscriptions().filter((s) => s.status !== "cancelled")
     if (subs.length === 0) {
       process.stdout.write(JSON.stringify({ totalCount: 0, monthlyByCurrency: {}, monthlyByTag: {} }, null, 2) + "\n")
       return
@@ -270,7 +270,7 @@ export async function handleCompare(
   options: CompareOptions = {},
 ): Promise<void> {
   if (options.json) {
-    const subs = getSubscriptions(undefined, undefined, "active,paused")
+    const subs = getSubscriptions().filter((s) => s.status !== "cancelled")
     if (subs.length === 0) {
       process.stdout.write(JSON.stringify({ period, current: {}, previous: {}, change: {} }, null, 2) + "\n")
       return
@@ -306,6 +306,26 @@ export async function handleMcp(): Promise<void> {
   const { startMcpServer } = await import("./mcp.ts")
   await startMcpServer()
 }
+
+// ── Audit handlers ──────────────────────────────────────
+
+export { handleAuditList, handleAuditPrune } from "./audit.ts"
+
+// ── Maintenance handlers ─────────────────────────────────
+
+export { handleMaintenance } from "./maintenance.ts"
+
+// ── Cleanup handler ───────────────────────────────────────
+
+export { handleCleanup } from "./cleanup.ts"
+
+// ── Stats handler ─────────────────────────────────────────
+
+export { handleStats } from "./stats.ts"
+
+// ── Currency handler ──────────────────────────────────────
+
+export { handleCurrencyList } from "./currency.ts"
 
 // ── Config handlers ─────────────────────────────────────
 

@@ -651,8 +651,9 @@ test("handleImport shows error for CSV with no recognizable columns", async () =
   ).toBe(true)
 })
 
-test("handleImport succeeds with minimal columns (name + price)", async () => {
-  const filePath = writeTempFile("minimal.csv", "name,price\na,100")
+test("handleImport succeeds with valid CSV data", async () => {
+  const csv = "name,cycle,tags,price,currency\na,monthly,,100,JPY"
+  const filePath = writeTempFile("valid.csv", csv)
   const { handleImport } = await import("../import-csv.ts")
   await handleImport(filePath, {})
 
@@ -661,6 +662,8 @@ test("handleImport succeeds with minimal columns (name + price)", async () => {
   expect(subs.length).toBeGreaterThan(0)
   expect(subs[0].name).toBe("a")
   expect(subs[0].price).toBe(100)
+  expect(subs[0].currency).toBe("JPY")
+  expect(subs[0].cycle).toBe("monthly")
 })
 
 test("handleImport imports valid CSV data", async () => {
@@ -826,18 +829,11 @@ test("handleAdd shows info when cancelled at confirm", async () => {
     .mockResolvedValueOnce("")               // notes (empty)
     .mockResolvedValueOnce("")               // paymentMethod (empty)
     .mockResolvedValueOnce("")               // billingDay (empty)
-    .mockResolvedValueOnce("")               // contractStart (empty)
-    .mockResolvedValueOnce("")               // contractEnd (empty)
-    .mockResolvedValueOnce("")               // vendorName (empty)
-    .mockResolvedValueOnce("")               // vendorUrl (empty)
-    .mockResolvedValueOnce("")               // planTier (empty)
-    .mockResolvedValueOnce("")               // discountAmount (empty)
   vi.mocked(select)
     .mockResolvedValueOnce("JPY")            // currency
     .mockResolvedValueOnce("monthly")        // cycle
     .mockResolvedValueOnce("active")         // status
   vi.mocked(confirm)
-    .mockResolvedValueOnce(true)             // autoRenewal
     .mockResolvedValueOnce(false)            // decline save
 
   const { handleAdd } = await import("../commands.ts")

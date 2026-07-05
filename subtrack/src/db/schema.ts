@@ -1,5 +1,6 @@
 import type { Database } from "sql.js"
 import { consola } from "consola"
+import { createAuditTable } from "./audit.ts"
 
 /** Apply schema creation and migrations to a database instance. */
 export function runMigrations(db: Database): void {
@@ -84,20 +85,8 @@ export function runMigrations(db: Database): void {
     db.run("ALTER TABLE subscriptions ADD COLUMN payment_method TEXT")
   }
 
-  // Migration: add contract management columns (v8.1+)
-  const hasContractStart = subCols.length > 0 && subCols[0].values.some(
-    (row) => String(row[1]) === "contract_start",
-  )
-  if (!hasContractStart) {
-    db.run("ALTER TABLE subscriptions ADD COLUMN contract_start TEXT")
-    db.run("ALTER TABLE subscriptions ADD COLUMN contract_end TEXT")
-    db.run("ALTER TABLE subscriptions ADD COLUMN auto_renewal INTEGER NOT NULL DEFAULT 1")
-    db.run("ALTER TABLE subscriptions ADD COLUMN vendor_name TEXT")
-    db.run("ALTER TABLE subscriptions ADD COLUMN vendor_url TEXT")
-    db.run("ALTER TABLE subscriptions ADD COLUMN plan_tier TEXT")
-    db.run("ALTER TABLE subscriptions ADD COLUMN discount_amount INTEGER")
-    db.run("ALTER TABLE subscriptions ADD COLUMN discount_type TEXT")
-  }
+  // Audit log table
+  createAuditTable(db)
 
   // Verify database integrity on startup
   const integrityResult = db.exec("PRAGMA integrity_check")

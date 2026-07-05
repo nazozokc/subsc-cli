@@ -3,14 +3,24 @@ import { formatPrice } from "./price.ts"
 import ExcelJS from "exceljs"
 import { calculateNextBilling } from "./upcoming.ts"
 
+/**
+ * Escape a value for CSV output, protecting against CSV injection attacks.
+ *
+ * - Prefixes leading formula characters (`=`, `+`, `-`, `@`, `\t`, `\r`) with tab
+ * - Wraps in quotes if the value contains quotes, commas, or newlines
+ * - Strips control characters (except tab) to prevent hidden payload injection
+ */
 function escapeCsv(value: string): string {
-  if (/^[=+\-@\t]/.test(value)) {
-    value = "\t" + value
+  // Strip control characters except \t
+  let cleaned = value.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
+  // Detect leading formula injection (including whitespace-prefixed: ` =cmd`)
+  if (/^\s*[=+\-@\t\r]/.test(cleaned)) {
+    cleaned = "\t" + cleaned
   }
-  if (value.includes('"') || value.includes(",") || value.includes("\n")) {
-    return `"${value.replace(/"/g, '""')}"`
+  if (cleaned.includes('"') || cleaned.includes(",") || cleaned.includes("\n") || cleaned.includes("\r")) {
+    return `"${cleaned.replace(/"/g, '""')}"`
   }
-  return value
+  return cleaned
 }
 
 function csvField(val: unknown): string {

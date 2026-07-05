@@ -2,11 +2,13 @@ import { checkbox, confirm } from "@inquirer/prompts"
 import { consola } from "consola"
 import type { LlmUsageEntry } from "./types.ts"
 import { getLlmUsage, deleteLlmUsage } from "./db.ts"
+import { logAudit } from "./audit.ts"
 import { renderUsageTable } from "./display.ts"
 
 export { handleUsageAdd } from "./usage-add.ts"
 export { handleUsageImport } from "./usage-import.ts"
 export { handleUsageRefresh } from "./usage-refresh.ts"
+export { handleUsageTotal } from "./usage-total.ts"
 
 export async function handleUsageList(
   options: { provider?: string; from?: string; to?: string; json?: boolean },
@@ -34,6 +36,7 @@ export async function handleUsageDelete(ids?: number[]) {
     for (const id of ids) {
       const deleted = deleteLlmUsage(id)
       if (deleted) {
+        logAudit("usage.delete", { targetType: "usage", targetId: id })
         consola.success(`Deleted usage entry: ${id}`)
       } else {
         consola.error(`Usage entry with id ${id} not found`)
@@ -76,6 +79,11 @@ export async function handleUsageDelete(ids?: number[]) {
 
   for (const entry of selected) {
     deleteLlmUsage(entry.id)
+    logAudit("usage.delete", {
+      targetType: "usage",
+      targetId: entry.id,
+      details: `${entry.provider}/${entry.model} (${entry.date})`,
+    })
     consola.success(`Deleted: ${entry.provider}/${entry.model} (${entry.date})`)
   }
 }

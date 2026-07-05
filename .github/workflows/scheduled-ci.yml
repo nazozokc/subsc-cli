@@ -36,6 +36,6 @@ jobs:
       - run: pnpm test
 
       - name: Scan dependencies with OSV-Scanner
-        uses: google/osv-scanner-action@v2
+        uses: google/osv-scanner-action@e4ad0de3f56682af1526a4e0e389c429be71d74a # v2.1.0
         with:
           fail-on-vuln: false

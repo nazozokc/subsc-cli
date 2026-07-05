@@ -1,6 +1,6 @@
 import { Box, Text, useInput } from "ink"
 import { TextInput, Select } from "@inkjs/ui"
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import { useSetFormActive } from "../context/app-context.tsx"
 import type { AddSharedArgs, Cycle, Status } from "../../types.ts"
 
@@ -190,6 +190,7 @@ export function SubscriptionForm({ initial, onSave, onCancel, title }: Props) {
   const [error, setError] = useState<string | null>(null)
   const step = STEPS[stepIdx]
   const setFormActive = useSetFormActive()
+  const fieldRefs = useRef<Record<FormStep, { focus(): void } | null>>({} as Record<FormStep, { focus(): void } | null>)
 
   // Prevent global key handler conflicts while form is active
   useEffect(() => {
@@ -218,24 +219,13 @@ export function SubscriptionForm({ initial, onSave, onCancel, title }: Props) {
   )
 
   // Handle input for the current step
-  useInput(
-    (input, key) => {
-      if (step === "confirm") {
-        if (input === "y" || input === "Y") {
-          handleConfirm()
-          return
-        }
-        if (input === "n" || input === "N" || key.escape) {
-          onCancel()
-          return
-        }
-      } else if (key.escape) {
-        onCancel()
-        return
-      }
-    },
-    { isActive: true },
-  )
+  // Focus input only on the current step to prevent re-renders
+  useEffect(() => {
+    const fieldRef = fieldRefs.current[step]
+    if (fieldRef?.focus) {
+      fieldRef.focus()
+    }
+  }, [step])
 
   const handleConfirm = useCallback(() => {
     const price = Number(data.price)

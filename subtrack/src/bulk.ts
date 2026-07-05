@@ -2,6 +2,7 @@ import { input, confirm, select } from "@inquirer/prompts"
 import { consola } from "consola"
 import type { SharedArgs, Status } from "./types.ts"
 import { getSubscriptions, updateSubscription, deleteSubscription } from "./db.ts"
+import { logAudit } from "./audit.ts"
 import {
   STATUS_CHOICES,
   isValidStatus,
@@ -118,6 +119,9 @@ export async function handleBulkStatus(
   for (const sub of list) {
     updateSubscription(sub.id, { status: targetStatus as Status })
   }
+  logAudit("subscription.bulk_status", {
+    details: `${list.length} subscriptions → "${targetStatus}"`,
+  })
   consola.success(`Updated ${list.length} subscription${list.length > 1 ? "s" : ""} to "${targetStatus}"`)
 }
 
@@ -142,6 +146,9 @@ export async function handleBulkDelete(
   for (const sub of list) {
     deleteSubscription(sub.id)
   }
+  logAudit("subscription.bulk_delete", {
+    details: `${list.length} subscriptions deleted`,
+  })
   consola.success(`Deleted ${list.length} subscription${list.length > 1 ? "s" : ""}`)
 }
 
@@ -174,6 +181,9 @@ export async function handleBulkTagAdd(
     const newTags = sub.tags.includes(tagName) ? sub.tags : [...sub.tags, tagName]
     updateSubscription(sub.id, { tags: newTags })
   }
+  logAudit("subscription.bulk_tag_add", {
+    details: `Tag "${tagName}" added to ${list.length} subscriptions`,
+  })
   consola.success(`Added tag "${tagName}" to ${list.length} subscription${list.length > 1 ? "s" : ""}`)
 }
 

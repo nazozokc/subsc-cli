@@ -2,6 +2,7 @@ import { input, select, confirm, search } from "@inquirer/prompts"
 import { consola } from "consola"
 import type { UsageAddFlags } from "./types.ts"
 import { addLlmUsage } from "./db.ts"
+import { logAudit } from "./audit.ts"
 import {
   LLM_PROVIDER_CHOICES,
   validateTokens,
@@ -209,6 +210,10 @@ export async function handleUsageAdd(flags: UsageAddFlags) {
   if (!result) return
   try {
     addLlmUsage(result)
+    logAudit("usage.add", {
+      targetType: "usage",
+      details: `${result.provider}/${result.model}: $${(result.cost / 100).toFixed(4)} on ${result.date}`,
+    })
     consola.success(
       `Added usage: ${result.provider}/${result.model} — $${(result.cost / 100).toFixed(4)} on ${result.date}`,
     )

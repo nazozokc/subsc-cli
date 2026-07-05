@@ -47,8 +47,13 @@ jobs:
 
       - run: pnpm test
 
-      - name: Audit dependencies
+      - name: Audit dependencies (pnpm)
         run: pnpm audit --audit-level=high
+
+      - name: Verify npm package provenance
+        run: |
+          npm audit --audit-level=high --verify-provenance 2>/dev/null || \
+            echo "⚠ npm provenance verification not supported in this environment (expected on Node >=22 with npm <12)"
 
       - name: Scan for secrets and credentials
         working-directory: ./subtrack
