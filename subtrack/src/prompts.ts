@@ -46,6 +46,7 @@ export const STATUS_CHOICES: { name: string; value: Status }[] = [
   { name: "active", value: "active" },
   { name: "paused", value: "paused" },
   { name: "cancelled", value: "cancelled" },
+  { name: "archived", value: "archived" },
 ]
 
 export const CYCLE_CHOICES: { name: string; value: Cycle }[] = [
@@ -70,7 +71,7 @@ export function isValidCycle(v: string): v is Cycle {
 }
 
 export function isValidStatus(v: string): v is Status {
-  return v === "active" || v === "paused" || v === "cancelled"
+  return v === "active" || v === "paused" || v === "cancelled" || v === "archived"
 }
 
 export function validateBillingDay(v: string): string | true {

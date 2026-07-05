@@ -14,6 +14,7 @@ import { consola } from "consola"
 import { encryptBuffer, decryptBuffer, isEncrypted } from "../crypto.ts"
 import type { BackupFileInfo } from "../types.ts"
 import { runMigrations } from "./schema.ts"
+import { writeDbHash, verifyDbHash, removeDbHash } from "./integrity.ts"
 
 let _db: Database | null = null
 let _dbPath = ""
@@ -143,7 +144,9 @@ export function getDefaultBackupDir(): string {
 export function saveDb(): void {
   if (!_db || !_dbPath) return
   const data = Buffer.from(_db.export())
-  writeFileSync(_dbPath, encryptBuffer(data), { mode: 0o600 })
+  const encrypted = encryptBuffer(data)
+  writeFileSync(_dbPath, encrypted, { mode: 0o600 })
+  writeDbHash(encrypted, _dbPath)
 }
 
 export function getDbPath(): string {
@@ -188,6 +191,15 @@ export function getDb(): Database {
 
   if (existsSync(_dbPath)) {
     const buf = readFileSync(_dbPath)
+    // Verify on-disk integrity before decryption
+    const integrity = verifyDbHash(buf, _dbPath)
+    if (!integrity.ok) {
+      consola.warn(
+        `Database checksum mismatch (expected ${integrity.expected}, got ${integrity.actual}).\n` +
+        "  The database file may be corrupted or tampered with.\n" +
+        "  Attempting to load anyway — back up immediately if successful.",
+      )
+    }
     const data = isEncrypted(buf) ? decryptBuffer(buf) : buf
     _db = new _SQL.Database(data)
   } else {
@@ -303,7 +315,10 @@ export function restoreDb(backupPath: string): void {
 
   // Overwrite the active database file (no-op in test mode with __setDb)
   if (_dbPath) {
-    writeFileSync(_dbPath, encryptBuffer(buf), { mode: 0o600 })
+    removeDbHash(_dbPath) // old hash is invalid now
+    const encrypted = encryptBuffer(buf)
+    writeFileSync(_dbPath, encrypted, { mode: 0o600 })
+    writeDbHash(encrypted, _dbPath)
   }
 
   // Replace in-memory instance
@@ -317,6 +332,7 @@ export function restoreDb(backupPath: string): void {
 export function __setDb(db: Database): void {
   _db = db
   _dbPath = ""
+  _lockFd = null
 }
 
 // ── Backup integrity ──────────────────────────────────────

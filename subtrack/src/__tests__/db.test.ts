@@ -471,7 +471,7 @@ test("getSubscriptions sorts by name ascending", async () => {
   db.writeSubscription({ name: "A", price: 200, currency: "USD", cycle: "monthly", tags: [] })
   db.writeSubscription({ name: "B", price: 300, currency: "USD", cycle: "monthly", tags: [] })
 
-  const subs = db.getSubscriptions("name", false)
+  const subs = db.getSubscriptions({ sort: "name", desc: false })
   expect(subs[0].name).toBe("A")
   expect(subs[1].name).toBe("B")
   expect(subs[2].name).toBe("C")
@@ -483,7 +483,7 @@ test("getSubscriptions sorts by name descending", async () => {
   db.writeSubscription({ name: "B", price: 200, currency: "USD", cycle: "monthly", tags: [] })
   db.writeSubscription({ name: "C", price: 300, currency: "USD", cycle: "monthly", tags: [] })
 
-  const subs = db.getSubscriptions("name", true)
+  const subs = db.getSubscriptions({ sort: "name", desc: true })
   expect(subs[0].name).toBe("C")
   expect(subs[1].name).toBe("B")
   expect(subs[2].name).toBe("A")
@@ -495,7 +495,7 @@ test("getSubscriptions sorts by price ascending", async () => {
   db.writeSubscription({ name: "B", price: 100, currency: "USD", cycle: "monthly", tags: [] })
   db.writeSubscription({ name: "C", price: 200, currency: "USD", cycle: "monthly", tags: [] })
 
-  const subs = db.getSubscriptions("price", false)
+  const subs = db.getSubscriptions({ sort: "price", desc: false })
   expect(subs[0].price).toBe(100)
   expect(subs[1].price).toBe(200)
   expect(subs[2].price).toBe(300)
@@ -506,7 +506,7 @@ test("getSubscriptions falls back to id order for invalid sort field", async () 
   db.writeSubscription({ name: "B", price: 100, currency: "USD", cycle: "monthly", tags: [] })
   db.writeSubscription({ name: "A", price: 200, currency: "USD", cycle: "monthly", tags: [] })
 
-  const subs = db.getSubscriptions("invalid_field", false)
+  const subs = db.getSubscriptions({ sort: "invalid_field", desc: false })
   expect(subs[0].name).toBe("B")
   expect(subs[1].name).toBe("A")
 })
@@ -518,7 +518,7 @@ test("getSubscriptions sorts by status ascending", async () => {
   db.writeSubscription({ name: "First", price: 100, currency: "USD", cycle: "monthly", status: "active", tags: [] })
   db.writeSubscription({ name: "Last", price: 100, currency: "USD", cycle: "monthly", status: "paused", tags: [] })
 
-  const subs = db.getSubscriptions("status", false)
+  const subs = db.getSubscriptions({ sort: "status", desc: false })
   expect(subs[0].status).toBe("active")
   expect(subs[1].status).toBe("cancelled")
   expect(subs[2].status).toBe("paused")
@@ -530,7 +530,7 @@ test("getSubscriptions sorts by status descending", async () => {
   db.writeSubscription({ name: "First", price: 100, currency: "USD", cycle: "monthly", status: "active", tags: [] })
   db.writeSubscription({ name: "Last", price: 100, currency: "USD", cycle: "monthly", status: "paused", tags: [] })
 
-  const subs = db.getSubscriptions("status", true)
+  const subs = db.getSubscriptions({ sort: "status", desc: true })
   expect(subs[0].status).toBe("paused")
   expect(subs[1].status).toBe("cancelled")
   expect(subs[2].status).toBe("active")

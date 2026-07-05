@@ -3,18 +3,15 @@ import { homedir } from "node:os"
 import path from "node:path"
 import { consola } from "consola"
 import { safeJsonParse } from "./safe-json.ts"
-import type { SubtrackConfig, NotifyChannel } from "./types.ts"
+import { encryptBuffer, decryptBuffer, hasEncryptionKey } from "./crypto.ts"
+import { logAudit } from "./audit.ts"
+import type { SubtrackConfig } from "./types.ts"
 
 export const CONFIG_KEYS = [
   "defaultCurrency",
   "monthlyBudget",
   "theme",
   "notifyDays",
-  "yearlyBudget",
-  "notifyEmail",
-  "slackWebhook",
-  "webhookUrl",
-  "notifyChannels",
 ] as const
 
 export type ConfigKey = (typeof CONFIG_KEYS)[number]
@@ -24,10 +21,6 @@ const DEFAULT_CONFIG: SubtrackConfig = {
   monthlyBudget: 0,
   theme: "default",
   notifyDays: 7,
-  yearlyBudget: 0,
-  notifyEmail: "",
-  slackWebhook: "",
-  webhookUrl: "",
 }
 
 function getConfigDir(): string {
@@ -40,18 +33,40 @@ export function getConfigPath(): string {
 
 let _config: SubtrackConfig | null = null
 
+const ENC_MAGIC = Buffer.from("SUBCCFG\x00\x00\x00\x00\x00\x00\x00\x00")
+
+/** Check if a config file buffer is encrypted (has our magic header). */
+function isConfigEncrypted(buf: Buffer): boolean {
+  return buf.length >= 16 && buf.subarray(0, 8).equals(ENC_MAGIC.subarray(0, 8))
+}
+
 export function loadConfig(): SubtrackConfig {
   if (_config) return _config
 
   const configPath = getConfigPath()
   if (existsSync(configPath)) {
     try {
-      const raw = readFileSync(configPath, "utf-8")
-      const parsed = safeJsonParse<Partial<SubtrackConfig>>(raw)
+      const raw = readFileSync(configPath)
+      let text: string
+
+      if (isConfigEncrypted(raw)) {
+        const payload = raw.subarray(ENC_MAGIC.length)
+        const decrypted = decryptBuffer(payload)
+        text = decrypted.toString("utf-8")
+      } else if (raw[0] === 0x7b || raw[0] === 0xef) {
+        // Plain JSON (possibly with BOM)
+        text = raw.toString("utf-8")
+      } else {
+        consola.warn("Config file format not recognized, using defaults")
+        _config = { ...DEFAULT_CONFIG }
+        return _config
+      }
+
+      const parsed = safeJsonParse<Partial<SubtrackConfig>>(text)
       _config = { ...DEFAULT_CONFIG, ...parsed }
       return _config
     } catch {
-      // corrupt config — use defaults
+      consola.warn("Failed to read config, using defaults")
     }
   }
 
@@ -96,47 +111,24 @@ export function setConfig(key: ConfigKey, value: string): boolean {
       config.notifyDays = num
       break
     }
-    case "yearlyBudget": {
-      const num = Number(value)
-      if (isNaN(num) || num < 0) {
-        consola.error("yearlyBudget must be a non-negative number")
-        return false
-      }
-      config.yearlyBudget = num
-      break
-    }
-    case "notifyEmail": {
-      config.notifyEmail = value
-      break
-    }
-    case "slackWebhook": {
-      config.slackWebhook = value
-      break
-    }
-    case "webhookUrl": {
-      config.webhookUrl = value
-      break
-    }
-    case "notifyChannels": {
-      const channels = value.split(",").map((s) => s.trim().toLowerCase()) as NotifyChannel[]
-      const valid: NotifyChannel[] = ["os", "email", "slack", "webhook"]
-      for (const c of channels) {
-        if (!(valid as string[]).includes(c)) {
-          consola.error(`Invalid notify channel: "${c}". Valid: ${valid.join(", ")}`)
-          return false
-        }
-      }
-      config.notifyChannels = channels
-      break
-    }
     default:
       consola.error(`Unknown config key: "${key}"`)
       return false
   }
 
   saveConfig(config)
+  logAudit("config.set", { details: `${key} = ${value}` })
   consola.success(`Set ${key} = ${value}`)
   return true
+}
+
+function serializeConfig(config: SubtrackConfig): Buffer {
+  const json = JSON.stringify(config, null, 2) + "\n"
+  if (hasEncryptionKey()) {
+    const encrypted = encryptBuffer(Buffer.from(json, "utf-8"))
+    return Buffer.concat([ENC_MAGIC, encrypted])
+  }
+  return Buffer.from(json, "utf-8")
 }
 
 export function saveConfig(config: SubtrackConfig): void {
@@ -145,7 +137,7 @@ export function saveConfig(config: SubtrackConfig): void {
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true, mode: 0o700 })
   }
-  writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n", { mode: 0o600 })
+  writeFileSync(configPath, serializeConfig(config), { mode: 0o600 })
   _config = config
 }
 
@@ -180,11 +172,15 @@ export async function handleConfigReset(): Promise<void> {
   if (existsSync(configPath)) {
     try {
       unlinkSync(configPath)
+      // Also remove encrypted sidecar if present
+      const shaPath = configPath + ".sha256"
+      if (existsSync(shaPath)) unlinkSync(shaPath)
     } catch (err) {
       consola.error(`Failed to remove config file: ${err instanceof Error ? err.message : String(err)}`)
       return
     }
   }
   resetConfig()
+  logAudit("config.reset", { details: "Config reset to defaults" })
   consola.success("Config reset to defaults")
 }

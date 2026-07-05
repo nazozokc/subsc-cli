@@ -1,6 +1,6 @@
 export type Currency = string
 
-export type Status = "active" | "paused" | "cancelled"
+export type Status = "active" | "paused" | "cancelled" | "archived"
 
 export type Cycle =
   | "weekly" | "bi-weekly" | "monthly"

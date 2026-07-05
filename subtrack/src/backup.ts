@@ -4,6 +4,7 @@ import {
 } from "node:fs"
 import { gzipSync } from "node:zlib"
 import { encryptBuffer, decryptBuffer, isEncrypted, hasEncryptionKey } from "./crypto.ts"
+import { logAudit } from "./audit.ts"
 import path from "node:path"
 import os from "node:os"
 import type { BackupFileInfo } from "./types.ts"
@@ -190,6 +191,9 @@ export async function handleRestore(
     try {
       restoreDb(resolvedPath)
       const subs = getSubscriptions()
+      logAudit("backup.restore", {
+        details: `Restored ${subs.length} subscriptions from ${path.basename(resolvedPath)}`,
+      })
       consola.success(
         `Restored ${subs.length} subscription${subs.length !== 1 ? "s" : ""} from: ${resolvedPath}`,
       )
@@ -261,6 +265,9 @@ export async function handleRestore(
   try {
     restoreDb(selected)
     const subs = getSubscriptions()
+    logAudit("backup.restore", {
+      details: `Restored ${subs.length} subscriptions from ${path.basename(selected)}`,
+    })
     consola.success(
       `Restored ${subs.length} subscription${subs.length !== 1 ? "s" : ""} from: ${selected}`,
     )

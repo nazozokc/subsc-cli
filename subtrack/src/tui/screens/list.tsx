@@ -85,7 +85,7 @@ export function ListScreen() {
   // ── Data ──
 
   const subs = useMemo(() => {
-    let list = getSubscriptions(sortField, sortDesc)
+    let list = getSubscriptions({ sort: sortField, desc: sortDesc })
 
     // Apply profile filter (if active)
     const activeFilter = getActiveFilter()
@@ -326,12 +326,14 @@ export function ListScreen() {
           const cycle: Record<Status, Status> = {
             active: "paused",
             paused: "cancelled",
-            cancelled: "active",
+            cancelled: "archived",
+            archived: "active",
           }
           const label: Record<Status, string> = {
             active: "Active",
             paused: "Paused",
             cancelled: "Cancelled",
+            archived: "Archived",
           }
           let updated = 0
           for (const id of ids) {
@@ -359,12 +361,14 @@ export function ListScreen() {
             const cycle: Record<Status, Status> = {
               active: "paused",
               paused: "cancelled",
-              cancelled: "active",
+              cancelled: "archived",
+              archived: "active",
             }
             const label: Record<Status, string> = {
               active: "Active",
               paused: "Paused",
               cancelled: "Cancelled",
+              archived: "Archived",
             }
             const newStatus = cycle[sub.status]
             try {

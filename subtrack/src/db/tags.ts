@@ -96,6 +96,47 @@ export const deleteTag = (name: string): boolean => {
   return modified
 }
 
+export const mergeTag = (source: string, target: string): boolean => {
+  const db = getDb()
+  if (source === target) return true
+
+  db.run("BEGIN TRANSACTION")
+  try {
+    const srcRow = execObj<{ id: number }>(
+      db,
+      "SELECT id FROM tags WHERE name = ?",
+      [source],
+    )
+    if (!srcRow) { db.run("ROLLBACK"); return false }
+
+    // Ensure target tag exists
+    db.run("INSERT OR IGNORE INTO tags (name) VALUES (?)", [target])
+    const tgtRow = execObj<{ id: number }>(
+      db,
+      "SELECT id FROM tags WHERE name = ?",
+      [target],
+    )
+    if (!tgtRow) { db.run("ROLLBACK"); return false }
+
+    // Repoint all subscription_tags from source to target
+    db.run(
+      "UPDATE OR IGNORE subscription_tags SET tag_id = ? WHERE tag_id = ?",
+      [tgtRow.id, srcRow.id],
+    )
+    // Remove duplicate entries that pointed to both tags
+    db.run("DELETE FROM subscription_tags WHERE tag_id = ?", [srcRow.id])
+    // Delete the source tag
+    db.run("DELETE FROM tags WHERE id = ?", [srcRow.id])
+
+    db.run("COMMIT")
+    saveDb()
+    return true
+  } catch (error) {
+    try { db.run("ROLLBACK") } catch { /* ok */ }
+    throw error
+  }
+}
+
 export const pruneTags = (): number => {
   const db = getDb()
   db.run(
