@@ -25,11 +25,11 @@ This provides `node`, `pnpm`, `typescript`, `typos`, and `nixfmt`.
 
 | Command | Description |
 |---------|-------------|
-| `pnpm start` | Run subtrack directly from TypeScript source via `tsx` |
-| `pnpm build` | Build the CLI bundle to `dist/index.mjs` via `tsdown` |
-| `pnpm test` | Run tests with `vitest` |
-| `pnpm test:watch` | Run tests in watch mode |
-| `pnpm lint:typos` | Check for spelling errors with `typos` |
+| `pnpm start` | Run subtrack in dev mode (tsx) |
+| `pnpm build` | Build all packages |
+| `pnpm test` | Test all packages |
+| `pnpm lint:types` | Type check (tsc --noEmit) |
+| `pnpm format` | Format Nix files (nixfmt) |
 
 ## Tech stack
 
@@ -64,7 +64,8 @@ Make sure both pass and CI is green.
 
 ```
 subtrack/
-├── subtrack/              # CLI tool (TypeScript/ESM)
+├── apps/
+│   └── subtrack/          # CLI tool (TypeScript/ESM)
 │   ├── src/
 │   │   ├── index.ts           # Entry point, CLI definitions (gunshi)
 │   │   ├── commands.ts        # Re-exports & thin CLI wrappers
@@ -100,7 +101,7 @@ subtrack/
 │   │   ├── opencode-scanner.ts # OpenCode DB scanner
 │   │   ├── windsurf-scanner.ts # Windsurf editor scanner
 │   │   └── __tests__/         # Test files (vitest)
-│   └── dist/                  # Built output (dist/index.mjs)
+│       └── dist/              # Built output (dist/index.mjs)
 ├── docs/                  # Documentation site (SvelteKit)
 ├── images/                # Logo & branding assets
 ├── flake.nix              # Nix devShell

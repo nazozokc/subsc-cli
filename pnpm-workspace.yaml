@@ -1,5 +1,5 @@
 packages:
-  - "subtrack"
+  - "apps/subtrack"
   - "docs"
 
 # Only esbuild is permitted to run install scripts.

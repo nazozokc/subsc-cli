@@ -47,7 +47,7 @@ jobs:
 
       - name: Validate version tag
         if: github.event_name == 'release'
-        working-directory: ./subtrack
+        working-directory: ./apps/subtrack
         run: |
           TAG_NAME="${{ github.event.release.tag_name }}"
           TAG_VERSION="${TAG_NAME#v}"
@@ -85,7 +85,7 @@ jobs:
 
       - name: Set package.json version from tag
         if: github.event_name == 'release'
-        working-directory: ./subtrack
+        working-directory: ./apps/subtrack
         run: |
           node -e "
             const fs = require('fs')
@@ -98,7 +98,7 @@ jobs:
 
       # Generate npm-shrinkwrap.json for reproducible installs
       - name: Generate shrinkwrap
-        working-directory: ./subtrack
+        working-directory: ./apps/subtrack
         run: npm shrinkwrap
 
       - run: pnpm build
@@ -111,7 +111,7 @@ jobs:
           format: spdx-json
 
       - name: Verify build
-        working-directory: ./subtrack
+        working-directory: ./apps/subtrack
         run: |
           test -f dist/index.mjs
           test -f npm-shrinkwrap.json
@@ -125,23 +125,23 @@ jobs:
         if: github.event_name == 'release'
         uses: actions/attest-build-provenance@v2
         with:
-          subject-path: subtrack/dist/index.mjs,subtrack/npm-shrinkwrap.json
+          subject-path: apps/subtrack/dist/index.mjs,apps/subtrack/npm-shrinkwrap.json
 
       - name: Dry run publish
         if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.dry-run == true)
-        working-directory: ./subtrack
+        working-directory: ./apps/subtrack
         run: pnpm publish --no-git-checks --provenance --dry-run
 
       - name: Publish to npm
         if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.dry-run == false)
-        working-directory: ./subtrack
+        working-directory: ./apps/subtrack
         run: pnpm publish --no-git-checks --provenance
 
       - name: Upload release asset
         if: github.event_name == 'release'
         env:
           GH_TOKEN: ${{ github.token }}
-        working-directory: ./subtrack
+        working-directory: ./apps/subtrack
         run: |
           TAG="${{ github.event.release.tag_name }}"
           # Attach SBOM and build provenance

@@ -32,15 +32,15 @@ jobs:
         run: pnpm install --lockfile-only && git diff --exit-code pnpm-lock.yaml
 
       - name: Validate lockfile structure
-        working-directory: ./subtrack
+        working-directory: ./apps/subtrack
         run: pnpm lint:lockfile
 
       - name: Check dependency tree is deduplicated
-        working-directory: ./subtrack
+        working-directory: ./apps/subtrack
         run: pnpm lint:dedupe
 
       - name: Type check
-        working-directory: ./subtrack
+        working-directory: ./apps/subtrack
         run: pnpm lint:types
 
       - run: pnpm build
@@ -56,7 +56,7 @@ jobs:
             echo "⚠ npm provenance verification not supported in this environment (expected on Node >=22 with npm <12)"
 
       - name: Scan for secrets and credentials
-        working-directory: ./subtrack
+        working-directory: ./apps/subtrack
         run: pnpm lint:secrets
 
       - name: Detect Trojan Source (Unicode control characters)
@@ -64,7 +64,7 @@ jobs:
           if grep -rnP '[\u202A\u202B\u202C\u202D\u202E\u2066\u2067\u2068\u2069\u200B\u200C\u200D\uFEFF]' \
             --include='*.ts' --include='*.json' --include='*.yaml' --include='*.yml' \
             --include='*.md' --include='*.toml' \
-            subtrack/ docs/ .github/; then
+            apps/subtrack/ docs/ .github/; then
             echo "::error::Bidirectional / zero-width Unicode control characters detected (possible Trojan Source attack)"
             exit 1
           fi

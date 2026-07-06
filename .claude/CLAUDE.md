@@ -6,7 +6,8 @@ Monorepo for **subtrack** — a CLI tool to manage subscription services from th
 
 ```
 .
-├── subtrack/        # CLI tool (Node.js/TypeScript, published as npm package)
+├── apps/
+│   └── subtrack/    # CLI tool (Node.js/TypeScript, published as npm package)
 ├── docs/            # Documentation site (SvelteKit)
 ├── .agents/         # OpenCode agent and skill definitions
 ├── .claude/         # Claude Code configuration

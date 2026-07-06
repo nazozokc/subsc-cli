@@ -16,7 +16,7 @@ subtrack is a Node.js CLI tool for managing subscription services from the termi
 - Use `pnpm update` instead of `npm update` or `bun update`
 - Use `pnpm run <script>` or `pnpm <script>` instead of `npm run` or `bun run`
 - Use `pnpmx <package>` instead of `npx` or `bunx`
-- All packages go under `subtrack/` directory (monorepo root has no deps)
+- All packages go under `apps/subtrack/` directory (monorepo root has no deps)
 
 ## Build & Run
 
@@ -24,7 +24,7 @@ subtrack is a Node.js CLI tool for managing subscription services from the termi
 - Build: `tsdown` (configured as `pnpm build`)
 - Type check: `pnpm lint:types` (`tsc --noEmit`)
 - Don't use `bun` or `node --loader` for running TypeScript directly
-- Build output is `subtrack/dist/index.mjs`
+- Build output is `apps/subtrack/dist/index.mjs`
 
 ## Testing
 

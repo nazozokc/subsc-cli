@@ -7,6 +7,11 @@
   },
   "scripts": {
     "build": "pnpm -r build",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "start": "pnpm --filter subtrack start",
+    "lint:types": "pnpm --filter subtrack lint:types",
+    "lint:security": "pnpm -r lint:security",
+    "format": "nix fmt",
+    "clean": "pnpm -r exec rm -rf dist node_modules"
   }
 }
