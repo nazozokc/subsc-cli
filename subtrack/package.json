@@ -75,15 +75,15 @@
   },
   "devDependencies": {
     "@secretlint/secretlint-rule-preset-recommend": "^13.0.2",
-    "@types/node": "^26.0.0",
+    "@types/node": "^26.1.0",
     "@types/node-notifier": "^8.0.5",
     "@types/react": "^19.2.17",
     "@types/sql.js": "^1.4.11",
     "husky": "^9.1.7",
     "lint-staged": "^15.5.1",
     "secretlint": "^10.2.0",
-    "tsdown": "^0.22.2",
-    "tsx": "^4.19.0",
+    "tsdown": "^0.22.3",
+    "tsx": "^4.23.0",
     "typescript": "^6",
     "vitest": "^4.1.9"
   }
