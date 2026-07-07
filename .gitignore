@@ -12,5 +12,8 @@ coverage/
 # TypeScript
 *.tsbuildinfo
 
+# local overrides
+.envrc.local
+
 # images (do not ignore)
 !*.png
