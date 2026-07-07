@@ -50,7 +50,7 @@
     "lint:typos": "command -v typos >/dev/null 2>&1 && typos || echo 'typos not installed, skipping'",
     "lint:security": "pnpm audit --audit-level=high",
     "lint:types": "tsc --noEmit",
-    "lint:lockfile": "node -e \"process.exit(require('fs').readFileSync('../pnpm-lock.yaml','utf8').startsWith('lockfileVersion')?0:1)\"",
+    "lint:lockfile": "node -e \"process.exit(require('fs').readFileSync('../../pnpm-lock.yaml','utf8').startsWith('lockfileVersion')?0:1)\"",
     "lint:dedupe": "pnpm dedupe --check",
     "lint:secrets": "secretlint \"src/**/*.ts\""
   },
