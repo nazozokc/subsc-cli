@@ -176,3 +176,24 @@ export async function showUpcoming(days: number = 7, options: { currency?: strin
     consola.log(`  ${pc.bold("Total:")} ${totalParts.join(" + ")} (across ${entries.length} subscription${entries.length > 1 ? "s" : ""})`)
   }
 }
+
+// ── Command handler ──────────────────────────────────────
+
+export async function handleUpcoming(days: number = 7, options: { json?: boolean; currency?: string } = {}): Promise<void> {
+  if (options.json) {
+    const entries = options.currency ? await calcUpcomingWithCurrency(days, options.currency) : calcUpcoming(days)
+    const data = entries.map((e) => ({
+      id: e.sub.id,
+      name: e.sub.name,
+      price: e.sub.price,
+      currency: e.sub.currency,
+      cycle: e.sub.cycle,
+      nextDate: `${e.nextDate.getFullYear()}-${String(e.nextDate.getMonth() + 1).padStart(2, "0")}-${String(e.nextDate.getDate()).padStart(2, "0")}`,
+      amount: Math.round(e.amount),
+      tags: e.sub.tags,
+    }))
+    process.stdout.write(JSON.stringify(data, null, 2) + "\n")
+    return
+  }
+  await showUpcoming(days, { currency: options.currency })
+}

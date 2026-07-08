@@ -1,7 +1,7 @@
 import { consola } from "consola"
 import pc from "picocolors"
 import CliTable3 from "cli-table3"
-import type { SharedArgs, Currency, Cycle } from "./types.ts"
+import type { SharedArgs, Currency, Cycle, CompareOptions } from "./types.ts"
 import { periodFactor } from "./date-utils.ts"
 import { getSubscriptions, getLlmUsageTotal, getLlmUsageTotalByProvider, getAllPriceChanges } from "./db.ts"
 import { formatPrice } from "./price.ts"
@@ -240,4 +240,34 @@ export async function showCompare(
 
   renderCompareTable(rows, currentLabel, previousLabel)
   consola.log("")
+}
+
+// ── Command handler ──────────────────────────────────────
+
+export async function handleCompare(
+  period: Cycle,
+  options: CompareOptions = {},
+): Promise<void> {
+  if (options.json) {
+    const subs = getSubscriptions().filter((s) => s.status !== "cancelled")
+    if (subs.length === 0) {
+      process.stdout.write(JSON.stringify({ period, current: {}, previous: {}, change: {} }, null, 2) + "\n")
+      return
+    }
+
+    const activeSubs = subs.filter((s) => s.status !== "cancelled")
+    const currentTotals: Record<string, number> = {}
+    for (const sub of activeSubs) {
+      const monthly = sub.price * periodFactor(sub.cycle, "monthly")
+      currentTotals[sub.currency] = (currentTotals[sub.currency] ?? 0) + monthly
+    }
+
+    process.stdout.write(JSON.stringify({
+      period,
+      currentPeriod: currentTotals,
+      subscriptions: activeSubs.length,
+    }, null, 2) + "\n")
+    return
+  }
+  await showCompare(period, options)
 }

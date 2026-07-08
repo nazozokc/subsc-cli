@@ -1,7 +1,13 @@
-import type { SharedArgs } from "./types.ts"
+import { consola } from "consola"
+import { writeFileSync } from "node:fs"
+import os from "node:os"
+import type { SharedArgs, Currency } from "./types.ts"
 import { formatPrice } from "./price.ts"
 import ExcelJS from "exceljs"
 import { calculateNextBilling } from "./upcoming.ts"
+import { tagsSubscription, getSubscriptions } from "./db.ts"
+import { fetchFxRates, convertPrice } from "./fx.ts"
+import { resolveSafeOutputPath } from "./path-utils.ts"
 
 /**
  * Escape a value for CSV output, protecting against CSV injection attacks.
@@ -237,4 +243,75 @@ export function exportIcs(subs: SharedArgs[]): string {
 
   cal.push("END:VCALENDAR")
   return cal.join("\r\n") + "\r\n"
+}
+
+// ── Command handler ───────────────────────────────────────
+
+export async function handleExport(
+  format: string,
+  options: { currency?: string; tags?: string; output?: string; status?: string },
+) {
+  const supported = ["csv", "json", "md", "excel", "ics"] as const
+  if (!(supported as readonly string[]).includes(format)) {
+    consola.error(`Unsupported export format: "${format}". Supported: ${supported.join(", ")}`)
+    return
+  }
+
+  let list = options.tags
+    ? tagsSubscription(options.tags.split(",").map((t) => t.trim()))
+    : getSubscriptions({ includeArchived: true })
+
+  if (options.status) {
+    const statuses = options.status.split(",").map((s) => s.trim().toLowerCase())
+    list = list.filter((s) => statuses.includes(s.status))
+  }
+
+  if (list.length === 0) {
+    consola.info("No subscriptions found")
+    return
+  }
+
+  if (options.currency) {
+    try {
+      const rates = await fetchFxRates()
+      const targetCurrency = options.currency as Currency
+      list = list.map((sub) => ({
+        ...sub,
+        price: Math.round(convertPrice(sub.price, sub.currency, targetCurrency, rates.rates)),
+        currency: targetCurrency,
+      }))
+    } catch (e) {
+      consola.fail(`Failed to fetch exchange rates; exporting in original currencies: ${String(e)}`)
+    }
+  }
+
+  if (format === "excel") {
+    const buf = await exportExcel(list)
+    if (options.output) {
+      const safePath = resolveSafeOutputPath([os.homedir(), os.tmpdir()], options.output)
+      if (!safePath) { consola.error(`Invalid output path — must be within home directory`); return }
+      writeFileSync(safePath, buf, { mode: 0o600 })
+      consola.success(`Exported to: ${safePath}`)
+    } else {
+      process.stdout.write(buf)
+    }
+    return
+  }
+
+  const content = format === "csv"
+    ? exportCsv(list)
+    : format === "json"
+      ? exportJson(list)
+      : format === "md"
+        ? exportMd(list)
+        : exportIcs(list)
+
+  if (options.output) {
+    const safePath = resolveSafeOutputPath([os.homedir(), os.tmpdir()], options.output)
+    if (!safePath) { consola.error(`Invalid output path — must be within home directory`); return }
+    writeFileSync(safePath, content, { mode: 0o600 })
+    consola.success(`Exported to: ${safePath}`)
+  } else {
+    consola.log(content)
+  }
 }

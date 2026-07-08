@@ -1,11 +1,25 @@
 import { consola } from "consola"
 import pc from "picocolors"
-import type { SharedArgs } from "./types.ts"
+import type { SharedArgs, AnalyticsOptions } from "./types.ts"
 import { getSubscriptions } from "./db.ts"
 import { formatPrice } from "./price.ts"
 import { calcSummary } from "./payment.ts"
 import { loadConfig } from "./config.ts"
 import { periodFactor } from "./date-utils.ts"
+
+export function handleAnalytics(options: AnalyticsOptions = {}): void {
+  if (options.json) {
+    const subs = getSubscriptions().filter((s) => s.status !== "cancelled")
+    if (subs.length === 0) {
+      process.stdout.write(JSON.stringify({ totalCount: 0, monthlyByCurrency: {}, monthlyByTag: {} }, null, 2) + "\n")
+      return
+    }
+    const data = calcSummary(subs)
+    process.stdout.write(JSON.stringify(data, null, 2) + "\n")
+    return
+  }
+  showAnalytics()
+}
 
 export function showAnalytics(): void {
   const list = getSubscriptions().filter((s) => s.status !== "cancelled")

@@ -7,6 +7,9 @@ import { formatPrice } from "./price.ts"
 import { fetchFxRates, convertPrice } from "./fx.ts"
 import type { FxRates } from "./fx.ts"
 
+// ── JSON options helper ───────────────────────────────
+export type JsonOptions = { json?: boolean }
+
 /**
  * Returns the [from, to] date range (inclusive, YYYY-MM-DD) for a given period.
  * The range covers the current calendar period (month / quarter / year etc.)
@@ -349,4 +352,92 @@ export function showSummary(subs?: SharedArgs[]): void {
       )
     }
   }
+}
+
+// ── Command handlers ─────────────────────────────────────
+
+export async function handlePayment(
+  period: Cycle,
+  options: { currency?: string; api?: boolean; method?: boolean } & JsonOptions,
+) {
+  if (options.json) {
+    const subs = getSubscriptions()
+    if (subs.length === 0) {
+      process.stdout.write(JSON.stringify({ period, total: 0, subscriptions: [] }, null, 2) + "\n")
+      return
+    }
+
+    const entries = subs.map((sub) => ({
+      convertedPrice: sub.price * periodFactor(sub.cycle, period),
+      currency: sub.currency,
+      paymentMethod: sub.paymentMethod,
+      sub,
+    }))
+
+    let apiTotal = 0
+    let apiByProvider: { provider: string; total: number }[] = []
+    if (options.api) {
+      const { from, to } = getPeriodDateRange(period)
+      apiTotal = getLlmUsageTotal(from, to)
+      apiByProvider = getLlmUsageTotalByProvider(from, to)
+    }
+
+    let targetCurrency = options.currency as Currency | undefined
+    let finalCurrency: string | undefined
+    let subTotal = 0
+
+    if (targetCurrency) {
+      let rates: FxRates | null = null
+      try { rates = await fetchFxRates() } catch { consola.fail("Failed to fetch exchange rates; reporting in original currencies") }
+      if (rates) {
+        for (const entry of entries) {
+          try { subTotal += convertPrice(entry.convertedPrice, entry.currency, targetCurrency, rates.rates) }
+          catch { consola.warn(`Missing exchange rate for ${entry.currency} → ${targetCurrency}`) }
+        }
+        finalCurrency = targetCurrency
+      }
+    }
+
+    if (!finalCurrency) {
+      const byCurrency: Record<string, number> = {}
+      for (const entry of entries) { byCurrency[entry.currency] = (byCurrency[entry.currency] ?? 0) + entry.convertedPrice }
+      subTotal = Object.values(byCurrency).reduce((a, b) => a + b, 0)
+    }
+
+    const byMethod: Record<string, { total: number; currencies: string[] }> = {}
+    if (options.method) {
+      for (const entry of entries) {
+        const method = entry.paymentMethod || "unspecified"
+        if (!byMethod[method]) byMethod[method] = { total: 0, currencies: [] }
+        byMethod[method].total += entry.convertedPrice
+        if (!byMethod[method].currencies.includes(entry.currency)) { byMethod[method].currencies.push(entry.currency) }
+      }
+    }
+
+    const output: Record<string, unknown> = {
+      period,
+      total: Math.round(subTotal),
+      currency: finalCurrency ?? null,
+      subscriptions: entries.map((e) => ({
+        id: e.sub.id, name: e.sub.name, price: e.sub.price,
+        currency: e.sub.currency, cycle: e.sub.cycle, status: e.sub.status,
+        periodPrice: Math.round(e.convertedPrice),
+      })),
+    }
+    if (options.api && apiTotal > 0) { output.apiUsage = { total: apiTotal, byProvider: apiByProvider } }
+    if (options.method && Object.keys(byMethod).length > 0) { output.byMethod = byMethod }
+    process.stdout.write(JSON.stringify(output, null, 2) + "\n")
+    return
+  }
+  await showPayment(period, options.currency as Currency | undefined, undefined, options.api, options.method)
+}
+
+export async function handleSummary(options: JsonOptions = {}) {
+  if (options.json) {
+    const subs = getSubscriptions()
+    const data = calcSummary(subs)
+    process.stdout.write(JSON.stringify(data, null, 2) + "\n")
+    return
+  }
+  await showSummary()
 }

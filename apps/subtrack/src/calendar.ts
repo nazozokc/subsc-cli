@@ -181,6 +181,12 @@ export async function showCalendar(options: CalendarOptions): Promise<void> {
   }
 }
 
+// ── Command handler ──────────────────────────────────────
+
+export async function handleCalendar(options: CalendarOptions): Promise<void> {
+  await showCalendar(options)
+}
+
 function superscript(n: number): string {
   const supMap: Record<string, string> = {
     "0": "\u2070", "1": "\u00B9", "2": "\u00B2", "3": "\u00B3",
