@@ -8,8 +8,8 @@
 import { consola } from "consola"
 import pc from "picocolors"
 import CliTable3 from "cli-table3"
-import { getAuditLogs, getAuditLogCount, pruneAuditLogs, addAuditLog } from "./db/audit.ts"
-import type { AuditAction, AddAuditArgs } from "./db/audit.ts"
+import { getAuditLogs, getAuditLogCount, pruneAuditLogs, addAuditLog } from "./db.ts"
+import type { AuditAction, AddAuditArgs } from "./types.ts"
 import { TABLE_CHARS, TABLE_STYLE } from "./display-constants.ts"
 
 // ── Audit log display ───────────────────────────────────

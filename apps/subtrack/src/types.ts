@@ -233,3 +233,60 @@ export type SubtrackConfig = {
   /** Generic webhook URL for notifications */
   webhookUrl?: string
 }
+
+// ── Audit types ──
+
+export type AuditAction =
+  | "subscription.add"
+  | "subscription.edit"
+  | "subscription.delete"
+  | "subscription.archive"
+  | "subscription.unarchive"
+  | "subscription.restore"
+  | "subscription.import"
+  | "subscription.bulk_status"
+  | "subscription.bulk_delete"
+  | "subscription.bulk_tag_add"
+  | "subscription.bulk_tag_remove"
+  | "subscription.clone"
+  | "trial.add"
+  | "trial.delete"
+  | "tag.rename"
+  | "tag.delete"
+  | "tag.prune"
+  | "tag.merge"
+  | "config.set"
+  | "config.reset"
+  | "backup.restore"
+  | "usage.add"
+  | "usage.delete"
+  | "cleanup"
+
+export type AuditEntry = {
+  id: number
+  action: AuditAction
+  target_type: string | null
+  target_id: number | null
+  details: string | null
+  created_at: string
+}
+
+export type AddAuditArgs = {
+  action: AuditAction
+  targetType?: string | null
+  targetId?: number | null
+  details?: string | null
+}
+
+// ── Price history ──
+
+export type PriceHistoryEntry = {
+  id: number
+  subscriptionId: number
+  subscriptionName: string
+  oldPrice: number | null
+  newPrice: number
+  oldCurrency: string | null
+  newCurrency: string
+  changedAt: string
+}

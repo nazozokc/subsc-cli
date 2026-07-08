@@ -1,10 +1,5 @@
 import { consola } from "consola"
-import {
-  mkdirSync, existsSync, statSync, openSync, writeSync, closeSync, constants,
-} from "node:fs"
-import { gzipSync } from "node:zlib"
-import { encryptBuffer, decryptBuffer, isEncrypted, hasEncryptionKey } from "./crypto.ts"
-import { logAudit } from "./audit.ts"
+import { mkdirSync, existsSync, statSync } from "node:fs"
 import path from "node:path"
 import os from "node:os"
 import type { BackupFileInfo } from "./types.ts"
@@ -12,61 +7,14 @@ import { resolveSafePath, resolveSafeOutputPath } from "./path-utils.ts"
 import {
   getSubscriptions,
   getDbPath,
-  getDb,
-  getDbDir,
   getDefaultBackupDir,
   getBackupFiles,
   restoreDb,
+  backupDb,
   saveDb,
-  writeBackupHash,
   verifyBackupHash,
 } from "./db.ts"
 import { input, confirm, select } from "@inquirer/prompts"
-
-/** Generate a compact timestamp string for backup filenames. */
-function getTimestamp(): string {
-  const now = new Date()
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
-}
-
-/**
- * Compress the current DB and write to `destPath` with exclusive-create.
- * Returns true on success, false on failure.
- */
-function writeCompressedBackup(destPath: string, encrypt: boolean): boolean {
-  const sqliteBuf = Buffer.from(getDb().export())
-  const compressed = gzipSync(sqliteBuf)
-  const writeBuf = encrypt ? encryptBuffer(compressed) : compressed
-
-  try {
-    const fd = openSync(
-      destPath,
-      constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL,
-      0o600,
-    )
-    try {
-      let offset = 0
-      while (offset < writeBuf.length) {
-        const written = writeSync(fd, writeBuf, offset, writeBuf.length - offset)
-        if (written <= 0) throw new Error(`writeSync wrote ${written} bytes at offset ${offset}`)
-        offset += written
-      }
-    } finally {
-      closeSync(fd)
-    }
-    writeBackupHash(destPath)
-    return true
-  } catch (err) {
-    const nodeErr = err as NodeJS.ErrnoException
-    if (nodeErr.code === "EEXIST") {
-      consola.error(`Backup file already exists: ${destPath}`)
-    } else {
-      consola.error(`Backup failed: ${nodeErr.message}`)
-    }
-    return false
-  }
-}
 
 function formatFileSize(bytes: number): string {
   const units = ["B", "kB", "MB", "GB"]
@@ -79,25 +27,9 @@ function formatFileSize(bytes: number): string {
   return `${size.toFixed(i === 0 ? 0 : 1)} ${units[i]}`
 }
 
-async function safeAutoBackup() {
-  saveDb()
-  const backupDir = getDefaultBackupDir()
-  mkdirSync(backupDir, { recursive: true, mode: 0o700 })
-  const ts = getTimestamp()
-  const encrypt = hasEncryptionKey()
-  const ext = encrypt ? ".db.enc" : ".db.gz"
-  const destPath = path.join(backupDir, `subtrack_${ts}_before_restore${ext}`)
-
-  if (writeCompressedBackup(destPath, encrypt)) {
-    consola.info(`Auto-backup created: ${destPath}${encrypt ? " (encrypted)" : ""}`)
-  } else {
-    consola.warn("Could not create auto-backup, continuing with restore")
-  }
-}
-
 /**
  * Create a timestamped, gzip-compressed backup of the SQLite database.
- * Optionally encrypts the backup using AES-256-GCM.
+ * Delegates to native backupDb which handles compression and encryption.
  * @param destination - Directory to write the backup into (default: `~/.config/subtrack/backups/`)
  * @param options.encrypt - Encrypt the backup with the database encryption key
  */
@@ -106,7 +38,6 @@ export async function handleBackup(destination?: string, options: { encrypt?: bo
 
   let dest = destination ?? getDefaultBackupDir()
   try {
-    // Validate the backup destination path (directory may not exist yet)
     if (destination) {
       const safeDest = resolveSafeOutputPath([os.homedir(), os.tmpdir()], destination)
       if (!safeDest) {
@@ -128,23 +59,24 @@ export async function handleBackup(destination?: string, options: { encrypt?: bo
     return
   }
 
-  // Warn when database is encrypted but backup won't be
-  if (!options.encrypt && hasEncryptionKey()) {
-    consola.warn(
-      "Database is encrypted but backup will NOT be encrypted.\n" +
-      "  Use --encrypt (-e) to encrypt the backup.",
-    )
+  try {
+    const resultPath = backupDb(dest, options.encrypt ?? false)
+    consola.success(`Backup created: ${resultPath}${options.encrypt ? " (encrypted)" : ""}`)
+  } catch (err) {
+    consola.error(`Backup failed: ${String(err)}`)
   }
+}
 
-  const ts = getTimestamp()
-  const destPath = options.encrypt
-    ? path.join(dest, `subtrack_${ts}.db.enc`)
-    : path.join(dest, `subtrack_${ts}.db.gz`)
+async function safeAutoBackup(): Promise<string | undefined> {
+  saveDb()
+  const backupDir = getDefaultBackupDir()
+  mkdirSync(backupDir, { recursive: true, mode: 0o700 })
 
-  if (writeCompressedBackup(destPath, options.encrypt ?? false)) {
-    consola.success(
-      `Backup created: ${destPath}${options.encrypt ? " (encrypted)" : ""}`,
-    )
+  try {
+    return backupDb(backupDir, false)
+  } catch {
+    consola.warn("Could not create auto-backup, continuing with restore")
+    return undefined
   }
 }
 
@@ -191,11 +123,8 @@ export async function handleRestore(
     try {
       restoreDb(resolvedPath)
       const subs = getSubscriptions()
-      logAudit("backup.restore", {
-        details: `Restored ${subs.length} subscriptions from ${path.basename(resolvedPath)}`,
-      })
       consola.success(
-        `Restored ${subs.length} subscription${subs.length !== 1 ? "s" : ""} from: ${resolvedPath}`,
+        `Restored ${subs.length} subscription${subs.length !== 1 ? "s" : ""} from: ${path.basename(resolvedPath)}`,
       )
     } catch (e) {
       consola.error(`Restore failed: ${String(e)}`)
@@ -265,9 +194,6 @@ export async function handleRestore(
   try {
     restoreDb(selected)
     const subs = getSubscriptions()
-    logAudit("backup.restore", {
-      details: `Restored ${subs.length} subscriptions from ${path.basename(selected)}`,
-    })
     consola.success(
       `Restored ${subs.length} subscription${subs.length !== 1 ? "s" : ""} from: ${selected}`,
     )

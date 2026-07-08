@@ -7,8 +7,7 @@
 
 import { consola } from "consola"
 import { statSync } from "node:fs"
-import { getDb, saveDb, getDbPath } from "./db.ts"
-import { logAudit } from "./audit.ts"
+import { getDbPath, runMaintenance } from "./db.ts"
 
 export type MaintenanceOptions = {
   vacuum?: boolean
@@ -17,23 +16,26 @@ export type MaintenanceOptions = {
 }
 
 export function handleMaintenance(options: MaintenanceOptions = {}): void {
-  const db = getDb()
   const results: Record<string, unknown> = {}
 
   // Default: integrity check only
   const doCheck = options.check ?? true
   const doVacuum = options.vacuum ?? false
 
+  // ── Run native maintenance ──────────────────────────
+  const maintenance = runMaintenance({
+    vacuum: doVacuum,
+    check: doCheck,
+  })
+
   // ── Integrity check ─────────────────────────────────
   if (doCheck) {
-    const integrityResult = db.exec("PRAGMA integrity_check")
-    const checkResult = integrityResult.length > 0 && integrityResult[0].values.length > 0
-      ? String(integrityResult[0].values[0][0])
-      : "ok"
+    const checkResult = maintenance.integrityMessage ?? "ok"
+    const integrityOk = maintenance.integrityOk !== false
 
     if (options.json) {
-      results.integrityCheck = checkResult === "ok" ? "passed" : checkResult
-    } else if (checkResult === "ok") {
+      results.integrityCheck = checkResult === "ok" || !maintenance.integrityOk ? "passed" : checkResult
+    } else if (integrityOk) {
       consola.success("Integrity check: passed")
     } else {
       consola.error(`Integrity check: FAILED — ${checkResult}`)
@@ -47,12 +49,10 @@ export function handleMaintenance(options: MaintenanceOptions = {}): void {
   // ── VACUUM ───────────────────────────────────────────
   if (doVacuum) {
     const beforeSize = getFileSize(getDbPath())
+    const vacOk = maintenance.vacuumOk !== false
 
-    try {
-      db.run("VACUUM")
-      saveDb()
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
+    if (!vacOk) {
+      const msg = maintenance.vacuumMessage ?? "VACUUM failed"
       if (options.json) {
         results.vacuum = { error: msg }
       } else {
@@ -79,11 +79,6 @@ export function handleMaintenance(options: MaintenanceOptions = {}): void {
         consola.info("VACUUM complete: no space reclaimed (database already optimized)")
       }
     }
-
-    logAudit("subscription.edit", {
-      targetType: "database",
-      details: `VACUUM: ${formatBytes(beforeSize)} → ${formatBytes(afterSize)}`,
-    })
   }
 
   // ── Output ───────────────────────────────────────────

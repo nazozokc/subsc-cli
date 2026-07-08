@@ -35,3 +35,18 @@ npm-shrinkwrap.json
 
 # Finder (MacOS) folder config
 .DS_Store
+
+# Rust build artifacts
+target/
+
+# napi-rs generated bindings
+*.node
+index.js
+index.mjs
+index.cjs
+index.d.ts
+
+# encryption key files
+.key
+.key.salt
+.key.sha256
