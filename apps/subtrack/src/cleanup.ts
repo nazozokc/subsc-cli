@@ -3,11 +3,11 @@
  */
 
 import { consola } from "consola"
-import { statSync } from "node:fs"
 import { getDb, saveDb, getDbPath } from "./db.ts"
 import { pruneAuditLogs } from "./db.ts"
 import { pruneTags } from "./db.ts"
 import { logAudit } from "./audit.ts"
+import { formatBytes, getFileSize } from "./format.ts"
 
 export type CleanupOptions = {
   vacuum?: boolean
@@ -97,21 +97,4 @@ export function handleCleanup(options: CleanupOptions = {}): void {
   }
 }
 
-function getFileSize(filePath: string): number {
-  try {
-    return statSync(filePath).size
-  } catch {
-    return 0
-  }
-}
 
-function formatBytes(bytes: number): string {
-  const units = ["B", "kB", "MB", "GB"]
-  let i = 0
-  let size = bytes
-  while (size >= 1024 && i < units.length - 1) {
-    size /= 1024
-    i++
-  }
-  return `${size.toFixed(i === 0 ? 0 : 1)} ${units[i]}`
-}

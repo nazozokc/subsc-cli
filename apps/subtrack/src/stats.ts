@@ -7,6 +7,7 @@ import { statSync } from "node:fs"
 import { getDb, getDbPath } from "./db.ts"
 import type { Status } from "./types.ts"
 import { execObjs } from "./db/connection.ts"
+import { formatBytes } from "./format.ts"
 
 type SubStats = {
   total: number
@@ -92,13 +93,4 @@ export function handleStats(options: { json?: boolean } = {}): void {
   consola.log(`  Database size:   ${formatBytes(dbSizeBytes)}`)
 }
 
-function formatBytes(bytes: number): string {
-  const units = ["B", "kB", "MB", "GB"]
-  let i = 0
-  let size = bytes
-  while (size >= 1024 && i < units.length - 1) {
-    size /= 1024
-    i++
-  }
-  return `${size.toFixed(i === 0 ? 0 : 1)} ${units[i]}`
-}
+
