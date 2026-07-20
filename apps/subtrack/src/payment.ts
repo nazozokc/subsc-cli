@@ -312,6 +312,14 @@ export async function handlePayment(
   period: Cycle,
   options: { currency?: string; api?: boolean; method?: boolean } & JsonOptions,
 ) {
+  // Show notification banner for non-JSON output
+  if (!options.json) {
+    const { autoScan } = await import("./suggest/scan.ts")
+    await autoScan()
+    const { showNotificationBanner } = await import("./notifications/banner.ts")
+    showNotificationBanner()
+  }
+
   if (options.json) {
     const subs = getSubscriptions()
     if (subs.length === 0) {
@@ -385,6 +393,13 @@ export async function handlePayment(
 }
 
 export async function handleSummary(options: JsonOptions = {}) {
+  if (!options.json) {
+    const { autoScan } = await import("./suggest/scan.ts")
+    await autoScan()
+    const { showNotificationBanner } = await import("./notifications/banner.ts")
+    showNotificationBanner()
+  }
+
   if (options.json) {
     const subs = getSubscriptions()
     const data = calcSummary(subs)

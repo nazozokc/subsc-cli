@@ -25,3 +25,8 @@ export {
   addAuditLog, getAuditLogs, getAuditLogCount, pruneAuditLogs,
 } from "./db/audit.ts"
 export type { AuditEntry, AuditAction, AddAuditArgs } from "./db/audit.ts"
+export {
+  writeSuggestion, writeSuggestionBatch,
+  getSuggestions, getPendingSuggestionCount, getSuggestion,
+  dismissSuggestion, dismissAllSuggestions, markSuggestionAsAdded,
+} from "./db/suggestions.ts"

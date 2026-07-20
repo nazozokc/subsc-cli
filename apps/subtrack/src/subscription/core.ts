@@ -22,6 +22,14 @@ import { spreadSubscription, showApiUsage } from "../display.ts"
 import { logAudit } from "../audit.ts"
 
 export async function handleList(options: { currency?: string; sort?: string; desc?: boolean; api?: boolean; notes?: boolean; method?: boolean; tags?: string; json?: boolean; limit?: number; offset?: number; includeArchived?: boolean }) {
+  // Auto-scan for new suggestions (non-blocking on failure)
+  if (!options.json) {
+    const { autoScan } = await import("../suggest/scan.ts")
+    await autoScan()
+    const { showNotificationBanner } = await import("../notifications/banner.ts")
+    showNotificationBanner()
+  }
+
   const list = options.tags
     ? tagsSubscription(options.tags.split(",").map((t) => t.trim()))
     : getSubscriptions({ sort: options.sort, desc: options.desc, limit: options.limit, offset: options.offset, includeArchived: options.includeArchived })

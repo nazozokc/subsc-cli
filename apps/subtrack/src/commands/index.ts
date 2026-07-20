@@ -22,6 +22,7 @@ import {
   auditCommand, auditListCmd, auditPruneCmd,
   maintenanceCommand, cleanupCommand, currencyCommand,
 } from "./misc.ts"
+import { suggestCommand } from "./suggest.ts"
 
 export {
   listCommand, addCommand, editCommand, deleteCommand,
@@ -40,6 +41,7 @@ export {
   tuiCommand, mcpCommand, profileCommand,
   auditCommand, auditListCmd, auditPruneCmd,
   maintenanceCommand, cleanupCommand, currencyCommand,
+  suggestCommand,
 }
 
 /** The flat sub-commands map for the main CLI */
@@ -81,4 +83,5 @@ export const subCommands = {
   compare: compareCommand,
   config: configCommand,
   usage: usageCommand,
+  suggest: suggestCommand,
 }

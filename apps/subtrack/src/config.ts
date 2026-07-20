@@ -14,6 +14,9 @@ export const CONFIG_KEYS = [
   "notifyDays",
 ] as const
 
+/** IMAP-related config keys (not stored directly on SubtrackConfig). */
+export const IMAP_KEYS = ["imapHost", "imapPort", "imapTls", "imapUsername"] as const
+
 export type ConfigKey = (typeof CONFIG_KEYS)[number]
 
 const DEFAULT_CONFIG: SubtrackConfig = {
@@ -78,7 +81,7 @@ export function resetConfig(): void {
   _config = null
 }
 
-export function setConfig(key: ConfigKey, value: string): boolean {
+export function setConfig(key: string, value: string): boolean {
   const config = loadConfig()
 
   switch (key) {
@@ -111,6 +114,30 @@ export function setConfig(key: ConfigKey, value: string): boolean {
       config.notifyDays = num
       break
     }
+    case "imapHost":
+      if (!value) { consola.error("imapHost must not be empty"); return false }
+      config.imap = { ...config.imap, host: value, port: config.imap?.port ?? 993, tls: config.imap?.tls ?? true, username: config.imap?.username ?? "" }
+      break
+    case "imapPort": {
+      const port = Number(value)
+      if (isNaN(port) || port < 1 || port > 65535 || !Number.isInteger(port)) {
+        consola.error("imapPort must be an integer between 1 and 65535")
+        return false
+      }
+      config.imap = { ...config.imap, host: config.imap?.host ?? "", port, tls: config.imap?.tls ?? true, username: config.imap?.username ?? "" }
+      break
+    }
+    case "imapTls":
+      if (value !== "true" && value !== "false") {
+        consola.error("imapTls must be 'true' or 'false'")
+        return false
+      }
+      config.imap = { ...config.imap, host: config.imap?.host ?? "", port: config.imap?.port ?? 993, tls: value === "true", username: config.imap?.username ?? "" }
+      break
+    case "imapUsername":
+      if (!value) { consola.error("imapUsername must not be empty"); return false }
+      config.imap = { ...config.imap, host: config.imap?.host ?? "", port: config.imap?.port ?? 993, tls: config.imap?.tls ?? true, username: value }
+      break
     default:
       consola.error(`Unknown config key: "${key}"`)
       return false
@@ -148,23 +175,50 @@ export function handleConfigList(): void {
   for (const key of CONFIG_KEYS) {
     consola.log(`${key}: ${config[key]}`)
   }
+  // Show IMAP config
+  if (config.imap) {
+    consola.log(`imapHost: ${config.imap.host}`)
+    consola.log(`imapPort: ${config.imap.port}`)
+    consola.log(`imapTls: ${config.imap.tls}`)
+    consola.log(`imapUsername: ${config.imap.username}`)
+  } else {
+    consola.log(`imapHost: (not set)`)
+    consola.log(`imapPort: 993`)
+    consola.log(`imapTls: true`)
+    consola.log(`imapUsername: (not set)`)
+  }
+}
+
+function isKnownKey(key: string): boolean {
+  return (CONFIG_KEYS as readonly string[]).includes(key as ConfigKey) ||
+         (IMAP_KEYS as readonly string[]).includes(key as typeof IMAP_KEYS[number])
+}
+
+function getConfigDisplayValue(key: string, config: SubtrackConfig): string {
+  switch (key) {
+    case "imapHost": return config.imap?.host ?? "(not set)"
+    case "imapPort": return String(config.imap?.port ?? 993)
+    case "imapTls": return String(config.imap?.tls ?? true)
+    case "imapUsername": return config.imap?.username ?? "(not set)"
+    default: return String((config as Record<string, unknown>)[key] ?? "")
+  }
 }
 
 export function handleConfigGet(key: string): void {
   const config = loadConfig()
-  if (!(CONFIG_KEYS as readonly string[]).includes(key)) {
-    consola.error(`Unknown config key: "${key}". Valid: ${CONFIG_KEYS.join(", ")}`)
+  if (!isKnownKey(key)) {
+    consola.error(`Unknown config key: "${key}". Valid: ${[...CONFIG_KEYS, ...IMAP_KEYS].join(", ")}`)
     return
   }
-  consola.log(`${key}: ${config[key as keyof SubtrackConfig]}`)
+  consola.log(`${key}: ${getConfigDisplayValue(key, config)}`)
 }
 
 export function handleConfigSet(key: string, value: string): void {
-  if (!(CONFIG_KEYS as readonly string[]).includes(key)) {
-    consola.error(`Unknown config key: "${key}". Valid: ${CONFIG_KEYS.join(", ")}`)
+  if (!isKnownKey(key)) {
+    consola.error(`Unknown config key: "${key}". Valid: ${[...CONFIG_KEYS, ...IMAP_KEYS].join(", ")}`)
     return
   }
-  setConfig(key as ConfigKey, value)
+  setConfig(key, value)
 }
 
 export async function handleConfigReset(): Promise<void> {

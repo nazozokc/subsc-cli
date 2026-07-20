@@ -5,7 +5,7 @@
 
 import { input, confirm, select } from "@inquirer/prompts"
 import { consola } from "consola"
-import type { AddFlags } from "../types.ts"
+import type { AddFlags, Cycle, Status } from "../types.ts"
 import { getSubscriptions, writeSubscription, getAllTags } from "../db.ts"
 import { formatPrice } from "../price.ts"
 import { logAudit } from "../audit.ts"
@@ -32,9 +32,9 @@ export async function resolveAddOptions(flags: AddFlags): Promise<{
   name: string
   price: number
   currency: string
-  cycle: string
+  cycle: Cycle
   tags: string[]
-  status: string
+  status: Status
   billingDay: number | null
   notes: string | null
   paymentMethod: string | null
@@ -176,7 +176,7 @@ export async function resolveAddOptions(flags: AddFlags): Promise<{
     }
   }
 
-  return { name, price, currency, cycle, tags, status, billingDay, notes, paymentMethod }
+  return { name, price, currency, cycle: cycle as Cycle, tags, status: status as Status, billingDay, notes, paymentMethod }
 }
 
 export async function handleAdd(flags: AddFlags) {
