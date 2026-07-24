@@ -13,6 +13,12 @@ allowBuilds:
 #
 # Force uuid >= 11.1.1 to fix GHSA-w5hq-g745-h8pq
 # exceljs and node-notifier specify ^8.3.0 / ^8.3.2 which resolve to 8.3.2
+#
+# Force brace-expansion, js-yaml, fast-uri to patched versions
+# to pass pnpm audit --audit-level=high
 overrides:
   cookie: ">=0.7.0"
   uuid: ">=11.1.1"
+  brace-expansion: ">=2.1.2"
+  js-yaml: ">=4.3.0"
+  fast-uri: ">=3.1.4"
