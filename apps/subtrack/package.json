@@ -65,6 +65,7 @@
     "consola": "^3.4.2",
     "exceljs": "^4.4.0",
     "gunshi": "^0.35.1",
+    "imapflow": "^1.4.7",
     "ink": "^7.1.0",
     "ink-gradient": "^4.0.1",
     "ink-spinner": "^5.0.0",

@@ -88,6 +88,29 @@ export function runMigrations(db: Database): void {
   // Audit log table
   createAuditTable(db)
 
+  // Suggestions table for email scan results
+  db.run(`CREATE TABLE IF NOT EXISTS suggestions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    price INTEGER,
+    currency TEXT,
+    cycle TEXT,
+    vendor_name TEXT,
+    vendor_url TEXT,
+    plan_tier TEXT,
+    payment_method TEXT,
+    source TEXT NOT NULL DEFAULT 'email',
+    source_detail TEXT,
+    email_subject TEXT,
+    email_from TEXT,
+    email_date TEXT,
+    confidence REAL DEFAULT 0.0,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'dismissed', 'added')),
+    matched_sub_id INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (matched_sub_id) REFERENCES subscriptions(id) ON DELETE SET NULL
+  )`)
+
   // Verify database integrity on startup
   const integrityResult = db.exec("PRAGMA integrity_check")
   if (

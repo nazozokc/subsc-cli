@@ -1,13 +1,13 @@
 import { consola } from "consola"
 import pc from "picocolors"
 import CliTable3 from "cli-table3"
-import type { SharedArgs, Currency, Cycle, CompareOptions } from "./types.ts"
-import { periodFactor } from "./date-utils.ts"
+import type { Currency, Cycle, CompareOptions } from "./types.ts"
+import { periodFactor, getPeriodDateRange, getPreviousPeriodDateRange } from "./date-utils.ts"
 import { getSubscriptions, getLlmUsageTotal, getLlmUsageTotalByProvider, getAllPriceChanges } from "./db.ts"
 import { formatPrice } from "./price.ts"
-import { getPeriodDateRange, getPreviousPeriodDateRange } from "./payment.ts"
 import { fetchFxRates, convertPrice } from "./fx.ts"
 import type { FxRates } from "./fx.ts"
+import { calcSubTotal } from "./payment.ts"
 import { TABLE_CHARS, TABLE_STYLE } from "./display-constants.ts"
 
 type PeriodLabel = string
@@ -20,29 +20,6 @@ type CompareRow = {
   isCurrencyTotal?: boolean
   isDivider?: boolean
   isGrandTotal?: boolean
-}
-
-function calcSubTotal(
-  subs: SharedArgs[],
-  rates: FxRates | null,
-  targetCurrency: Currency | undefined,
-): Record<string, number> {
-  const totals: Record<string, number> = {}
-  for (const sub of subs) {
-    if (sub.status === "cancelled") continue
-    const monthly = sub.price * periodFactor(sub.cycle, "monthly")
-    if (targetCurrency && rates) {
-      try {
-        const converted = convertPrice(monthly, sub.currency, targetCurrency, rates.rates)
-        totals[targetCurrency] = (totals[targetCurrency] ?? 0) + converted
-      } catch {
-        totals[sub.currency] = (totals[sub.currency] ?? 0) + monthly
-      }
-    } else {
-      totals[sub.currency] = (totals[sub.currency] ?? 0) + monthly
-    }
-  }
-  return totals
 }
 
 function periodLabel(period: Cycle): string {

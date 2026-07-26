@@ -180,6 +180,14 @@ export async function showUpcoming(days: number = 7, options: { currency?: strin
 // ── Command handler ──────────────────────────────────────
 
 export async function handleUpcoming(days: number = 7, options: { json?: boolean; currency?: string } = {}): Promise<void> {
+  // Show notification banner for non-JSON output
+  if (!options.json) {
+    const { autoScan } = await import("./suggest/scan.ts")
+    await autoScan()
+    const { showNotificationBanner } = await import("./notifications/banner.ts")
+    showNotificationBanner()
+  }
+
   if (options.json) {
     const entries = options.currency ? await calcUpcomingWithCurrency(days, options.currency) : calcUpcoming(days)
     const data = entries.map((e) => ({

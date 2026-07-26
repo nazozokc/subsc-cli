@@ -4,7 +4,7 @@
 
 import { consola } from "consola"
 import { getLlmUsageTotal, getLlmUsageTotalByProvider } from "./db.ts"
-import { getPeriodDateRange } from "./payment.ts"
+import { getPeriodDateRange } from "./date-utils.ts"
 import type { Cycle } from "./types.ts"
 
 export type UsageTotalOptions = {

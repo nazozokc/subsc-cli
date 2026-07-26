@@ -22,6 +22,7 @@ import {
   verifyBackupHash,
 } from "./db.ts"
 import { input, confirm, select } from "@inquirer/prompts"
+import { formatBytes } from "./format.ts"
 
 /** Generate a compact timestamp string for backup filenames. */
 function getTimestamp(): string {
@@ -66,17 +67,6 @@ function writeCompressedBackup(destPath: string, encrypt: boolean): boolean {
     }
     return false
   }
-}
-
-function formatFileSize(bytes: number): string {
-  const units = ["B", "kB", "MB", "GB"]
-  let i = 0
-  let size = bytes
-  while (size >= 1024 && i < units.length - 1) {
-    size /= 1024
-    i++
-  }
-  return `${size.toFixed(i === 0 ? 0 : 1)} ${units[i]}`
 }
 
 async function safeAutoBackup() {
@@ -234,7 +224,7 @@ export async function handleRestore(
     loop: false,
     pageSize: 10,
     choices: backups.map((f) => ({
-      name: `${f.name}  (${formatFileSize(f.size)}, ${f.mtime.toLocaleString()})`,
+      name: `${f.name}  (${formatBytes(f.size)}, ${f.mtime.toLocaleString()})`,
       value: f.path,
     })),
   })
