@@ -20,5 +20,6 @@ overrides:
   cookie: ">=0.7.0"
   uuid: ">=11.1.1"
   brace-expansion: ">=2.1.2"
-  js-yaml: ">=4.3.0"
+  js-yaml: ">=5.2.2"
   fast-uri: ">=3.1.4"
+  postcss: ">=8.5.18"
