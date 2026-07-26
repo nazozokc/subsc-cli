@@ -46,6 +46,8 @@ This provides `node`, `pnpm`, `typescript`, `typos`, and `nixfmt`.
 | Test framework | `vitest` |
 | Package manager | `pnpm` |
 | Documentation | SvelteKit (this site) |
+| TUI framework | Ink + React (`ink`, `@inkjs/ui`) |
+| Encryption | AES-256-GCM via Node.js `node:crypto` |
 
 ## Contributing
 
@@ -65,45 +67,104 @@ Make sure both pass and CI is green.
 ```
 subtrack/
 ├── apps/
-│   └── subtrack/          # CLI tool (TypeScript/ESM)
-│   ├── src/
-│   │   ├── index.ts           # Entry point, CLI definitions (gunshi)
-│   │   ├── commands.ts        # Re-exports & thin CLI wrappers
-│   │   ├── subscription.ts    # Add/edit/delete/list/tags handlers
-│   │   ├── backup.ts          # Backup & restore handlers
-│   │   ├── tag.ts             # Tag management handlers
-│   │   ├── upcoming.ts        # Upcoming bills calculator
-│   │   ├── analytics.ts       # Subscription analytics & budget tracking
-│   │   ├── config.ts          # Configuration management (JSON file)
-│   │   ├── db.ts              # SQLite database layer (CRUD, schema, crypto)
-│   │   ├── display.ts         # Table rendering, price formatting
-│   │   ├── prompts.ts         # Input validation, prompt helpers
-│   │   ├── types.ts           # TypeScript type definitions
-│   │   ├── payment.ts         # Payment totals & summary statistics
-│   │   ├── usage.ts           # LLM API usage list & delete
-│   │   ├── usage-add.ts       # LLM usage add (interactive & flags)
-│   │   ├── usage-import.ts    # LLM usage import from JSONL/JSON logs
-│   │   ├── usage-refresh.ts   # Auto-scanner for AI tool usage data
-│   │   ├── pricing.ts         # LiteLLM pricing cache & cost calculation
-│   │   ├── export.ts          # CSV / JSON / Markdown export formatters
-│   │   ├── import-csv.ts      # CSV parser & import handler
-│   │   ├── fx.ts              # FX rate API & price conversion
-│   │   ├── crypto.ts          # AES-256-GCM encryption helpers
-│   │   ├── path-utils.ts      # Safe path resolution helpers
-│   │   ├── date-utils.ts      # Date formatting utilities
-│   │   ├── safe-json.ts       # Safe JSON parsing helper
-│   │   ├── scanner.ts         # Scanner framework for AI tool log parsing
-│   │   ├── scanner-types.ts   # Scanner type definitions
-│   │   ├── claude-scanner.ts  # Claude Code log scanner
-│   │   ├── codex-scanner.ts   # Codex CLI log scanner
-│   │   ├── copilot-scanner.ts # GitHub Copilot scanner
-│   │   ├── cursor-scanner.ts  # Cursor editor scanner
-│   │   ├── opencode-scanner.ts # OpenCode DB scanner
-│   │   ├── windsurf-scanner.ts # Windsurf editor scanner
-│   │   └── __tests__/         # Test files (vitest)
-│       └── dist/              # Built output (dist/index.mjs)
-├── docs/                  # Documentation site (SvelteKit)
-├── images/                # Logo & branding assets
-├── flake.nix              # Nix devShell
+│   └── subtrack/              # CLI tool (TypeScript/ESM)
+│       ├── src/
+│       │   ├── index.ts            # Entry point, CLI bootstrap (gunshi)
+│       │   ├── commands/           # Command definitions (gunshi `define`)
+│       │   │   ├── index.ts            # Barrel, subCommands map
+│       │   │   ├── core.ts             # list, add, edit, delete, clone, archive, unarchive, search
+│       │   │   ├── tag.ts              # tags, tag subcommands (list/rename/delete/prune/merge)
+│       │   │   ├── trial.ts            # trial subcommands (add/list/expiring/delete)
+│       │   │   ├── bulk.ts             # bulk subcommands (status/delete/tag)
+│       │   │   ├── io.ts               # export, import
+│       │   │   ├── backup.ts           # backup, restore
+│       │   │   ├── config.ts           # config subcommands (list/get/set/reset)
+│       │   │   ├── usage.ts            # usage subcommands (add/list/delete/import/refresh/total)
+│       │   │   ├── report.ts           # summary, payment, upcoming, analytics, compare,
+│       │   │   │                       # calendar, forecast, history, notify, timeline,
+│       │   │   │                       # optimize, stats
+│       │   │   └── misc.ts             # tui, mcp, profile, audit, maintenance, cleanup, currency
+│       │   ├── subscription/      # Subscription command handlers
+│       │   │   ├── core.ts            # handleList, handleDelete, handleClone, handleArchive,
+│       │   │   │                       # handleUnarchive, handleTags
+│       │   │   ├── add.ts             # handleAdd
+│       │   │   └── edit.ts            # handleEdit
+│       │   ├── db/                # Database layer (SQLite CRUD via sql.js)
+│       │   │   ├── connection.ts      # DB connection, save, restore, backup helpers
+│       │   │   ├── schema.ts          # Table creation & migrations
+│       │   │   ├── subscriptions.ts   # Subscription CRUD
+│       │   │   ├── tags.ts            # Tag CRUD
+│       │   │   ├── usage.ts           # LLM usage CRUD
+│       │   │   ├── trials.ts          # Trial CRUD
+│       │   │   ├── price-history.ts   # Price change history
+│       │   │   └── audit.ts           # Audit log CRUD
+│       │   ├── display.ts         # Table rendering, price formatting
+│       │   ├── display-constants.ts # Table styling constants
+│       │   ├── prompts.ts         # Input validation, prompt helpers
+│       │   ├── types.ts           # TypeScript type definitions
+│       │   ├── payment.ts         # Payment totals & summary statistics
+│       │   ├── upcoming.ts        # Upcoming bills calculator
+│       │   ├── analytics.ts       # Subscription analytics & budget tracking
+│       │   ├── compare.ts         # Period-over-period spending comparison
+│       │   ├── forecast.ts        # Spending forecast with what-if scenarios
+│       │   ├── timeline.ts        # Monthly spending timeline & bar chart
+│       │   ├── optimize.ts        # Cost optimization suggestions
+│       │   ├── history.ts         # Price change history view
+│       │   ├── calendar.ts        # Monthly calendar with billing days
+│       │   ├── notify.ts          # Desktop notification for upcoming bills
+│       │   ├── profile.ts         # Filter profile management
+│       │   ├── tag.ts             # Tag management handlers
+│       │   ├── search.ts          # Subscription search
+│       │   ├── trial.ts           # Trial management handlers
+│       │   ├── bulk.ts            # Bulk operation handlers
+│       │   ├── config.ts          # Configuration management (JSON file)
+│       │   ├── export.ts          # CSV / JSON / Markdown export formatters
+│       │   ├── import-csv.ts      # CSV parser & import handler
+│       │   ├── backup.ts          # Backup & restore handlers
+│       │   ├── fx.ts              # FX rate API & price conversion
+│       │   ├── pricing.ts         # LiteLLM pricing cache & cost calculation
+│       │   ├── crypto.ts          # AES-256-GCM encryption helpers
+│       │   ├── path-utils.ts      # Safe path resolution helpers
+│       │   ├── date-utils.ts      # Date formatting utilities
+│       │   ├── safe-json.ts       # Safe JSON parsing helper
+│       │   ├── format.ts          # File size formatting, byte helpers
+│       │   ├── price.ts           # Price formatting helpers
+│       │   ├── usage.ts           # LLM API usage list & delete
+│       │   ├── usage-add.ts       # LLM usage add (interactive & flags)
+│       │   ├── usage-import.ts    # LLM usage import from JSONL/JSON logs
+│       │   ├── usage-refresh.ts   # Auto-scanner for AI tool usage data
+│       │   ├── usage-total.ts     # Aggregated usage cost summary
+│       │   ├── scanner.ts         # Scanner framework for AI tool log parsing
+│       │   ├── scanner-types.ts   # Scanner type definitions
+│       │   ├── claude-scanner.ts  # Claude Code log scanner
+│       │   ├── codex-scanner.ts   # Codex CLI log scanner
+│       │   ├── copilot-scanner.ts # GitHub Copilot scanner
+│       │   ├── cursor-scanner.ts  # Cursor editor scanner
+│       │   ├── opencode-scanner.ts # OpenCode DB scanner
+│       │   ├── windsurf-scanner.ts # Windsurf editor scanner
+│       │   ├── audit.ts           # Audit log command handler
+│       │   ├── maintenance.ts     # Database maintenance (VACUUM, integrity check)
+│       │   ├── cleanup.ts         # One-command database cleanup
+│       │   ├── stats.ts           # Database statistics
+│       │   ├── currency.ts        # List supported currencies
+│       │   ├── mcp.ts             # MCP server entry (lazy-loads mcp/)
+│       │   ├── mcp/               # MCP server implementation
+│       │   │   ├── index.ts           # Barrel
+│       │   │   ├── server.ts          # MCP server setup & transport
+│       │   │   ├── tools.ts           # Tool definitions & schemas
+│       │   │   ├── handlers.ts        # Tool call handlers
+│       │   │   ├── security.ts        # Input validation & sanitization
+│       │   │   └── types.ts           # MCP type definitions
+│       │   ├── tui.tsx            # TUI entry: render Ink app
+│       │   ├── tui/               # TUI components (Ink + React)
+│       │   │   ├── app.tsx            # Root component: layout, keyboard handling
+│       │   │   ├── context/           # React context providers
+│       │   │   ├── screens/           # Screen components (list, add, edit, ...)
+│       │   │   └── components/        # Reusable UI components (sidebar, table, form, ...)
+│       │   └── __tests__/         # Test files (vitest)
+│       └── dist/                  # Built output (dist/index.mjs)
+├── docs/                      # Documentation site (SvelteKit)
+├── images/                    # Logo & branding assets
+├── flake.nix                  # Nix devShell
 └── pnpm-workspace.yaml
 ```

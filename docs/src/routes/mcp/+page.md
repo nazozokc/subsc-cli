@@ -46,7 +46,7 @@ In Windsurf settings, add an MCP server pointing to the same command.
 
 ## Available tools
 
-The MCP server exposes 17 tools covering all subscription management operations.
+The MCP server exposes 16 tools covering all subscription management operations.
 
 ### Subscription CRUD
 
@@ -84,7 +84,7 @@ The MCP server exposes 17 tools covering all subscription management operations.
 Each tool accepts a JSON object with the following parameters:
 
 **`list_subscriptions`**
-- `sort` (string, optional): Sort field — `name`, `price`, `currency`, `cycle`
+- `sort` (string, optional): Sort field — `name`, `price`, `currency`, `cycle`, `status`
 - `desc` (boolean, optional): Sort descending
 
 **`get_subscription`**

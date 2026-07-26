@@ -20,6 +20,9 @@ subtrack provides the following commands. Most support both interactive and non-
 - [`tag`](#tag)
 - [`export`](#export)
 - [`import`](#import)
+- [`clone`](#clone)
+- [`archive`](#archive)
+- [`unarchive`](#unarchive)
 - [`search`](#search)
 - [`trial`](#trial)
 - [`bulk`](#bulk)
@@ -31,6 +34,11 @@ subtrack provides the following commands. Most support both interactive and non-
 - [`calendar`](#calendar)
 - [`notify`](#notify)
 - [`profile`](#profile)
+- [`audit`](#audit)
+- [`maintenance`](#maintenance)
+- [`cleanup`](#cleanup)
+- [`stats`](#stats)
+- [`currency`](#currency)
 - [`backup`](#backup)
 - [`restore`](#restore)
 - [`config`](#config)
@@ -47,9 +55,16 @@ Lists all subscriptions in a formatted table. Subscriptions are grouped by curre
 | Option | Description |
 |--------|-------------|
 | `-c, --currency <C>` | Convert all prices to the given currency using live exchange rates |
-| `--sort <field>` | Sort by field: `name`, `price`, `currency`, `cycle`, `id` (default) |
+| `--sort <field>` | Sort by field: `name`, `price`, `currency`, `cycle`, `status`, `id` (default) |
 | `-d, --desc` | Sort in descending order (use with `--sort`) |
 | `-a, --api` | Include LLM API usage costs for the current month |
+| `-n, --notes` | Show notes column |
+| `-m, --method` | Show payment method column |
+| `-j, --json` | Output as JSON |
+| `--tags <tags>` | Comma-separated tag names to filter by (AND logic) |
+| `--limit <n>` | Max number of items to show |
+| `--offset <n>` | Number of items to skip |
+| `--include-archived` | Include archived subscriptions |
 
 ### Examples
 
@@ -71,6 +86,18 @@ subtrack list --api
 
 # Combine with currency conversion
 subtrack list --api --currency JPY
+
+# Show payment method and notes columns
+subtrack list --method --notes
+
+# Filter by tags
+subtrack list --tags music,video
+
+# JSON output for scripting
+subtrack list --json
+
+# Include archived subscriptions
+subtrack list --include-archived
 ```
 
 When `--currency` is used, all prices are converted to the target currency (fetched from [open.er-api.com](https://open.er-api.com)) and displayed as a single group with a grand total.
@@ -90,6 +117,7 @@ Adds a new subscription. Without flags, prompts for all fields interactively. Pr
 | `--tags <tags>` | Comma-separated tags (max 10 tags, each max 50 characters) |
 | `--status <status>` | Subscription status: `active`, `paused`, `cancelled` (default: `active`) |
 | `--billingDay <n>` | Billing day of month (1–31). If not set, defaults to the creation date |
+| `--paymentMethod <method>` | Payment method (e.g. `credit_card`, `paypal`) |
 
 ### Examples
 
@@ -126,6 +154,14 @@ subtrack add \
   --currency JPY \
   --cycle monthly \
   --billingDay 15
+
+# Set payment method
+subtrack add \
+  --name Spotify \
+  --price 980 \
+  --currency JPY \
+  --cycle monthly \
+  --paymentMethod credit_card
 ```
 
 ## `edit`
@@ -142,6 +178,7 @@ Edits an existing subscription. Without flags, interactively selects a subscript
 | `--tags <tags>` | New comma-separated tags |
 | `--status <status>` | New status: `active`, `paused`, `cancelled` |
 | `--billingDay <n>` | New billing day (1–31, or empty to clear) |
+| `--paymentMethod <method>` | New payment method |
 
 ### Examples
 
@@ -166,6 +203,9 @@ subtrack edit 3 --billingDay 1
 
 # Clear billing day (use cycle creation date instead)
 subtrack edit 3 --billingDay ""
+
+# Change payment method
+subtrack edit 3 --paymentMethod paypal
 ```
 
 Without flags, `edit` shows a multi-select of fields to change. Each selected field is prompted with the current value as default.
@@ -195,6 +235,10 @@ Shows subscriptions that are due for billing within the specified number of days
 |----------|-------------|
 | `[days]` | Number of days to look ahead (default: 7). Must be a non-negative integer. |
 
+| Option | Description |
+|--------|-------------|
+| `-j, --json` | Output as JSON |
+
 ### Examples
 
 ```bash
@@ -206,6 +250,61 @@ subtrack upcoming 30
 
 # Bills due today
 subtrack upcoming 0
+
+# JSON output
+subtrack upcoming --json
+```
+
+## `clone`
+
+Clones an existing subscription. Creates a new subscription pre-filled with all fields from the source, with optional overrides.
+
+| Option | Description |
+|--------|-------------|
+| `[id]` | Subscription ID to clone |
+| `--name <name>` | New name (default: `<original> (copy)`) |
+| `--price <price>` | Override price |
+| `--currency <C>` | Override currency |
+| `--cycle <cycle>` | Override billing cycle |
+| `--tags <tags>` | Override tags (comma-separated) |
+
+### Examples
+
+```bash
+# Clone subscription 3 with auto-naming
+subtrack clone 3
+
+# Clone with custom name
+subtrack clone 3 --name "Netflix (Secondary)"
+
+# Clone with overrides
+subtrack clone 3 --price 1500 --tags "video,4k"
+```
+
+## `archive`
+
+Archives a subscription by setting its status to `archived`. Archived subscriptions are preserved in the database but excluded from all payment calculations and reports. Unlike `cancelled`, archived subscriptions are intended for long-term record-keeping.
+
+| Argument | Description |
+|----------|-------------|
+| `[id]` | Subscription ID to archive |
+
+```bash
+# Archive subscription 3
+subtrack archive 3
+```
+
+## `unarchive`
+
+Unarchives a subscription, restoring its status to `active`.
+
+| Argument | Description |
+|----------|-------------|
+| `[id]` | Subscription ID to unarchive |
+
+```bash
+# Unarchive subscription 3
+subtrack unarchive 3
 ```
 
 Output is sorted by due date and shows each subscription's name, amount, cycle, and tags. A total row is displayed when multiple subscriptions are shown.
@@ -229,6 +328,8 @@ The `period` argument defaults to `monthly`. Valid values:
 |--------|-------------|
 | `-c, --currency <C>` | Convert all prices to the given currency using live exchange rates |
 | `-a, --api` | Include LLM API usage costs in the total |
+| `-m, --method` | Group by payment method |
+| `-j, --json` | Output as JSON |
 
 ### Examples
 
@@ -247,6 +348,12 @@ subtrack payment monthly --api
 
 # API costs in a specific currency
 subtrack payment monthly --api --currency JPY
+
+# Group by payment method
+subtrack payment --method
+
+# JSON output
+subtrack payment --json
 ```
 
 When `--currency` is used, the total is displayed as a single amount in the target currency. Without it, totals are grouped by currency.
@@ -264,10 +371,17 @@ Shows a summary of all subscriptions including:
 - Monthly spending by currency
 - Monthly spending by tag (sorted by cost)
 
+| Option | Description |
+|--------|-------------|
+| `-j, --json` | Output as JSON |
+
 ### Example
 
 ```bash
 subtrack summary
+
+# JSON output
+subtrack summary --json
 ```
 
 Output:
@@ -288,7 +402,7 @@ Monthly by tag:
 
 ## `analytics`
 
-Shows detailed subscription analytics, including a status breakdown (active/paused/cancelled), monthly spending by currency and tag, and budget tracking if a monthly budget has been configured.
+Shows detailed subscription analytics, including a status breakdown (active/paused/cancelled/archived), monthly spending by currency and tag, and budget tracking if a monthly budget has been configured.
 
 ### Example
 
@@ -347,8 +461,16 @@ Manages tags with the following subcommands:
 
 Lists all tags with their subscription count.
 
+| Option | Description |
+|--------|-------------|
+| `--sort <field>` | Sort by: `name` or `count` (default: `name`) |
+
 ```bash
+# List all tags
 subtrack tag list
+
+# Sort by usage count
+subtrack tag list --sort count
 ```
 
 ### `tag rename <old> <new>`
@@ -375,6 +497,14 @@ Removes orphaned tags (tags not associated with any subscription).
 subtrack tag prune
 ```
 
+### `tag merge <source> <target>`
+
+Merges a source tag into a target tag. All subscriptions tagged with the source tag are reassigned to the target tag, and the source tag is deleted. If the target tag doesn't exist, it's created.
+
+```bash
+subtrack tag merge entertainment fun
+```
+
 ## `import <file>`
 
 Imports subscriptions from a CSV file. The CSV must have a header row with exactly `name,cycle,tags,price,currency`.
@@ -383,6 +513,7 @@ Imports subscriptions from a CSV file. The CSV must have a header row with exact
 |----------|-------------|
 | `<file>` | Path to the CSV file |
 | `--dry-run` | Validate rows without importing |
+| `--deduplicate` | Skip or update existing subscriptions with the same name |
 
 ### CSV format
 
@@ -596,6 +727,7 @@ Lists LLM API usage entries with optional filtering.
 | `--provider <name>` | Filter by provider |
 | `--from <YYYY-MM-DD>` | Start date (inclusive) |
 | `--to <YYYY-MM-DD>` | End date (inclusive) |
+| `-j, --json` | Output as JSON |
 
 ```bash
 # List all entries
@@ -603,6 +735,9 @@ subtrack usage list
 
 # Filter by provider and date range
 subtrack usage list --provider openai --from 2026-01-01 --to 2026-06-30
+
+# JSON output
+subtrack usage list --json
 ```
 
 Shows up to 100 entries with provider, model, token counts, cost, date, and description. Displays a total cost at the bottom.
@@ -677,6 +812,33 @@ subtrack usage refresh --all
 
 # Force-refresh pricing cache only (no scanner data import)
 # (This is the default behavior of the old refresh — pricing is auto-refreshed daily)
+```
+
+### `usage total`
+
+Shows aggregated LLM API usage costs for a given period, including a provider breakdown.
+
+| Option | Description |
+|--------|-------------|
+| `--from <YYYY-MM-DD>` | Start date (inclusive) |
+| `--to <YYYY-MM-DD>` | End date (inclusive) |
+| `--period <period>` | Period: `monthly`, `quarterly`, `yearly` (default: `monthly`) |
+| `-j, --json` | Output as JSON |
+
+When neither `--from`/`--to` nor `--period` is specified, defaults to the current month.
+
+```bash
+# Current month total
+subtrack usage total
+
+# Specific date range
+subtrack usage total --from 2026-01-01 --to 2026-06-30
+
+# Yearly total with provider breakdown
+subtrack usage total --period yearly
+
+# JSON output
+subtrack usage total --json
 ```
 
 ## `search`
@@ -1019,6 +1181,124 @@ subtrack profile show
 subtrack profile delete work
 ```
 
+## `audit`
+
+View and manage the audit log. All mutating operations (add, edit, delete, clone, archive, import, etc.) are recorded in an audit trail.
+
+### `audit list`
+
+| Option | Description |
+|--------|-------------|
+| `--action <action>` | Filter by action type |
+| `--limit <n>` | Max entries (default: 50) |
+| `--from <YYYY-MM-DD>` | Start date |
+| `--to <YYYY-MM-DD>` | End date |
+| `-j, --json` | Output as JSON |
+
+```bash
+# Show last 50 audit entries
+subtrack audit list
+
+# Filter by action type
+subtrack audit list --action subscription.delete
+
+# Filter by date range
+subtrack audit list --from 2026-01-01 --to 2026-06-30
+
+# JSON output
+subtrack audit list --json
+```
+
+### `audit prune`
+
+Removes old audit log entries to save space.
+
+| Option | Description |
+|--------|-------------|
+| `--days <n>` | Delete entries older than N days (default: 90) |
+| `-f, --force` | Skip confirmation |
+| `-j, --json` | Output as JSON |
+
+```bash
+# Prune entries older than 90 days
+subtrack audit prune
+
+# Prune entries older than 30 days
+subtrack audit prune --days 30
+```
+
+## `maintenance`
+
+Run database maintenance operations: integrity check and VACUUM.
+
+| Option | Description |
+|--------|-------------|
+| `--vacuum` | Run VACUUM to reclaim disk space (not run by default) |
+| `--check` | Run integrity check (default: true) |
+| `-j, --json` | Output as JSON |
+
+```bash
+# Default: integrity check only
+subtrack maintenance
+
+# Run VACUUM to reclaim space
+subtrack maintenance --vacuum
+
+# JSON output
+subtrack maintenance --json
+```
+
+## `cleanup`
+
+One-command database cleanup: runs integrity check, VACUUM, prunes old audit entries and orphaned tags.
+
+| Option | Description |
+|--------|-------------|
+| `--vacuum` | Run VACUUM (default: true) |
+| `--audit-days <n>` | Prune audit entries older than N days (default: 90) |
+| `-j, --json` | Output as JSON |
+
+```bash
+# Full cleanup with defaults
+subtrack cleanup
+
+# Skip VACUUM, only prune audit/tags
+subtrack cleanup --no-vacuum
+
+# Keep 30 days of audit history
+subtrack cleanup --audit-days 30
+```
+
+## `stats`
+
+Shows database statistics: subscription counts by status, tag count, trial count, usage entry count, database file size, and price range information.
+
+| Option | Description |
+|--------|-------------|
+| `-j, --json` | Output as JSON |
+
+```bash
+subtrack stats
+
+# JSON output
+subtrack stats --json
+```
+
+## `currency`
+
+Lists all 36 supported currencies with their display names.
+
+| Option | Description |
+|--------|-------------|
+| `-j, --json` | Output as JSON |
+
+```bash
+subtrack currency
+
+# JSON output — useful for scripting
+subtrack currency --json
+```
+
 ## `mcp`
 
 Starts a Model Context Protocol (MCP) server over stdio, enabling AI assistants (Claude Desktop, Cursor, etc.) to interact with your subscription data programmatically.
@@ -1027,7 +1307,7 @@ Starts a Model Context Protocol (MCP) server over stdio, enabling AI assistants 
 subtrack mcp
 ```
 
-The MCP server exposes 17 tools for subscription management. See the [MCP page](/mcp) for full details, tool reference, and integration examples.
+The MCP server exposes 16 tools for subscription management. See the [MCP page](/mcp) for full details, tool reference, and integration examples.
 
 ## `tui`
 

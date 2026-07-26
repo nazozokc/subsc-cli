@@ -3,7 +3,7 @@ title: Configuration
 description: Environment variables and configuration options for subtrack.
 ---
 
-subtrack follows a **zero-configuration** philosophy. It works out of the box with sensible defaults. The only configurable option is the database directory.
+subtrack follows a **zero-configuration** philosophy. It works out of the box with sensible defaults.
 
 ## Environment variables
 
@@ -71,6 +71,32 @@ subtrack config reset
 
 See the [Commands reference](/commands#config) for full details.
 
+### Config keys
+
+| Key | Description | Default |
+|-----|-------------|---------|
+| `defaultCurrency` | Default currency for display and analytics | `USD` |
+| `monthlyBudget` | Monthly spending budget in USD (0 = disabled) | `0` |
+| `theme` | Display theme | `default` |
+| `notifyDays` | Default look-ahead days for `subtrack notify` | `7` |
+| `notifyChannels` | Notification channels (comma-separated: `os`, `email`, `slack`, `webhook`) | `os` |
+| `notifyEmail` | Email address for email notifications | — |
+| `slackWebhook` | Slack webhook URL for Slack notifications | — |
+| `webhookUrl` | Generic webhook URL for notifications | — |
+| `yearlyBudget` | Yearly budget target in USD | — |
+| `profiles` | Saved filter profiles (stored as JSON object) | `{}` |
+| `activeProfile` | Currently active filter profile name | — |
+| `budgets` | Multiple named budgets for budget-vs-actual tracking | — |
+
+Set values with:
+
+```bash
+subtrack config set notifyDays 3
+subtrack config set defaultCurrency JPY
+```
+
+The `config set` command validates input (e.g., currency codes must be ISO 4217, budget must be non-negative).
+
 ## No config file
 
 subtrack does not use configuration files (`.subtrackrc`, `subtrack.json`, etc.). All settings are controlled via the `config` command, environment variables, or CLI flags. This keeps the tool simple and predictable.
@@ -86,6 +112,12 @@ AED  ARS  AUD  BRL  CAD  CHF  CLP  CNY  COP  CZK
 DKK  EGP  EUR  GBP  HKD  HUF  IDR  ILS  INR  JPY
 KRW  MXN  MYR  NGN  NOK  NZD  PHP  PLN  SAR  SEK
 SGD  THB  TRY  TWD  USD  VND  ZAR
+```
+
+View the full list with descriptions using:
+
+```bash
+subtrack currency
 ```
 
 ### Supported billing cycles (6)

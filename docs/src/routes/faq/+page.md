@@ -137,7 +137,7 @@ Your database will be preserved — updates only affect the CLI code, not your d
 
 ## What is MCP and how do I use it?
 
-MCP (Model Context Protocol) is a standard that allows AI assistants to interact with tools. subtrack implements an MCP server that exposes 17 tools for subscription management. Start it with `subtrack mcp` and configure it in Claude Desktop, Cursor, Windsurf, or any MCP-compatible host. See the [MCP page](/mcp) for full details.
+MCP (Model Context Protocol) is a standard that allows AI assistants to interact with tools. subtrack implements an MCP server that exposes 16 tools for subscription management. Start it with `subtrack mcp` and configure it in Claude Desktop, Cursor, Windsurf, or any MCP-compatible host. See the [MCP page](/mcp) for full details.
 
 ## How do I search for subscriptions?
 
@@ -178,3 +178,23 @@ Yes. `subtrack notify` sends an OS desktop notification for bills due within a c
 ## What are filter profiles?
 
 Filter profiles let you save a set of filters (tags, status, payment method) and switch between them. When a profile is active, all list, payment, and summary commands show only matching subscriptions. Useful for separating work/personal subscriptions or focusing on specific categories.
+
+## What is the archive command for?
+
+`subtrack archive <id>` sets a subscription's status to `archived`. Archived subscriptions are preserved in the database but excluded from all payment calculations and reports. This is different from `cancelled` — archiving is intended for long-term record-keeping (e.g., services you no longer use but want to keep a reference to). Use `subtrack unarchive <id>` to restore it back to active.
+
+## What is the clone command?
+
+`subtrack clone <id>` creates a new subscription pre-filled with all fields from the existing one. This is useful for creating similar subscriptions (e.g., multiple cloud service accounts) without re-entering all the data. Optionally override fields like `--name`, `--price`, or `--tags`.
+
+## What is the audit log?
+
+Every mutating operation (add, edit, delete, clone, archive, import, etc.) is recorded in an audit log. View it with `subtrack audit list` and prune old entries with `subtrack audit prune --days 90`. The audit log helps track changes over time and diagnose issues.
+
+## How do I run database maintenance?
+
+Use `subtrack maintenance` to run an integrity check (default) and optionally VACUUM to reclaim disk space. For a one-command cleanup that also prunes audit logs and orphaned tags, use `subtrack cleanup`. These commands help keep your database healthy and compact.
+
+## How many currencies does subtrack support?
+
+subtrack supports 36 currencies in the interactive prompt, and any ISO 4217 3-letter code via the `--currency` flag. View the full list with `subtrack currency`.

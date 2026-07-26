@@ -10,6 +10,9 @@ subtrack offers both **interactive** and **non-interactive** modes. The interact
 | `add` | ✅ (default) | ✅ (all flags provided) |
 | `edit` | ✅ (default) | ✅ (flags + optional ID) |
 | `delete` | ✅ (always) | ✅ (positional IDs) |
+| `clone` | ❌ | ✅ (positional ID) |
+| `archive` | ❌ | ✅ (positional ID) |
+| `unarchive` | ❌ | ✅ (positional ID) |
 | `import` | ❌ | ✅ |
 | `list` | ❌ | ✅ |
 | `tags` | ❌ | ✅ |
@@ -19,10 +22,18 @@ subtrack offers both **interactive** and **non-interactive** modes. The interact
 | `payment` | ❌ | ✅ |
 | `backup` | ❌ | ✅ |
 | `restore` | ✅ (default) | ✅ (flags provided) |
+| `audit list` | ❌ | ✅ |
+| `audit prune` | ❌ | ✅ |
+| `maintenance` | ❌ | ✅ |
+| `cleanup` | ❌ | ✅ |
+| `stats` | ❌ | ✅ |
+| `currency` | ❌ | ✅ |
 | `usage add` | ✅ (default) | ✅ (all flags provided) |
 | `usage list` | ❌ | ✅ |
 | `usage delete` | ✅ (always) | ✅ (positional IDs) |
+| `usage import` | ❌ | ✅ |
 | `usage refresh` | ❌ | ✅ |
+| `usage total` | ❌ | ✅ |
 
 ## `subtrack add` — interactive walkthrough
 

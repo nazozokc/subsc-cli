@@ -48,6 +48,12 @@ subtrack add --name Netflix --price 1999 --currency USD --cycle monthly
 # Edit a subscription
 subtrack edit 3 --price 2500
 
+# Clone a subscription
+subtrack clone 3 --name "Netflix (Backup)"
+
+# Archive a subscription
+subtrack archive 4
+
 # Show monthly payment total
 subtrack payment
 
@@ -61,7 +67,13 @@ subtrack summary
 subtrack analytics
 
 # Filter by tags
-subtrack tags music video</pre>
+subtrack tags music video
+
+# Run database maintenance
+subtrack maintenance
+
+# Show database stats
+subtrack stats</pre>
   <p style="margin-top: 1rem;">
     <a href={base + "/installation"}>Installation guide &rarr;</a>
     &nbsp;&middot;&nbsp;

@@ -485,6 +485,74 @@ subtrack profile switch work
 subtrack profile list
 ```
 
+## Cloning subscriptions
+
+Clone an existing subscription to quickly create a similar one:
+
+```bash
+# Clone subscription 3 with auto-generated name
+subtrack clone 3
+
+# Clone with custom name and price override
+subtrack clone 3 --name "Netflix (Travel)" --price 1500
+```
+
+All fields from the source subscription are copied. Use optional flags to override specific fields.
+
+## Archiving and unarchiving
+
+Archive subscriptions you no longer actively use but want to keep for reference:
+
+```bash
+# Archive a subscription
+subtrack archive 5
+
+# Restore it when needed
+subtrack unarchive 5
+```
+
+Archived subscriptions are excluded from all payment calculations and reports, unlike cancelled subscriptions which are kept for record-keeping without a path back to active.
+
+## Audit trail
+
+Track all changes made to your subscription data:
+
+```bash
+# View recent audit entries
+subtrack audit list
+
+# Filter by action type
+subtrack audit list --action subscription.edit
+
+# Prune old entries
+subtrack audit prune --days 90
+```
+
+## Database maintenance
+
+Keep your database healthy with regular maintenance:
+
+```bash
+# Integrity check only
+subtrack maintenance
+
+# Full maintenance with VACUUM
+subtrack maintenance --vacuum
+
+# One-command cleanup (integrity check + VACUUM + prune audit + prune tags)
+subtrack cleanup
+```
+
+## Database statistics
+
+Get a quick overview of your database's health and contents:
+
+```bash
+subtrack stats
+```
+
+Shows subscription counts by status, tag count, trial count, usage entry count, database file size, and price range information.
+
 ## MCP integration
 
 subtrack runs an MCP (Model Context Protocol) server, allowing AI assistants to manage your subscriptions:
