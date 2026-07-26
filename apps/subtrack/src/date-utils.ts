@@ -121,7 +121,7 @@ export function getPeriodDateRange(period: Cycle): { from: string; to: string } 
     }
     case "bi-weekly": {
       const twoWeeksAgo = new Date(now)
-      twoWeeksAgo.setDate(d - 14)
+      twoWeeksAgo.setDate(d - 13)
       return {
         from: `${twoWeeksAgo.getFullYear()}-${pad(twoWeeksAgo.getMonth() + 1)}-${pad(twoWeeksAgo.getDate())}`,
         to,

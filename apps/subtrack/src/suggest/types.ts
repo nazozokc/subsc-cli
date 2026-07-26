@@ -51,13 +51,7 @@ export type SuggestionCandidate = {
   confidence: number
 }
 
-/** IMAP connection settings. */
-export type ImapConfig = {
-  host: string
-  port: number
-  tls: boolean
-  username: string
-}
+export type { ImapConfig } from "../types.ts"
 
 /** Options for the suggest command. */
 export type SuggestListFlags = {

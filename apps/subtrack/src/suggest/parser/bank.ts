@@ -91,8 +91,13 @@ export function parseBankEmail(email: RawEmail): SuggestionCandidate | null {
     if (!nameMatch || !amountMatch) continue
 
     let name = nameMatch[1].trim()
-    // Clean the name
-    name = name.replace(/<[^>]+>/g, "").trim()
+    // Repeatedly strip HTML-like tags to prevent bypass via nested tags
+    let prev: string
+    do {
+      prev = name
+      name = name.replace(/<[^>]+>/g, "")
+    } while (name !== prev)
+    name = name.trim()
     if (!name || name.length > 100) continue
 
     const rawAmount = amountMatch[1].replace(/,/g, "")
@@ -101,11 +106,20 @@ export function parseBankEmail(email: RawEmail): SuggestionCandidate | null {
 
     let date: string | null = null
     if (dateMatch) {
-      if (dateMatch[0].includes("/") && dateMatch[1].length === 4) {
-        date = `${dateMatch[1]}-${dateMatch[2].padStart(2, "0")}-${dateMatch[3].padStart(2, "0")}`
-      } else if (dateMatch[0].includes("/")) {
-        // Could be MM/DD/YYYY or DD/MM/YYYY but Japanese is usually YYYY/MM/DD
-        dateMatch
+      if (pattern.name === "Generic Bank") {
+        // Generic Bank uses separate Y/M/D groups
+        const y = dateMatch[1]
+        const mo = dateMatch[2]
+        const d = dateMatch[3]
+        if (y && mo && d) {
+          date = `${y}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`
+        }
+      } else if (dateMatch[1]) {
+        // Other banks use unified YYYY/MM/DD in dateMatch[1]
+        const parts = dateMatch[1].split("/")
+        if (parts.length === 3 && parts[0].length === 4) {
+          date = `${parts[0]}-${parts[1].padStart(2, "0")}-${parts[2].padStart(2, "0")}`
+        }
       }
     }
 

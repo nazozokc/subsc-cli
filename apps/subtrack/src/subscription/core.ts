@@ -130,9 +130,18 @@ export async function handleClone(id: number, flags: Partial<AddFlags> = {}): Pr
   }
 
   const newName = flags.name ?? `${sub.name} (copy)`
+  let price = sub.price
+  if (flags.price !== undefined) {
+    const parsed = Number(flags.price)
+    if (!isFinite(parsed) || isNaN(parsed)) {
+      consola.error(`Invalid price: "${flags.price}"`)
+      return
+    }
+    price = parsed
+  }
   const newData = {
     name: newName,
-    price: flags.price !== undefined ? Number(flags.price) : sub.price,
+    price,
     currency: flags.currency ?? sub.currency,
     cycle: (flags.cycle as import("../types.ts").Cycle) ?? sub.cycle,
     tags: flags.tags ? flags.tags.split(",").map((t) => t.trim()).filter(Boolean) : [...sub.tags],

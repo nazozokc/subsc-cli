@@ -3,11 +3,10 @@
  */
 
 import { consola } from "consola"
-import { statSync } from "node:fs"
 import { getDb, getDbPath } from "./db.ts"
 import type { Status } from "./types.ts"
 import { execObjs } from "./db/connection.ts"
-import { formatBytes } from "./format.ts"
+import { formatBytes, getFileSize } from "./format.ts"
 
 type SubStats = {
   total: number
@@ -59,10 +58,7 @@ export function handleStats(options: { json?: boolean } = {}): void {
   const max = priceRows.length > 0 ? Math.max(...priceRows.map((r) => r.price)) : 0
 
   // DB size
-  let dbSizeBytes = 0
-  try {
-    dbSizeBytes = statSync(getDbPath()).size
-  } catch { /* ignore */ }
+  const dbSizeBytes = getFileSize(getDbPath())
 
   const stats: SubStats = {
     total, active, paused, cancelled, archived,

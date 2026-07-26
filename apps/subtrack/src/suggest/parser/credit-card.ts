@@ -80,19 +80,26 @@ export function parseCreditCardEmail(email: RawEmail): SuggestionCandidate | nul
     if (!nameMatch || !amountMatch) continue
 
     let name = nameMatch[1].trim()
-    name = name.replace(/<[^>]+>/g, "").trim()
+    // Repeatedly strip HTML-like tags to prevent bypass via nested tags
+    let prev: string
+    do {
+      prev = name
+      name = name.replace(/<[^>]+>/g, "")
+    } while (name !== prev)
+    name = name.trim()
     if (!name || name.length > 100) continue
 
     const rawAmount = amountMatch[1].replace(/,/g, "")
-    const isDecimal = rawAmount.includes(".")
-    const amount = isDecimal
-      ? Math.round(parseFloat(rawAmount) * 100) // USD cents
-      : parseInt(rawAmount, 10) // JPY
+    // Determine currency from symbol in the matched text
+    const currencySymbol = amountMatch[0].match(/[¥$€£]/)?.[0] ?? ""
+    const currencyMap: Record<string, string> = { "$": "USD", "¥": "JPY", "€": "EUR", "£": "GBP" }
+    const currency = currencySymbol ? (currencyMap[currencySymbol] ?? "JPY") : "JPY"
+    // Scale: JPY is zero-decimal, others are fractional (cents)
+    const amount = currency === "JPY"
+      ? parseInt(rawAmount, 10)
+      : Math.round(parseFloat(rawAmount) * 100)
 
     if (isNaN(amount) || amount <= 0 || amount > 99999999) continue
-
-    // Determine currency from amount format
-    const currency = isDecimal ? "USD" : "JPY"
 
     let date: string | null = null
     if (dateMatch) {

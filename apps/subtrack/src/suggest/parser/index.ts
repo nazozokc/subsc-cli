@@ -24,7 +24,7 @@ const parsers: EmailParser[] = [
 
 /**
  * Try each parser in order and return the first matching result.
- * Returns null only if all parsers return null (which genericParser never does).
+ * Returns null if all parsers, including the generic fallback, return null.
  */
 export function parseEmail(email: RawEmail): SuggestionCandidate | null {
   for (const parser of parsers) {

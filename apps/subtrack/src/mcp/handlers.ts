@@ -235,8 +235,8 @@ export async function handleCompare(args?: Record<string, unknown>): Promise<Mcp
   const subs = getSubscriptions()
   const activeSubs = subs.filter((s) => s.status !== "cancelled")
 
-  const currentTotals = calcSubTotal(activeSubs, rates, targetCurrency)
-  const previousTotals = calcPreviousTotals(activeSubs, rates, targetCurrency)
+  const currentTotals = calcSubTotal(activeSubs, rates, targetCurrency, period)
+  const previousTotals = calcPreviousTotals(activeSubs, rates, targetCurrency, period)
 
   const allCurrencies = [...new Set([...Object.keys(currentTotals), ...Object.keys(previousTotals)])].sort()
 

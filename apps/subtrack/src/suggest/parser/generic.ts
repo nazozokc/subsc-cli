@@ -76,17 +76,20 @@ function extractPrice(text: string): { amount: number; currency: string } | null
     const match = text.match(re)
     if (match) {
       if (ccy) {
-        const amount = parseFloat(match[1].replace(/,/g, ""))
-        if (amount > 0 && amount < 99999999) {
-          return { amount: Math.round(amount), currency: ccy }
+        const rawAmount = parseFloat(match[1].replace(/,/g, ""))
+        if (rawAmount > 0 && rawAmount < 99999999) {
+          // Scale: JPY is zero-decimal, others are fractional
+          const amount = ccy === "JPY" ? Math.round(rawAmount) : Math.round(rawAmount * 100)
+          return { amount, currency: ccy }
         }
       } else {
         // Symbol-based
         const symbol = match[1]
-        const amount = parseFloat(match[2].replace(/,/g, ""))
+        const rawAmount = parseFloat(match[2].replace(/,/g, ""))
         const currency = CURRENCY_SYMBOLS[symbol] ?? "USD"
-        if (amount > 0 && amount < 99999999) {
-          return { amount: Math.round(amount), currency }
+        if (rawAmount > 0 && rawAmount < 99999999) {
+          const amount = currency === "JPY" ? Math.round(rawAmount) : Math.round(rawAmount * 100)
+          return { amount, currency }
         }
       }
     }

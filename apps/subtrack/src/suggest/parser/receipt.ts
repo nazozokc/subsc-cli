@@ -130,15 +130,14 @@ export function parseReceiptEmail(email: RawEmail): SuggestionCandidate | null {
 
     const symbol = amountMatch[1]
     const rawAmount = amountMatch[2].replace(/,/g, "")
-    const isDecimal = rawAmount.includes(".")
-    const amount = isDecimal
-      ? Math.round(parseFloat(rawAmount) * 100)
-      : parseInt(rawAmount, 10)
-
-    if (isNaN(amount) || amount <= 0 || amount > 99999999) continue
-
     const currencyMap: Record<string, string> = { "$": "USD", "¥": "JPY", "€": "EUR", "£": "GBP" }
     const currency = symbol ? (currencyMap[symbol] ?? "USD") : "USD"
+    // Scale: JPY is zero-decimal, others are fractional (cents)
+    const amount = currency === "JPY"
+      ? parseInt(rawAmount, 10)
+      : Math.round(parseFloat(rawAmount) * 100)
+
+    if (isNaN(amount) || amount <= 0 || amount > 99999999) continue
 
     const cycle = pattern.cycleHint.test(text) ? "monthly" : null
 

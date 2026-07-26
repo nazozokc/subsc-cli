@@ -13,6 +13,9 @@ import {
   CURRENCY_CHOICES,
   CYCLE_CHOICES,
   STATUS_CHOICES,
+  isValidCurrency,
+  isValidCycle,
+  isValidStatus,
   validateName,
   validatePrice,
   validateTags,
@@ -49,7 +52,7 @@ export async function handleEdit(
     flags.name !== undefined || flags.price !== undefined ||
     flags.currency !== undefined || flags.cycle !== undefined ||
     flags.tags !== undefined || flags.status !== undefined ||
-    flags.billingDay !== undefined ||
+    flags.billingDay !== undefined || flags.notes !== undefined ||
     flags.paymentMethod !== undefined
 
   if (hasFlags) {
@@ -64,9 +67,27 @@ export async function handleEdit(
       }
       newData.price = Number(flags.price)
     }
-    if (flags.currency !== undefined) newData.currency = flags.currency
-    if (flags.cycle !== undefined) newData.cycle = flags.cycle as Cycle
-    if (flags.status !== undefined) newData.status = flags.status as Status
+    if (flags.currency !== undefined) {
+      if (!isValidCurrency(flags.currency)) {
+        consola.error(`Invalid currency: "${flags.currency}"`)
+        return
+      }
+      newData.currency = flags.currency
+    }
+    if (flags.cycle !== undefined) {
+      if (!isValidCycle(flags.cycle)) {
+        consola.error(`Invalid cycle: "${flags.cycle}"`)
+        return
+      }
+      newData.cycle = flags.cycle as Cycle
+    }
+    if (flags.status !== undefined) {
+      if (!isValidStatus(flags.status)) {
+        consola.error(`Invalid status: "${flags.status}"`)
+        return
+      }
+      newData.status = flags.status as Status
+    }
     if (flags.billingDay !== undefined) {
       const trimmed = flags.billingDay.trim()
       newData.billingDay = trimmed ? Number(trimmed) : null
@@ -104,16 +125,17 @@ export async function handleEdit(
   const fields = await checkbox({
     message: "Select fields to edit:",
     loop: false,
-    choices: [
-      { name: `name (${sub.name})`, value: "name" },
-      { name: `price (${formatPrice(sub.price, sub.currency)})`, value: "price" },
-      { name: `currency (${sub.currency})`, value: "currency" },
-      { name: `cycle (${sub.cycle})`, value: "cycle" },
-      { name: `status (${sub.status})`, value: "status" },
-      { name: `billing day (${sub.billingDay ?? "not set"})`, value: "billingDay" },
-      { name: `tags (${sub.tags.join(", ") || "none"})`, value: "tags" },
-      { name: `payment method (${sub.paymentMethod ?? "not set"})`, value: "paymentMethod" },
-    ],
+choices: [
+        { name: `name (${sub.name})`, value: "name" },
+        { name: `price (${formatPrice(sub.price, sub.currency)})`, value: "price" },
+        { name: `currency (${sub.currency})`, value: "currency" },
+        { name: `cycle (${sub.cycle})`, value: "cycle" },
+        { name: `status (${sub.status})`, value: "status" },
+        { name: `billing day (${sub.billingDay ?? "not set"})`, value: "billingDay" },
+        { name: `tags (${sub.tags.join(", ") || "none"})`, value: "tags" },
+        { name: `notes (${sub.notes ?? "none"})`, value: "notes" },
+        { name: `payment method (${sub.paymentMethod ?? "not set"})`, value: "paymentMethod" },
+      ],
   })
 
   if (fields.length === 0) {
@@ -186,6 +208,13 @@ export async function handleEdit(
       validate: validatePaymentMethod,
     })
     newData.paymentMethod = pm.trim() || null
+  }
+  if (fields.includes("notes")) {
+    const noteStr = await input({
+      message: "New notes (empty to clear):",
+      default: sub.notes ?? "",
+    })
+    newData.notes = noteStr.trim() || null
   }
 
   const ok = await confirm({ message: "Save changes?", default: true })

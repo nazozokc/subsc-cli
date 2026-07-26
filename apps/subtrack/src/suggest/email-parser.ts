@@ -36,10 +36,10 @@ function looksLikeEml(text: string): boolean {
 }
 
 function parseEml(raw: string, id: string): RawEmail {
-  // Split headers and body
-  const headerEnd = raw.indexOf("\n\n")
+  // Split headers and body (CRLF or LF)
+  const headerEnd = raw.search(/\r?\n\r?\n/)
   const headerSection = headerEnd === -1 ? raw : raw.slice(0, headerEnd)
-  const bodySection = headerEnd === -1 ? "" : raw.slice(headerEnd + 2)
+  const bodySection = headerEnd === -1 ? "" : raw.slice(headerEnd + (raw[headerEnd] === '\r' ? 4 : 2))
 
   const headers = parseHeaders(headerSection)
   const textBody = extractTextBody(bodySection)
@@ -114,7 +114,7 @@ function extractTextBody(body: string): string {
   // If the body looks like MIME headers (no blank line before content),
   // try to find the actual content after the MIME section
   if (/content-type|content-transfer-encoding/i.test(body.slice(0, 300))) {
-    const parts = body.split("\n\n")
+    const parts = body.split(/\r?\n\r?\n/)
     // Skip past MIME headers
     for (let i = 1; i < parts.length; i++) {
       if (!/content-type|content-transfer-encoding|charset|base64|quoted-printable/i.test(parts[i].slice(0, 200))) {
@@ -135,10 +135,10 @@ function extractFromMultipart(body: string, boundary: string): string {
   for (const part of parts) {
     const lower = part.toLowerCase()
     if (lower.includes("text/plain") && !lower.includes("text/html")) {
-      // Extract content after the header block
-      const contentStart = part.search(/\n\n/)
+      // Extract content after the header block (CRLF or LF)
+      const contentStart = part.search(/\r?\n\r?\n/)
       if (contentStart !== -1) {
-        textPart = part.slice(contentStart + 2).trim()
+        textPart = part.slice(contentStart + (part[contentStart] === '\r' ? 4 : 2)).trim()
         break
       }
     }
@@ -149,9 +149,9 @@ function extractFromMultipart(body: string, boundary: string): string {
     for (const part of parts) {
       const lower = part.toLowerCase()
       if (!lower.includes("text/html") && !lower.includes("multipart")) {
-        const contentStart = part.search(/\n\n/)
+        const contentStart = part.search(/\r?\n\r?\n/)
         if (contentStart !== -1) {
-          textPart = part.slice(contentStart + 2).trim()
+          textPart = part.slice(contentStart + (part[contentStart] === '\r' ? 4 : 2)).trim()
           break
         }
       }
@@ -163,7 +163,7 @@ function extractFromMultipart(body: string, boundary: string): string {
 
 function decodeBase64Body(body: string): string {
   // Find the base64 content (after the last blank line in the MIME section)
-  const parts = body.split("\n\n")
+  const parts = body.split(/\r?\n\r?\n/)
   const b64 = parts[parts.length - 1].replace(/\s/g, "")
   try {
     return Buffer.from(b64, "base64").toString("utf-8").trim()
@@ -179,14 +179,28 @@ function decodeQp(text: string): string {
     .replace(/=\r?\n/g, "")
 }
 
-/** Minimal MIME encoded-word decoder for Subject/From headers. */
+/** Minimal MIME encoded-word decoder for Subject/From headers.
+ * Supports both Base64 (?B?) and Quoted-printable (?Q?) encoding,
+ * respecting the declared charset. */
 function decodeMimeHeader(header: string | null): string | null {
   if (!header) return null
   return header.replace(
-    /=(\?[^?]+\?[Bb]\?([^?]*)\?=)/g,
-    (_, __, encoded) => {
+    /=\?([^?]+)\?([BbQq])\?([^?]*)\?=/g,
+    (_, charset: string, encoding: string, encoded: string) => {
       try {
-        return Buffer.from(encoded, "base64").toString("utf-8")
+        if (encoding.toUpperCase() === "B") {
+          return Buffer.from(encoded, "base64").toString("utf-8")
+        }
+        // Q-encoding: replace _ with space, decode =FF hex escapes
+        const qDecoded = encoded
+          .replace(/_/g, " ")
+          .replace(/=([0-9A-Fa-f]{2})/g, (__, hex) => String.fromCharCode(parseInt(hex, 16)))
+        // Try to decode using the declared charset; fall back to utf-8
+        try {
+          return Buffer.from(qDecoded, "latin1").toString(charset.toLowerCase() === "iso-2022-jp" ? "utf-8" : charset as BufferEncoding)
+        } catch {
+          return qDecoded
+        }
       } catch {
         return _
       }

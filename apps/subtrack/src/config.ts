@@ -81,6 +81,15 @@ export function resetConfig(): void {
   _config = null
 }
 
+function mergeImapConfig(config: SubtrackConfig, patch: Partial<import("./types.ts").ImapConfig>): import("./types.ts").ImapConfig {
+  return {
+    host: patch.host ?? config.imap?.host ?? "",
+    port: patch.port ?? config.imap?.port ?? 993,
+    tls: patch.tls ?? config.imap?.tls ?? true,
+    username: patch.username ?? config.imap?.username ?? "",
+  }
+}
+
 export function setConfig(key: string, value: string): boolean {
   const config = loadConfig()
 
@@ -116,7 +125,7 @@ export function setConfig(key: string, value: string): boolean {
     }
     case "imapHost":
       if (!value) { consola.error("imapHost must not be empty"); return false }
-      config.imap = { ...config.imap, host: value, port: config.imap?.port ?? 993, tls: config.imap?.tls ?? true, username: config.imap?.username ?? "" }
+      config.imap = mergeImapConfig(config, { host: value })
       break
     case "imapPort": {
       const port = Number(value)
@@ -124,7 +133,7 @@ export function setConfig(key: string, value: string): boolean {
         consola.error("imapPort must be an integer between 1 and 65535")
         return false
       }
-      config.imap = { ...config.imap, host: config.imap?.host ?? "", port, tls: config.imap?.tls ?? true, username: config.imap?.username ?? "" }
+      config.imap = mergeImapConfig(config, { port })
       break
     }
     case "imapTls":
@@ -132,11 +141,11 @@ export function setConfig(key: string, value: string): boolean {
         consola.error("imapTls must be 'true' or 'false'")
         return false
       }
-      config.imap = { ...config.imap, host: config.imap?.host ?? "", port: config.imap?.port ?? 993, tls: value === "true", username: config.imap?.username ?? "" }
+      config.imap = mergeImapConfig(config, { tls: value === "true" })
       break
     case "imapUsername":
       if (!value) { consola.error("imapUsername must not be empty"); return false }
-      config.imap = { ...config.imap, host: config.imap?.host ?? "", port: config.imap?.port ?? 993, tls: config.imap?.tls ?? true, username: value }
+      config.imap = mergeImapConfig(config, { username: value })
       break
     default:
       consola.error(`Unknown config key: "${key}"`)

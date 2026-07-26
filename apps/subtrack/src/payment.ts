@@ -163,20 +163,21 @@ export function calcSubTotal(
   subs: SharedArgs[],
   rates: FxRates | null,
   targetCurrency: Currency | undefined,
+  period: Cycle = "monthly",
 ): CcyTotals {
   const totals: CcyTotals = {}
   for (const sub of subs) {
     if (sub.status === "cancelled") continue
-    const monthly = sub.price * periodFactor(sub.cycle, "monthly")
+    const normalized = sub.price * periodFactor(sub.cycle, period)
     if (targetCurrency && rates) {
       try {
-        const converted = convertPrice(monthly, sub.currency, targetCurrency, rates.rates)
+        const converted = convertPrice(normalized, sub.currency, targetCurrency, rates.rates)
         totals[targetCurrency] = (totals[targetCurrency] ?? 0) + converted
       } catch {
-        totals[sub.currency] = (totals[sub.currency] ?? 0) + monthly
+        totals[sub.currency] = (totals[sub.currency] ?? 0) + normalized
       }
     } else {
-      totals[sub.currency] = (totals[sub.currency] ?? 0) + monthly
+      totals[sub.currency] = (totals[sub.currency] ?? 0) + normalized
     }
   }
   return totals
@@ -191,6 +192,7 @@ export function calcPreviousTotals(
   activeSubs: SharedArgs[],
   rates: FxRates | null,
   targetCurrency: Currency | undefined,
+  period: Cycle = "monthly",
 ): CcyTotals {
   const priceChanges = getAllPriceChanges()
   const priceBefore: Record<number, { price: number; currency: string }> = {}
@@ -210,7 +212,7 @@ export function calcPreviousTotals(
     const prev = priceBefore[sub.id]
     const price = prev?.price ?? sub.price
     const currency = prev?.currency ?? sub.currency
-    const monthly = price * periodFactor(sub.cycle, "monthly")
+    const monthly = price * periodFactor(sub.cycle, period)
 
     if (targetCurrency && rates) {
       try {

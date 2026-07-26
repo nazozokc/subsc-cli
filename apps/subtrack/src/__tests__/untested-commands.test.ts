@@ -235,15 +235,17 @@ test("handleNotify dry-run shows no upcoming when no subscriptions", async () =>
 test("handleNotify dry-run shows upcoming bills", async () => {
   // Freeze time to July 3 so billingDay 10 is within the 7-day window
   vi.useFakeTimers()
-  vi.setSystemTime(new Date(2026, 6, 3))
+  try {
+    vi.setSystemTime(new Date(2026, 6, 3))
 
-  // Billing on day 10 — next billing will be this month's 10th (within 7 days)
-  insertSub({ name: "Netflix", price: 1500, billingDay: 10, createdAt: "2026-06-01" })
+    // Billing on day 10 — next billing will be this month's 10th (within 7 days)
+    insertSub({ name: "Netflix", price: 1500, billingDay: 10, createdAt: "2026-06-01" })
 
-  const { handleNotify } = await import("../notify.ts")
-  await handleNotify({ days: 7, dryRun: true })
-
-  vi.useRealTimers()
+    const { handleNotify } = await import("../notify.ts")
+    await handleNotify({ days: 7, dryRun: true })
+  } finally {
+    vi.useRealTimers()
+  }
 
   expect(logMessages.length).toBeGreaterThan(0)
 })

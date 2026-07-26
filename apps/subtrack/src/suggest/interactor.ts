@@ -11,7 +11,7 @@
 import { confirm, input, select } from "@inquirer/prompts"
 import { consola } from "consola"
 import pc from "picocolors"
-import { getSubscriptions, writeSubscription, markSuggestionAsAdded } from "../db.ts"
+import { getSubscriptions, writeSubscription, markSuggestionAsAdded, dismissSuggestion } from "../db.ts"
 import { formatPrice } from "../price.ts"
 import type { Suggestion } from "./types.ts"
 import { findMatches, hasPriceConflict } from "./matcher.ts"
@@ -141,7 +141,6 @@ async function reviewOne(suggestion: Suggestion): Promise<boolean> {
     }
 
     case "skip": {
-      const { dismissSuggestion } = await import("../db/suggestions.ts")
       dismissSuggestion(suggestion.id)
       consola.info("Suggestion dismissed.")
       return true
@@ -156,9 +155,7 @@ async function reviewOne(suggestion: Suggestion): Promise<boolean> {
  * Interactive edit flow for a suggestion before adding.
  */
 async function editSuggestion(suggestion: Suggestion): Promise<{ id: number; name: string } | null> {
-  const { input } = await import("@inquirer/prompts")
   const { validateName, validatePrice } = await import("../prompts.ts")
-  const { confirm: inquirerConfirm } = await import("@inquirer/prompts")
 
   const name = await input({
     message: "Name:",
@@ -200,7 +197,7 @@ async function editSuggestion(suggestion: Suggestion): Promise<{ id: number; nam
     default: (suggestion.cycle ?? "monthly") as import("../types.ts").Cycle,
   })
 
-  const ok = await inquirerConfirm({
+  const ok = await confirm({
     message: `Save "${name}" (${formatPrice(price, currency)}, ${cycle})?`,
     default: true,
   })
@@ -215,7 +212,10 @@ async function editSuggestion(suggestion: Suggestion): Promise<{ id: number; nam
     currency,
     cycle: cycle as import("../types.ts").Cycle,
     tags: [],
-    billingDay: suggestion.emailDate ? new Date(suggestion.emailDate).getDate() : null,
+    billingDay: suggestion.emailDate ? (() => {
+      const d = new Date(suggestion.emailDate)
+      return isNaN(d.getTime()) ? null : d.getDate()
+    })() : null,
     vendorName: suggestion.vendorName,
     planTier: suggestion.planTier,
     paymentMethod: suggestion.paymentMethod,

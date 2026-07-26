@@ -10,7 +10,7 @@ export const RATE_LIMIT_WINDOW_MS = 60_000 // 1 minute window
 export const MAX_STRING_LENGTH = 500       // max length for string inputs
 export const MAX_TAG_COUNT = 20            // max tags per subscription
 
-/** Simple token-bucket rate limiter. */
+/** Simple fixed-window rate limiter. */
 export class RateLimiter {
   private tokens: number
   private lastRefill: number

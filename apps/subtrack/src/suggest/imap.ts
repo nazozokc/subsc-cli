@@ -8,6 +8,7 @@
 
 import type { ImapConfig, RawEmail } from "./types.ts"
 import { parseEmailContent } from "./email-parser.ts"
+import type { SearchObject } from "imapflow"
 
 /**
  * Connect to IMAP server, search for recent emails, and return parsed content.
@@ -35,61 +36,59 @@ export async function connectAndSearch(
     logger: false,
   })
 
+  let connected = false
+  let lock: Awaited<ReturnType<typeof client.getMailboxLock>> | null = null
   try {
     await client.connect()
+    connected = true
 
-    const lock = await client.getMailboxLock(mailbox)
-    try {
-      // Calculate the date range
-      const sinceDate = new Date()
-      sinceDate.setDate(sinceDate.getDate() - sinceDays)
+    lock = await client.getMailboxLock(mailbox)
 
-      // Build search query for subscription-related keywords
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const searchQuery: any = [
-        "OR",
-        "OR",
-        "OR",
-        ["SUBJECT", "receipt"],
-        ["SUBJECT", "payment"],
-        ["SUBJECT", "subscription"],
-        ["SUBJECT", "invoice"],
-        "OR",
-        "OR",
-        "OR",
-        ["SUBJECT", "引き落とし"],
-        ["SUBJECT", "ご利用"],
-        ["SUBJECT", "支払"],
-        ["SUBJECT", "領収書"],
-        "SINCE", sinceDate,
-      ]
+    // Calculate the date range
+    const sinceDate = new Date()
+    sinceDate.setDate(sinceDate.getDate() - sinceDays)
 
-      const results: RawEmail[] = []
-      const fetchOptions = { source: true }
-
-      for await (const msg of client.fetch(searchQuery, fetchOptions)) {
-        if (signal?.aborted) break
-
-        try {
-          const raw = msg.source?.toString("utf-8") ?? ""
-          if (!raw.trim()) continue
-
-          const email = parseEmailContent(raw, String(msg.uid))
-          results.push(email)
-        } catch {
-          // Skip emails that fail to parse
-          continue
-        }
-
-        // Limit results to prevent processing too many
-        if (results.length >= 50) break
+    // Build search query for subscription-related keywords
+const searchQuery: SearchObject = {
+        since: sinceDate,
+        or: [
+          { subject: "receipt" },
+          { subject: "payment" },
+          { subject: "subscription" },
+          { subject: "invoice" },
+          { subject: "引き落とし" },
+          { subject: "ご利用" },
+          { subject: "支払" },
+          { subject: "領収書" },
+        ],
       }
 
-      return results
-    } finally {
-      lock.release()
+    const results: RawEmail[] = []
+    const fetchOptions = { source: true }
+
+    for await (const msg of client.fetch(searchQuery, fetchOptions)) {
+      if (signal?.aborted) break
+
+      try {
+        const raw = msg.source?.toString("utf-8") ?? ""
+        if (!raw.trim()) continue
+
+        const email = parseEmailContent(raw, String(msg.uid))
+        results.push(email)
+      } catch {
+        // Skip emails that fail to parse
+        continue
+      }
+
+      // Limit results to prevent processing too many
+      if (results.length >= 50) break
     }
+
+    return results
   } finally {
-    await client.logout()
+    if (lock) lock.release()
+    if (connected) {
+      await client.logout()
+    }
   }
 }

@@ -63,20 +63,25 @@ export function parseWalletEmail(email: RawEmail): SuggestionCandidate | null {
     if (!nameMatch || !amountMatch) continue
 
     let name = nameMatch[1].trim()
-    name = name.replace(/<[^>]+>/g, "").trim()
+    // Repeatedly strip HTML-like tags until none remain
+    let prev: string
+    do {
+      prev = name
+      name = name.replace(/<[^>]+>/g, "")
+    } while (name !== prev)
+    name = name.trim()
     if (!name || name.length > 100) continue
 
     const symbol = amountMatch[1]
     const rawAmount = amountMatch[2].replace(/,/g, "")
-    const isDecimal = rawAmount.includes(".")
-    const amount = isDecimal
-      ? Math.round(parseFloat(rawAmount) * 100)
-      : parseInt(rawAmount, 10)
-
-    if (isNaN(amount) || amount <= 0 || amount > 99999999) continue
-
     const currencyMap: Record<string, string> = { "$": "USD", "¥": "JPY", "€": "EUR", "£": "GBP" }
     const currency = symbol ? (currencyMap[symbol] ?? "USD") : "USD"
+    // Scale: JPY is zero-decimal, others are fractional (cents)
+    const amount = currency === "JPY"
+      ? parseInt(rawAmount, 10)
+      : Math.round(parseFloat(rawAmount) * 100)
+
+    if (isNaN(amount) || amount <= 0 || amount > 99999999) continue
 
     return {
       name,
