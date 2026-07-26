@@ -12,7 +12,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: step-security/harden-runner@v2
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
@@ -20,7 +20,7 @@ jobs:
 
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 22
           cache: pnpm
@@ -30,7 +30,12 @@ jobs:
       - run: pnpm build
 
       - name: Type check
-        working-directory: ./subtrack
+        working-directory: ./apps/subtrack
         run: pnpm lint:types
 
       - run: pnpm test
+
+      - name: Scan dependencies with OSV-Scanner
+        uses: google/osv-scanner-action@e4ad0de3f56682af1526a4e0e389c429be71d74a # v2.1.0
+        with:
+          fail-on-vuln: false

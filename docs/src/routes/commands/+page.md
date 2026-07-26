@@ -20,10 +20,23 @@ subtrack provides the following commands. Most support both interactive and non-
 - [`tag`](#tag)
 - [`export`](#export)
 - [`import`](#import)
+- [`search`](#search)
+- [`trial`](#trial)
+- [`bulk`](#bulk)
+- [`forecast`](#forecast)
+- [`history`](#history)
+- [`timeline`](#timeline)
+- [`optimize`](#optimize)
+- [`compare`](#compare)
+- [`calendar`](#calendar)
+- [`notify`](#notify)
+- [`profile`](#profile)
 - [`backup`](#backup)
 - [`restore`](#restore)
 - [`config`](#config)
 - [`usage`](#usage)
+- [`mcp`](#mcp)
+- [`tui`](#tui)
 
 </details>
 
@@ -401,12 +414,13 @@ Exports subscriptions to the specified format.
 
 | Argument | Description |
 |----------|-------------|
-| `<format>` | Export format: `csv`, `json`, or `md` |
+| `<format>` | Export format: `csv`, `json`, `md`, `excel`, `ics` |
 
 | Option | Description |
 |--------|-------------|
 | `-c, --currency <C>` | Convert all prices to the given currency before exporting |
 | `--tags <tags>` | Filter by comma-separated tags before exporting |
+| `--status <status>` | Filter by status (comma-separated: `active`, `paused`, `cancelled`) |
 | `-o, --output <path>` | Write to file instead of stdout |
 
 ### Examples
@@ -420,6 +434,12 @@ subtrack export json
 
 # Export as Markdown
 subtrack export md
+
+# Export as Excel (.xlsx)
+subtrack export excel
+
+# Export as iCalendar (.ics) — importable into calendar apps
+subtrack export ics
 
 # Export only tagged subscriptions, converted to JPY
 subtrack export csv --tags music,video --currency JPY
@@ -610,6 +630,11 @@ Imports LLM API usage from JSONL or JSON response log files. Supports importing 
 | `<file>` | JSONL/JSON file to import (use `-` for stdin) |
 | `--dry-run` | Validate without importing |
 
+Input size protections:
+- **File import**: max 50 MB
+- **Stdin import**: max 10 MB, with a 30-second timeout
+- Exceeding these limits will abort with an error message
+
 ```bash
 # Import from a JSONL file
 subtrack usage import ./openai-responses.jsonl
@@ -652,4 +677,375 @@ subtrack usage refresh --all
 
 # Force-refresh pricing cache only (no scanner data import)
 # (This is the default behavior of the old refresh — pricing is auto-refreshed daily)
+```
+
+## `search`
+
+Searches subscriptions by name, notes, or tags. Useful for quickly finding subscriptions without scrolling through the full list.
+
+| Option | Description |
+|--------|-------------|
+| `[query]` | Search query (omit for interactive prompt) |
+| `--names` | Search in names only |
+| `--notes` | Search in notes only |
+| `--tags` | Search in tags only |
+| `-j, --json` | Output as JSON |
+
+### Examples
+
+```bash
+# Interactive search
+subtrack search
+
+# Search by keyword
+subtrack search netflix
+
+# Search in notes only
+subtrack search "family plan" --notes
+
+# JSON output
+subtrack search aws --json
+```
+
+## `trial`
+
+Track free trial periods and set reminders before they expire.
+
+### `trial add`
+
+| Option | Description |
+|--------|-------------|
+| `--name <name>` | Trial name |
+| `--expires-at <YYYY-MM-DD>` | Expiration date |
+| `--price <price>` | Price after trial ends |
+| `--currency <C>` | Currency |
+| `--cycle <cycle>` | Billing cycle |
+| `--notes <text>` | Notes |
+
+### `trial list`
+
+Lists all tracked trial periods.
+
+### `trial expiring [days]`
+
+Shows trials expiring within the given number of days (default: 7).
+
+### `trial delete [ids...]`
+
+Deletes trial entries (interactive checkbox selection when no IDs given).
+
+```bash
+# Add a trial
+subtrack trial add \
+  --name "Spotify Premium" \
+  --expires-at 2026-08-01 \
+  --price 980 \
+  --currency JPY \
+  --cycle monthly
+
+# List all trials
+subtrack trial list
+
+# Trials expiring within 7 days
+subtrack trial expiring
+
+# Trials expiring within 30 days
+subtrack trial expiring 30
+
+# Delete trials (interactive)
+subtrack trial delete
+```
+
+## `bulk`
+
+Perform bulk operations on multiple subscriptions at once, with optional filtering by tag, status, or name pattern.
+
+### `bulk status`
+
+| Option | Description |
+|--------|-------------|
+| `--set <status>` | **Required.** Target status: `active`, `paused`, `cancelled` |
+| `--tag <name>` | Only affect subscriptions with this tag |
+| `--status <status>` | Only affect subscriptions with this current status |
+| `--name <pattern>` | Only affect subscriptions whose name contains this |
+| `-f, --force` | Skip confirmation prompt |
+
+### `bulk delete`
+
+| Option | Description |
+|--------|-------------|
+| `--tag <name>` | Only affect subscriptions with this tag |
+| `--status <status>` | Only affect subscriptions with this status |
+| `--name <pattern>` | Only affect subscriptions whose name contains this |
+| `-f, --force` | Skip confirmation prompt |
+
+### `bulk tag add`
+
+| Option | Description |
+|--------|-------------|
+| `--add <tag>` | **Required.** Tag to add |
+| `--tag <name>` | Filter by existing tag |
+| `--status <status>` | Filter by status |
+| `--name <pattern>` | Filter by name pattern |
+
+### `bulk tag remove`
+
+| Option | Description |
+|--------|-------------|
+| `--remove <tag>` | **Required.** Tag to remove |
+| `--tag <name>` | Filter by existing tag |
+| `--status <status>` | Filter by status |
+| `--name <pattern>` | Filter by name pattern |
+
+```bash
+# Pause all subscriptions tagged "unused"
+subtrack bulk status --set paused --tag unused
+
+# Bulk delete cancelled subscriptions
+subtrack bulk delete --status cancelled --force
+
+# Add "essential" tag to all active subscriptions
+subtrack bulk tag add --add essential --status active
+
+# Remove "trial" tag from subscriptions expiring soon
+subtrack bulk tag remove --remove trial --name "Free"
+```
+
+## `forecast`
+
+Projects subscription spending over a given number of months. Supports what-if scenarios (cancelling or adding hypothetical subscriptions) and currency conversion.
+
+| Option | Description |
+|--------|-------------|
+| `--months <n>` | Number of months to forecast (default: 12) |
+| `-c, --currency <C>` | Convert all prices to target currency |
+| `--cancel <names>` | Comma-separated subscription names to exclude |
+| `--add-name <name>` | Hypothetical subscription name to add |
+| `--add-price <price>` | Hypothetical subscription price |
+| `--add-currency <C>` | Hypothetical subscription currency |
+| `--add-cycle <cycle>` | Hypothetical subscription cycle |
+
+```bash
+# Basic 12-month forecast
+subtrack forecast
+
+# 6-month forecast in JPY
+subtrack forecast --months 6 --currency JPY
+
+# What if I cancel Netflix?
+subtrack forecast --cancel Netflix
+
+# What if I add a new service?
+subtrack forecast --add-name "New Service" --add-price 1500 --add-currency JPY --add-cycle monthly
+```
+
+## `history`
+
+View price change history for subscriptions. Supports filtering by ID, showing all changes, or viewing recent activity.
+
+| Option | Description |
+|--------|-------------|
+| `[id]` | Subscription ID to view history for |
+| `--all` | Show all price changes across all subscriptions |
+| `--days <n>` | Filter to recent N days (use with `--all`) |
+| `-j, --json` | Output as JSON |
+
+```bash
+# View history for a specific subscription
+subtrack history 3
+
+# View all price changes
+subtrack history --all
+
+# Recent changes in the last 30 days
+subtrack history --all --days 30
+
+# JSON output
+subtrack history --all --json
+```
+
+## `timeline`
+
+Shows a monthly spending timeline with an ASCII bar chart. Useful for visualizing spending trends over time.
+
+| Option | Description |
+|--------|-------------|
+| `--months <n>` | Number of months to display (default: 12) |
+| `-c, --categories` | Show breakdown by category (first tag) |
+| `-j, --json` | Output as JSON |
+
+```bash
+# 12-month spending timeline
+subtrack timeline
+
+# 6-month timeline with category breakdown
+subtrack timeline --months 6 --categories
+
+# JSON output
+subtrack timeline --json
+```
+
+## `optimize`
+
+Analyzes your subscriptions for cost optimization opportunities. Detects potential savings from cycle changes, duplicate subscriptions, inactive subscriptions, and cancelled subscription waste.
+
+| Option | Description |
+|--------|-------------|
+| `-j, --json` | Output as JSON |
+| `--min-savings <amount>` | Minimum yearly savings to show (default: 0) |
+
+```bash
+# Show all optimization suggestions
+subtrack optimize
+
+# Only show suggestions saving at least $100/year
+subtrack optimize --min-savings 100
+
+# JSON output
+subtrack optimize --json
+```
+
+## `compare`
+
+Compares subscription spending between the current period and the previous period. Useful for understanding how your costs have changed over time.
+
+| Argument | Description |
+|----------|-------------|
+| `[period]` | Period: `monthly` (default), `quarterly`, `yearly` |
+
+| Option | Description |
+|--------|-------------|
+| `-c, --currency <C>` | Convert all prices to target currency |
+| `-a, --api` | Include LLM API usage costs |
+
+```bash
+# Compare current month vs previous month
+subtrack compare
+
+# Compare current quarter vs previous quarter
+subtrack compare quarterly
+
+# With currency conversion and API costs
+subtrack compare monthly --currency JPY --api
+```
+
+## `calendar`
+
+Displays a monthly calendar with billing days marked. Shows which subscriptions bill on which day.
+
+| Option | Description |
+|--------|-------------|
+| `--month <n>` | Month (1–12, default: current) |
+| `--year <yyyy>` | Year (default: current) |
+| `-j, --json` | Output as JSON |
+
+```bash
+# Show current month calendar
+subtrack calendar
+
+# Show a specific month
+subtrack calendar --month 12 --year 2026
+
+# JSON output
+subtrack calendar --json
+```
+
+## `notify`
+
+Sends an OS desktop notification for upcoming bills. Supports dry-run mode to preview without notifying, and JSON output for scripting.
+
+| Option | Description |
+|--------|-------------|
+| `--days <n>` | Number of days to look ahead (default: config `notifyDays` or 7) |
+| `--dry-run` | Show upcoming bills without sending notification |
+| `-j, --json` | Output as JSON |
+
+```bash
+# Send notification for bills due in 7 days
+subtrack notify
+
+# Preview without sending
+subtrack notify --dry-run
+
+# Next 30 days
+subtrack notify --days 30
+
+# JSON output
+subtrack notify --json
+```
+
+## `profile`
+
+Save and switch between subscription filter profiles. Each profile stores a set of filters (tags, status, payment method) that can be activated to temporarily filter all views.
+
+### `profile save <name>`
+
+| Option | Description |
+|--------|-------------|
+| `--tag <name>` | Filter by tag (repeatable or comma-separated) |
+| `--status <status>` | Filter by status |
+| `--payment-method <method>` | Filter by payment method |
+
+### `profile switch <name>`
+
+Activates a saved profile. All list, payment, and summary commands will only show matching subscriptions.
+
+### `profile list`
+
+Lists all saved profiles.
+
+### `profile show [name]`
+
+Shows the details of a saved profile (or the active one if no name given).
+
+### `profile delete <name>`
+
+Deletes a saved profile.
+
+```bash
+# Save a profile for work subscriptions
+subtrack profile save work --tag work --status active
+
+# Switch to the work profile
+subtrack profile switch work
+
+# List all profiles
+subtrack profile list
+
+# Show active profile details
+subtrack profile show
+
+# Delete a profile
+subtrack profile delete work
+```
+
+## `mcp`
+
+Starts a Model Context Protocol (MCP) server over stdio, enabling AI assistants (Claude Desktop, Cursor, etc.) to interact with your subscription data programmatically.
+
+```bash
+subtrack mcp
+```
+
+The MCP server exposes 17 tools for subscription management. See the [MCP page](/mcp) for full details, tool reference, and integration examples.
+
+## `tui`
+
+Launches an interactive terminal user interface (TUI) built with Ink + React. Provides a full-screen management experience with sidebar navigation, vim-like keybindings, and mouse support.
+
+```bash
+subtrack tui
+```
+
+Features:
+- Sidebar navigation with screen switching
+- Subscription list, add, edit, delete screens
+- Reports (summary, payment, upcoming, analytics, compare, forecast)
+- Calendar view, history view
+- Tools (export, import, backup, restore, usage)
+- Configuration management
+- Command palette with fuzzy search
+- Toast notifications
+
+See the [TUI page](/tui) for keybindings and navigation details.
 ```

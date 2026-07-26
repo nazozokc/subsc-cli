@@ -1,1 +1,19 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+.svelte-kit/
+build/
+
+# code coverage
+coverage/
+
+# TypeScript
+*.tsbuildinfo
+
+# local overrides
+.envrc.local
+
+# images (do not ignore)
 !*.png

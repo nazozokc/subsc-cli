@@ -1,49 +1,35 @@
-# Dependabot configuration for defense-in-depth dependency monitoring.
-# Works alongside Renovate — Dependabot catches vulnerabilities faster
-# via GitHub Advisory Database integration, while Renovate handles
-# scheduled updates with release-age gating.
-#
-# Dependabot runs security updates (not version bumps) regardless
-# of this config when a GHSA is published.
+# Dependabot configuration for automated dependency updates.
+# Also managed by Renovate (GitHub App). Dependabot provides
+# additional security advisories and PR labeling.
 
 version: 2
 updates:
   - package-ecosystem: "npm"
-    directory: "/"
+    directory: "/apps/subtrack"
     schedule:
       interval: "weekly"
       day: "monday"
       time: "09:00"
       timezone: "Asia/Tokyo"
-    open-pull-requests-limit: 5
+    versioning-strategy: increase
     labels:
       - "dependencies"
-      - "security"
-    # Only security updates — regular version bumps are handled by Renovate
-    allow:
-      - dependency-type: "all"
-    reviewers:
-      - "nazozokc"
-    assignees:
-      - "nazozokc"
-
-  - package-ecosystem: "npm"
-    directory: "/subtrack"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
-      timezone: "Asia/Tokyo"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "security"
-    allow:
-      - dependency-type: "all"
-    reviewers:
-      - "nazozokc"
-    assignees:
-      - "nazozokc"
+      - "npm"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore"
+      prefix-development: "chore"
+    groups:
+      production-dependencies:
+        dependency-type: "production"
+        update-types:
+          - "patch"
+          - "minor"
+      dev-dependencies:
+        dependency-type: "development"
+        update-types:
+          - "patch"
+          - "minor"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -52,11 +38,8 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "Asia/Tokyo"
-    open-pull-requests-limit: 5
     labels:
       - "dependencies"
-      - "ci"
-    reviewers:
-      - "nazozokc"
-    assignees:
-      - "nazozokc"
+      - "github-actions"
+    commit-message:
+      prefix: "chore"

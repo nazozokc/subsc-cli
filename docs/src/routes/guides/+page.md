@@ -323,3 +323,174 @@ The LiteLLM pricing cache is automatically refreshed every 24 hours. To force a 
 ```bash
 subtrack usage refresh
 ```
+
+## Searching subscriptions
+
+Quickly find subscriptions by name, notes, or tags:
+
+```bash
+# Search interactively
+subtrack search
+
+# Search by keyword
+subtrack search netflix
+
+# Search in notes only
+subtrack search "family plan" --notes
+```
+
+## Tracking free trials
+
+Add trial periods to get reminders before they expire:
+
+```bash
+# Add a trial
+subtrack trial add --name "Spotify Premium" --expires-at 2026-08-01 --price 980 --currency JPY --cycle monthly
+
+# List all trials
+subtrack trial list
+
+# See what's expiring soon
+subtrack trial expiring 7
+```
+
+## Bulk operations
+
+Manage multiple subscriptions at once with filters:
+
+```bash
+# Pause all unused subscriptions
+subtrack bulk status --set paused --tag unused
+
+# Delete cancelled subscriptions
+subtrack bulk delete --status cancelled
+
+# Tag all active music subscriptions
+subtrack bulk tag add --add music --status active
+```
+
+## Spending forecast
+
+Project your subscription costs into the future:
+
+```bash
+# 12-month forecast
+subtrack forecast
+
+# What if I cancel Netflix?
+subtrack forecast --cancel Netflix
+
+# What if I add a new service?
+subtrack forecast --add-name "New Service" --add-price 1500 --add-currency JPY --add-cycle monthly
+```
+
+## Cost optimization
+
+Let subtrack analyze your subscriptions for savings:
+
+```bash
+# Show all optimization suggestions
+subtrack optimize
+
+# Only show suggestions saving $100+/year
+subtrack optimize --min-savings 100
+```
+
+The optimizer flags:
+- **Cycle changes** — switching from monthly to yearly could save money
+- **Duplicate subscriptions** — similar services with overlapping features
+- **Inactive subscriptions** — paused or long-unused subscriptions
+- **Cancelled waste** — subscriptions that were cancelled but had recent payments
+
+## Comparing spending over time
+
+See how your costs have changed between periods:
+
+```bash
+# Current month vs last month
+subtrack compare
+
+# Current quarter vs last quarter
+subtrack compare quarterly
+```
+
+The `compare` command accounts for price changes recorded in your subscription history.
+
+## Monthly spending timeline
+
+Visualize spending trends:
+
+```bash
+# 12-month view
+subtrack timeline
+
+# 6-month view with category breakdown
+subtrack timeline --months 6 --categories
+```
+
+## Price change history
+
+Track when subscription prices changed:
+
+```bash
+# History for a specific subscription
+subtrack history 3
+
+# All recent changes
+subtrack history --all --days 30
+```
+
+## Calendar view
+
+See which days of the month have bills due:
+
+```bash
+# Current month
+subtrack calendar
+
+# Specific month
+subtrack calendar --month 12 --year 2026
+```
+
+## Desktop notifications
+
+Get OS-level reminders for upcoming bills:
+
+```bash
+# Preview upcoming bills
+subtrack notify --dry-run
+
+# Send notification
+subtrack notify
+
+# Custom look-ahead period
+subtrack notify --days 3
+```
+
+## Filter profiles
+
+Save and switch between filter profiles to focus on specific subscription groups:
+
+```bash
+# Save a "work" profile
+subtrack profile save work --tag work --status active
+
+# Switch to work profile
+subtrack profile switch work
+
+# See everything again (clear profile)
+# (restart subtrack or use subtrack list without profile)
+
+# List saved profiles
+subtrack profile list
+```
+
+## MCP integration
+
+subtrack runs an MCP (Model Context Protocol) server, allowing AI assistants to manage your subscriptions:
+
+```bash
+subtrack mcp
+```
+
+This enables AI tools like Claude Desktop, Cursor, and Windsurf to read and modify your subscription data. See the [MCP page](/mcp) for setup instructions and tool reference.

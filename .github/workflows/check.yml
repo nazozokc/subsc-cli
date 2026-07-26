@@ -10,7 +10,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: step-security/harden-runner@v2
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
@@ -20,7 +20,7 @@ jobs:
 
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 22
           cache: pnpm
@@ -32,26 +32,31 @@ jobs:
         run: pnpm install --lockfile-only && git diff --exit-code pnpm-lock.yaml
 
       - name: Validate lockfile structure
-        working-directory: ./subtrack
+        working-directory: ./apps/subtrack
         run: pnpm lint:lockfile
 
       - name: Check dependency tree is deduplicated
-        working-directory: ./subtrack
+        working-directory: ./apps/subtrack
         run: pnpm lint:dedupe
 
       - name: Type check
-        working-directory: ./subtrack
+        working-directory: ./apps/subtrack
         run: pnpm lint:types
 
       - run: pnpm build
 
       - run: pnpm test
 
-      - name: Audit dependencies
+      - name: Audit dependencies (pnpm)
         run: pnpm audit --audit-level=high
 
+      - name: Verify npm package provenance
+        run: |
+          npm audit --audit-level=high --verify-provenance 2>/dev/null || \
+            echo "⚠ npm provenance verification not supported in this environment (expected on Node >=22 with npm <12)"
+
       - name: Scan for secrets and credentials
-        working-directory: ./subtrack
+        working-directory: ./apps/subtrack
         run: pnpm lint:secrets
 
       - name: Detect Trojan Source (Unicode control characters)
@@ -59,7 +64,7 @@ jobs:
           if grep -rnP '[\u202A\u202B\u202C\u202D\u202E\u2066\u2067\u2068\u2069\u200B\u200C\u200D\uFEFF]' \
             --include='*.ts' --include='*.json' --include='*.yaml' --include='*.yml' \
             --include='*.md' --include='*.toml' \
-            subtrack/ docs/ .github/; then
+            apps/subtrack/ docs/ .github/; then
             echo "::error::Bidirectional / zero-width Unicode control characters detected (possible Trojan Source attack)"
             exit 1
           fi

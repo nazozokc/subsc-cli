@@ -134,3 +134,47 @@ pnpm update -g subtrack
 ```
 
 Your database will be preserved — updates only affect the CLI code, not your data.
+
+## What is MCP and how do I use it?
+
+MCP (Model Context Protocol) is a standard that allows AI assistants to interact with tools. subtrack implements an MCP server that exposes 17 tools for subscription management. Start it with `subtrack mcp` and configure it in Claude Desktop, Cursor, Windsurf, or any MCP-compatible host. See the [MCP page](/mcp) for full details.
+
+## How do I search for subscriptions?
+
+Use `subtrack search <query>` to search by name, notes, or tags. You can restrict search scope with `--names`, `--notes`, or `--tags`. Without a query, it opens an interactive search prompt.
+
+## What are trial periods?
+
+The `subtrack trial` command lets you track free trial periods. Add trials with an expiration date, and use `subtrack trial expiring` to see which trials are about to end. This helps you avoid unexpected charges when trials convert to paid subscriptions.
+
+## Can I manage multiple subscriptions at once?
+
+Yes. The `subtrack bulk` command lets you change status, delete, or modify tags on multiple subscriptions at once. You can filter by tag, current status, or name pattern before applying the action.
+
+## What does the forecast command do?
+
+`subtrack forecast` projects your subscription spending over a given number of months (default: 12). It supports what-if scenarios — you can simulate cancelling subscriptions (`--cancel`) or adding hypothetical ones (`--add-name`, `--add-price`) to see how your costs would change.
+
+## What is the timeline command?
+
+`subtrack timeline` shows a monthly spending bar chart over time. Use `--categories` to break down spending by the first tag of each subscription. Useful for spotting spending trends.
+
+## How do I optimize my subscriptions?
+
+`subtrack optimize` analyzes your subscriptions for cost savings. It flags cycle changes (monthly → yearly savings), duplicate services, inactive subscriptions, and waste from cancelled subscriptions. Use `--min-savings` to filter suggestions by minimum yearly savings.
+
+## Can I compare my spending month-over-month?
+
+Yes. `subtrack compare` compares spending between the current period and the previous period. It accounts for price changes recorded in your subscription history. Use it with or without currency conversion and API cost inclusion.
+
+## How do I see a monthly calendar of my bills?
+
+`subtrack calendar` displays a monthly calendar with billing days marked, showing which subscriptions bill on which day. Specify `--month` and `--year` for a specific month, or omit for the current month.
+
+## Can I get desktop notifications for upcoming bills?
+
+Yes. `subtrack notify` sends an OS desktop notification for bills due within a configurable number of days. Use `--dry-run` to preview without sending a notification. The default look-ahead period is configured via `subtrack config set notifyDays <n>`.
+
+## What are filter profiles?
+
+Filter profiles let you save a set of filters (tags, status, payment method) and switch between them. When a profile is active, all list, payment, and summary commands show only matching subscriptions. Useful for separating work/personal subscriptions or focusing on specific categories.

@@ -28,6 +28,7 @@
       title: "Reference",
       items: [
         { href: "/commands", label: "Commands" },
+        { href: "/mcp", label: "MCP" },
       ],
     },
     {

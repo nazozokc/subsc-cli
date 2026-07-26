@@ -11,7 +11,7 @@ jobs:
   review:
     runs-on: ubuntu-latest
     steps:
-      - uses: step-security/harden-runner@v2
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
@@ -19,3 +19,5 @@ jobs:
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           fail-on-severity: high
+          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD, Unlicense, CC0-1.0, CC-BY-4.0, Python-2.0, Zlib, BlueOak-1.0.0, MIT-0
+          # deny-licenses and allow-licenses are mutually exclusive in this action
