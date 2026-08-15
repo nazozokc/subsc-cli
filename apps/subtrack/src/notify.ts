@@ -55,9 +55,6 @@ export async function handleNotify(options: NotifyOptions = {}): Promise<void> {
       case "os":
         await sendOsNotification(entries, days)
         break
-      case "email":
-        await sendEmailNotification(entries, days, config.notifyEmail)
-        break
       case "slack":
         await sendSlackNotification(entries, days, config.slackWebhook)
         break
@@ -97,47 +94,6 @@ async function sendOsNotification(
     sound: true,
     timeout: 10,
   })
-}
-
-// ── Email Notification ──────────────────────────────────
-
-async function sendEmailNotification(
-  entries: { sub: { name: string; price: number; currency: string; cycle: string; nextDate?: Date } }[],
-  days: number,
-  emailTo?: string,
-): Promise<void> {
-  if (!emailTo) {
-    consola.warn("Email notification configured but no notifyEmail set. Use: subtrack config set notifyEmail you@example.com")
-    return
-  }
-
-  const lines = entries.map((e) => {
-    const date = e.sub.nextDate
-      ? `${e.sub.nextDate.getFullYear()}-${String(e.sub.nextDate.getMonth() + 1).padStart(2, "0")}-${String(e.sub.nextDate.getDate()).padStart(2, "0")}`
-      : "upcoming"
-    return `${date}  ${e.sub.name}: ${formatPrice(e.sub.price, e.sub.currency)}/${e.sub.cycle}`
-  })
-
-  const subject = `subtrack: ${entries.length} upcoming bill${entries.length > 1 ? "s" : ""} in ${days} day${days > 1 ? "s" : ""}`
-  const body = lines.join("\n")
-
-  // Use sendmail via child_process (simple approach, works on most Unix systems)
-  try {
-    const { execSync } = await import("node:child_process")
-    const sendmailPath = process.platform === "linux" ? "/usr/sbin/sendmail" : "/usr/bin/sendmail"
-    const msg = `From: subtrack <noreply@subtrack>
-To: ${emailTo}
-Subject: ${subject}
-Content-Type: text/plain; charset=utf-8
-
-${body}
-`
-    execSync(`${sendmailPath} -t`, { input: msg, timeout: 10000 })
-    consola.success(`Email notification sent to ${emailTo}`)
-  } catch (err) {
-    consola.warn(`Failed to send email: ${err instanceof Error ? err.message : String(err)}`)
-    consola.info("To send via SMTP instead, set up a local MTA (postfix/msmtp) or use a webhook.")
-  }
 }
 
 // ── Slack Webhook ───────────────────────────────────────
