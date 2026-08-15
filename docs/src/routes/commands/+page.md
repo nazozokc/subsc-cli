@@ -44,7 +44,6 @@ subtrack provides the following commands. Most support both interactive and non-
 - [`config`](#config)
 - [`usage`](#usage)
 - [`mcp`](#mcp)
-- [`tui`](#tui)
 
 </details>
 
@@ -1345,24 +1344,3 @@ subtrack mcp
 ```
 
 The MCP server exposes 16 tools for subscription management. See the [MCP page](/mcp) for full details, tool reference, and integration examples.
-
-## `tui`
-
-Launches an interactive terminal user interface (TUI) built with Ink + React. Provides a full-screen management experience with sidebar navigation, vim-like keybindings, and mouse support.
-
-```bash
-subtrack tui
-```
-
-Features:
-- Sidebar navigation with screen switching
-- Subscription list, add, edit, delete screens
-- Reports (summary, payment, upcoming, analytics, compare, forecast)
-- Calendar view, history view
-- Tools (export, import, backup, restore, usage)
-- Configuration management
-- Command palette with fuzzy search
-- Toast notifications
-
-See the [TUI page](/tui) for keybindings and navigation details.
-```

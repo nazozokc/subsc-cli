@@ -46,7 +46,6 @@ This provides `node`, `pnpm`, `typescript`, `typos`, and `nixfmt`.
 | Test framework | `vitest` |
 | Package manager | `pnpm` |
 | Documentation | SvelteKit (this site) |
-| TUI framework | Ink + React (`ink`, `@inkjs/ui`) |
 | Encryption | AES-256-GCM via Node.js `node:crypto` |
 
 ## Contributing
@@ -70,6 +69,7 @@ subtrack/
 │   └── subtrack/              # CLI tool (TypeScript/ESM)
 │       ├── src/
 │       │   ├── index.ts            # Entry point, CLI bootstrap (gunshi)
+│       │   ├── menu.ts             # Interactive main menu (@inquirer select)
 │       │   ├── commands/           # Command definitions (gunshi `define`)
 │       │   │   ├── index.ts            # Barrel, subCommands map
 │       │   │   ├── core.ts             # list, add, edit, delete, clone, archive, unarchive, search
@@ -83,7 +83,7 @@ subtrack/
 │       │   │   ├── report.ts           # summary, payment, upcoming, analytics, compare,
 │       │   │   │                       # calendar, forecast, history, notify, timeline,
 │       │   │   │                       # optimize, stats
-│       │   │   └── misc.ts             # tui, mcp, profile, audit, maintenance, cleanup, currency
+│       │   │   └── misc.ts             # mcp, profile, audit, maintenance, cleanup, currency
 │       │   ├── subscription/      # Subscription command handlers
 │       │   │   ├── core.ts            # handleList, handleDelete, handleClone, handleArchive,
 │       │   │   │                       # handleUnarchive, handleTags
@@ -155,12 +155,6 @@ subtrack/
 │       │   │   ├── handlers.ts        # Tool call handlers
 │       │   │   ├── security.ts        # Input validation & sanitization
 │       │   │   └── types.ts           # MCP type definitions
-│       │   ├── tui.tsx            # TUI entry: render Ink app
-│       │   ├── tui/               # TUI components (Ink + React)
-│       │   │   ├── app.tsx            # Root component: layout, keyboard handling
-│       │   │   ├── context/           # React context providers
-│       │   │   ├── screens/           # Screen components (list, add, edit, ...)
-│       │   │   └── components/        # Reusable UI components (sidebar, table, form, ...)
 │       │   └── __tests__/         # Test files (vitest)
 │       └── dist/                  # Built output (dist/index.mjs)
 ├── docs/                      # Documentation site (SvelteKit)

@@ -27,12 +27,7 @@ export { handleStats } from "./stats.ts"
 export { handleCurrencyList } from "./currency.ts"
 export { handleConfigList, handleConfigGet, handleConfigSet, handleConfigReset } from "./config.ts"
 
-// Lazy-import wrappers to avoid loading Ink/React/MCP SDK WASM at module load time
-export async function handleTui(): Promise<void> {
-  const { handleTui: tui } = await import("./tui.tsx")
-  return tui()
-}
-
+// Lazy-import wrappers to avoid loading MCP SDK WASM at module load time
 export async function handleMcp(): Promise<void> {
   const { startMcpServer } = await import("./mcp.ts")
   await startMcpServer()

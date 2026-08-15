@@ -1,4 +1,4 @@
-// ── Misc commands (tui, mcp, audit, maintenance, cleanup, currency, profile) ──
+// ── Misc commands (mcp, audit, maintenance, cleanup, currency, profile) ──
 import { define } from "gunshi"
 import { consola } from "consola"
 import { fail } from "../error.ts"
@@ -7,19 +7,8 @@ import { handleAuditList, handleAuditPrune } from "../audit.ts"
 import { handleMaintenance } from "../maintenance.ts"
 import { handleCleanup } from "../cleanup.ts"
 import { handleCurrencyList } from "../currency.ts"
-// Lazy imports for TUI and MCP to avoid loading Ink/React/MCP SDK WASM at module load time
+// Lazy imports for MCP to avoid loading MCP SDK WASM at module load time
 import type { Status } from "../types.ts"
-
-// ── TUI ────────────────────────────────────────────────
-
-export const tuiCommand = define({
-  name: "tui",
-  description: "Interactive terminal UI",
-  run: async () => {
-    const { handleTui } = await import("../tui.tsx")
-    return handleTui()
-  },
-})
 
 // ── MCP ──────────────────────────────────────────────
 
