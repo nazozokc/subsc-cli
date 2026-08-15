@@ -45,7 +45,7 @@ This provides `node`, `pnpm`, `typescript`, `typos`, and `nixfmt`.
 | Build tool | `tsdown` |
 | Test framework | `vitest` |
 | Package manager | `pnpm` |
-| Documentation | SvelteKit (this site) |
+| Documentation | VitePress (this site) |
 | Encryption | AES-256-GCM via Node.js `node:crypto` |
 
 ## Contributing
@@ -157,7 +157,7 @@ subtrack/
 │       │   │   └── types.ts           # MCP type definitions
 │       │   └── __tests__/         # Test files (vitest)
 │       └── dist/                  # Built output (dist/index.mjs)
-├── docs/                      # Documentation site (SvelteKit)
+├── docs/                      # Documentation site (VitePress)
 ├── images/                    # Logo & branding assets
 ├── flake.nix                  # Nix devShell
 └── pnpm-workspace.yaml

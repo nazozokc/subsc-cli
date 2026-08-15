@@ -26,7 +26,7 @@ You are a subtrack agent. Your primary responsibilities in this repository are:
 │       ├── dist/      # Build output (dist/index.mjs)
 │       ├── package.json
 │       └── tsconfig.json
-├── docs/              # Documentation site (SvelteKit)
+├── docs/              # Documentation site (VitePress)
 ├── .agents/skills/    # OpenCode skill definitions
 ├── flake.nix          # Nix devShell / CI shell
 └── pnpm-workspace.yaml
