@@ -73,7 +73,7 @@
     "sql.js": "^1.14.1"
   },
   "devDependencies": {
-    "@secretlint/secretlint-rule-preset-recommend": "^13.0.2",
+    "@secretlint/secretlint-rule-preset-recommend": "^13.0.4",
     "@types/node": "^26.1.0",
     "@types/node-notifier": "^8.0.5",
     "@types/sql.js": "^1.4.11",
@@ -81,9 +81,9 @@
     "husky": "^9.1.7",
     "lint-staged": "^17.2.0",
     "secretlint": "^13.0.4",
-    "tsdown": "^0.22.2",
-    "tsx": "^4.19.0",
+    "tsdown": "^0.22.14",
+    "tsx": "^4.23.12",
     "typescript": "^6",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10"
   }
 }
