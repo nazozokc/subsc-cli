@@ -1,6 +1,6 @@
 subtrack:
   - changed-files:
-      - any-glob-to-any-file: subtrack/**
+      - any-glob-to-any-file: apps/subtrack/**
 
 docs:
   - changed-files:
@@ -13,6 +13,6 @@ ci:
 
 dependencies:
   - changed-files:
-      - any-glob-to-any-file: subtrack/package.json
+      - any-glob-to-any-file: apps/subtrack/package.json
       - any-glob-to-any-file: package.json
       - any-glob-to-any-file: pnpm-lock.yaml

@@ -1,5 +1,5 @@
 packages:
-  - "subtrack"
+  - "apps/subtrack"
   - "docs"
 
 # Only esbuild is permitted to run install scripts.
@@ -9,6 +9,29 @@ allowBuilds:
   esbuild: true
 
 # Force cookie >= 0.7.0 to fix CVE-2024-47764
-# @sveltejs/kit specifies ^0.6.0 which resolves to the vulnerable 0.6.0
+# express (via @modelcontextprotocol/sdk) specifies ^0.6.0 which resolves
+# to the vulnerable 0.6.0
+#
+# Force uuid >= 11.1.1 to fix GHSA-w5hq-g745-h8pq
+# exceljs and node-notifier specify ^8.3.0 / ^8.3.2 which resolve to 8.3.2
+#
+# Force brace-expansion, js-yaml, fast-uri, ip-address, nanoid to patched
+# versions to pass pnpm audit --audit-level=high
+#
+# Force hono and @hono/node-server to patched versions to fix
+# GHSA-54fx-42gc-7vw4, GHSA-frvp-7c67-39w9 (via @modelcontextprotocol/sdk)
+#
+# Force vite and esbuild to patched versions (via vitepress)
 overrides:
   cookie: ">=0.7.0"
+  uuid: ">=11.1.1"
+  brace-expansion: ">=5.0.9"
+  js-yaml: ">=5.2.2"
+  fast-uri: ">=4.1.2"
+  ip-address: ">=10.3.1"
+  nanoid: ">=3.3.18"
+  postcss: ">=8.5.18"
+  hono: ">=4.12.34"
+  "@hono/node-server": ">=1.19.15"
+  vite: ">=6.4.3 <8"
+  esbuild: ">=0.24.3"

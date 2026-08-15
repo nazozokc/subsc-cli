@@ -16,7 +16,7 @@ description: When committing changes to subtrack, creating PRs, or pushing to re
 - **English only**: No Japanese in commits
 - **1 commit = 1 logical change**: Do not mix multiple different changes
 - **Meaningful granularity**: Split large changes
-- **Refer to CLAUDE.md**: Follow `subtrack/CLAUDE.md` for project conventions
+- **Refer to AGENTS.md**: Follow `apps/subtrack/AGENTS.md` for project conventions
 - **Run tests before committing**: `pnpm test` to verify changes
 
 ## Branch Strategy

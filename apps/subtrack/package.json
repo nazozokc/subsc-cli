@@ -1,0 +1,89 @@
+{
+  "name": "subtrack",
+  "version": "8.0.0",
+  "author": "nazozokc",
+  "type": "module",
+  "license": "MIT",
+  "packageManager": "pnpm@11.5.1",
+  "bin": {
+    "subtrack": "./dist/index.mjs"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "description": "CLI tool to manage subscription services from the terminal",
+  "keywords": [
+    "cli",
+    "subscription",
+    "finance",
+    "tracker",
+    "terminal",
+    "sqlite",
+    "budget"
+  ],
+  "homepage": "https://github.com/nazozokc/subtrack",
+  "bugs": {
+    "url": "https://github.com/nazozokc/subtrack/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nazozokc/subtrack.git"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "sideEffects": false,
+  "pnpm": {
+    "onlyBuiltDependencies": []
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "start": "tsx --no-warnings src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint:typos": "command -v typos >/dev/null 2>&1 && typos || echo 'typos not installed, skipping'",
+    "lint:security": "pnpm audit --audit-level=high",
+    "lint:types": "tsc --noEmit",
+    "lint:lockfile": "node -e \"process.exit(require('fs').readFileSync('../../pnpm-lock.yaml','utf8').startsWith('lockfileVersion')?0:1)\"",
+    "lint:dedupe": "pnpm dedupe --check",
+    "lint:secrets": "secretlint \"src/**/*.ts\""
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "tsc --noEmit"
+    ]
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^8.5.2",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "cli-table3": "^0.6.5",
+    "consola": "^3.4.2",
+    "exceljs": "^4.4.0",
+    "gunshi": "^0.35.1",
+    "imapflow": "^1.4.7",
+    "node-notifier": "^10.0.1",
+    "picocolors": "^1.1.1",
+    "sql.js": "^1.14.1"
+  },
+  "devDependencies": {
+    "@secretlint/secretlint-rule-preset-recommend": "^13.0.2",
+    "@types/node": "^26.1.0",
+    "@types/node-notifier": "^8.0.5",
+    "@types/sql.js": "^1.4.11",
+    "@vitest/coverage-v8": "^4.1.10",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.1",
+    "secretlint": "^10.2.0",
+    "tsdown": "^0.22.2",
+    "tsx": "^4.19.0",
+    "typescript": "^6",
+    "vitest": "^4.1.9"
+  }
+}
