@@ -74,7 +74,7 @@
   },
   "devDependencies": {
     "@secretlint/secretlint-rule-preset-recommend": "^13.0.2",
-    "@types/node": "^26.0.0",
+    "@types/node": "^26.1.0",
     "@types/node-notifier": "^8.0.5",
     "@types/sql.js": "^1.4.11",
     "@vitest/coverage-v8": "^4.1.10",
