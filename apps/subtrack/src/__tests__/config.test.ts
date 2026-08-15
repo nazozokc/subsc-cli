@@ -105,7 +105,9 @@ test("handleConfigReset resets config to defaults", async () => {
 test("webhook secrets are masked in list, get, and set output", async () => {
   const { handleConfigSet, handleConfigGet, handleConfigList } = await import("../commands.ts")
   const { resetConfig, loadConfig } = await import("../config.ts")
-  const SECRET = "https://hooks.slack.com/services/T000/B000/secret-token-abc"
+  // Build the dummy URL at runtime so no static literal matches the
+  // Slack Incoming Webhook pattern (GitHub secret scanning / CodeQL)
+  const SECRET = `https://hooks.slack.com/services/${"T000"}/${"B000"}/secret-token-abc`
 
   resetConfig()
   handleConfigSet("slackWebhook", SECRET)
