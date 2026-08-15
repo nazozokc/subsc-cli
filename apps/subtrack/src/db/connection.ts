@@ -22,6 +22,24 @@ let _lockFd: number | null = null
 
 const _SQL = await initSqlJs()
 
+/** Max decompressed size for backups (prevents zip-bomb / decompression-bomb DoS). */
+const MAX_DECOMPRESSED_BYTES = 256 * 1024 * 1024 // 256 MB
+
+/** Gunzip with a strict output cap; throws a clear error when exceeded. */
+function gunzipLimited(data: Buffer): Buffer {
+  try {
+    return gunzipSync(data, { maxOutputLength: MAX_DECOMPRESSED_BYTES })
+  } catch (err) {
+    const nodeErr = err as NodeJS.ErrnoException
+    if (nodeErr.code === "ERR_BUFFER_TOO_LARGE") {
+      throw new Error(
+        `Backup decompresses to more than ${MAX_DECOMPRESSED_BYTES / 1024 / 1024} MB — refusing to restore (possible decompression bomb)`,
+      )
+    }
+    throw err
+  }
+}
+
 // ── Directory validation ──────────────────────────────────
 
 /** Validate that SUBSC_CLI_DB_DIR is safe to use. */
@@ -267,7 +285,7 @@ export function restoreDb(backupPath: string): void {
     }
   } else if (isGzipFile || hasGzipMagic) {
     // Gzip backup: decompress -> (possibly encrypted inside, though unusual)
-    const decompressed = gunzipSync(raw)
+    const decompressed = gunzipLimited(raw)
     if (isEncrypted(decompressed)) {
       try {
         data = decryptBuffer(decompressed)
@@ -298,7 +316,7 @@ export function restoreDb(backupPath: string): void {
   // If the result is still gzipped (e.g. encrypted file that was gzip inside -> already decrypted)
   // But if data is now gzip, decompress it
   const isGz = data.length >= 2 && data[0] === 0x1f && data[1] === 0x8b
-  const buf = isGz ? gunzipSync(data) : data
+  const buf = isGz ? gunzipLimited(data) : data
 
   // Verify it's a valid SQLite DB with correct schema
   const newDb = new _SQL.Database(buf)
@@ -347,7 +365,7 @@ export function getBackupHashPath(backupPath: string): string {
 export function writeBackupHash(backupPath: string): void {
   const content = readFileSync(backupPath)
   const hash = createHash("sha256").update(content).digest("hex")
-  writeFileSync(getBackupHashPath(backupPath), hash + "\n")
+  writeFileSync(getBackupHashPath(backupPath), hash + "\n", { mode: 0o600 })
 }
 
 export function verifyBackupHash(backupPath: string): boolean {

@@ -39,13 +39,12 @@ export function exportCsv(subs: SharedArgs[]): string {
   const header = "name,status,cycle,tags,price,currency,notes,payment_method,contract_start,contract_end,auto_renewal,vendor_name,vendor_url,plan_tier,discount_amount,discount_type"
   const rows = subs.map((s) => {
     const tags = s.tags.map((t) => escapeCsv(t)).join(";")
-    const name = escapeCsv(s.name)
-    const notes = escapeCsv(s.notes ?? "")
     const fields = [
-      name, s.status, s.cycle, tags, s.price, s.currency, notes,
+      csvField(s.name), csvField(s.status), csvField(s.cycle), tags,
+      csvField(s.price), csvField(s.currency), csvField(s.notes),
       csvField(s.paymentMethod),
       csvField(s.contractStart), csvField(s.contractEnd),
-      s.autoRenewal ? "true" : "false",
+      csvField(s.autoRenewal ? "true" : "false"),
       csvField(s.vendorName), csvField(s.vendorUrl),
       csvField(s.planTier),
       csvField(s.discountAmount), csvField(s.discountType),
@@ -168,7 +167,7 @@ function icsEscape(value: string): string {
     .replace(/\\/g, "\\\\")
     .replace(/;/g, "\\;")
     .replace(/,/g, "\\,")
-    .replace(/\r?\n/g, "\\n")
+    .replace(/\r\n|\r|\n/g, "\\n")
 }
 
 function icsFold(line: string): string {

@@ -7,7 +7,10 @@ import { writeSubscription } from "../../../db.ts"
 import { parseCsvLine } from "../../../import-csv.ts"
 import { isValidCurrency, isValidCycle } from "../../../prompts.ts"
 import { colors } from "../../theme.ts"
-import { readFileSync } from "node:fs"
+import { readFileSync, statSync } from "node:fs"
+
+const MAX_CSV_SIZE = 10 * 1024 * 1024 // 10 MB (same limit as CLI import)
+const MAX_FIELD_LENGTH = 500          // max chars per field
 
 export function ImportTab() {
   const [filePath, setFilePath] = useState("")
@@ -24,7 +27,14 @@ export function ImportTab() {
     setProcessing(true)
     queueMicrotask(() => {
       try {
-        const content = readFileSync(filePath.trim(), "utf-8")
+        const file = filePath.trim()
+        const st = statSync(file)
+        if (st.size > MAX_CSV_SIZE) {
+          setResult(`File too large (${(st.size / 1024 / 1024).toFixed(1)} MB). Maximum: ${MAX_CSV_SIZE / 1024 / 1024} MB`)
+          setProcessing(false)
+          return
+        }
+        const content = readFileSync(file, "utf-8")
         const clean = content.charCodeAt(0) === 0xfeff ? content.slice(1) : content
         const lines = clean.split("\n").map((l) => l.trim()).filter(Boolean)
 
@@ -35,6 +45,7 @@ export function ImportTab() {
           try {
             const fields = parseCsvLine(lines[i])
             if (fields.length < 5) { failed++; continue }
+            if (fields.some((f) => f.length > MAX_FIELD_LENGTH)) { failed++; continue }
             if (!isValidCurrency(fields[4]) || !isValidCycle(fields[1])) { failed++; continue }
             const price = Number(fields[3])
             if (isNaN(price) || price < 0 || !Number.isInteger(price)) { failed++; errors.push(`Line ${i + 1}: invalid price "${fields[3]}"`); continue }

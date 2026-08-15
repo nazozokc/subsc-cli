@@ -3,7 +3,7 @@ import Spinner from "ink-spinner"
 import { TextInput, Select } from "@inkjs/ui"
 import { useState, useCallback, useEffect } from "react"
 import { useSetFormActive } from "../../context/app-context.tsx"
-import { getDbDir, getBackupFiles, restoreDb } from "../../../db.ts"
+import { getDbDir, getBackupFiles, restoreDb, verifyBackupHash } from "../../../db.ts"
 import { colors } from "../../theme.ts"
 import { existsSync } from "node:fs"
 
@@ -32,6 +32,13 @@ export function RestoreTab() {
     setStep("processing")
     queueMicrotask(() => {
       try {
+        // Refuse to restore files whose integrity hash is missing/mismatched
+        // (mirrors the CLI restore behavior)
+        if (!verifyBackupHash(source)) {
+          setResult(`Restore aborted: integrity check failed for ${source}`)
+          setStep("done")
+          return
+        }
         restoreDb(source)
         setResult(`Restored from ${source}`)
       } catch (e: unknown) {

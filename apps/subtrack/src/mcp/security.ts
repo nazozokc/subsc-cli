@@ -52,6 +52,8 @@ export function validateArgs(
       if (typeof value !== "number" || isNaN(value)) return `${key} must be a number`
       if (value < 0) return `${key} must be non-negative`
       if (value > 1_000_000_000) return `${key} value too large`
+    } else if (rules.type === "boolean") {
+      if (typeof value !== "boolean") return `${key} must be a boolean`
     }
   }
   return null
@@ -86,5 +88,48 @@ export const INPUT_VALIDATIONS: Record<string, Record<string, { type: string; ma
   },
   search_subscriptions: {
     query: { type: "string", maxLength: 200 },
+  },
+  list_subscriptions: {
+    sort: { type: "string", maxLength: 20 },
+    desc: { type: "boolean" },
+  },
+  get_subscription: {
+    id: { type: "number" },
+  },
+  get_summary: {},
+  get_upcoming: {
+    days: { type: "number" },
+  },
+  get_calendar: {
+    month: { type: "number" },
+    year: { type: "number" },
+  },
+  export_data: {
+    format: { type: "string", maxLength: 10 },
+  },
+  get_history: {
+    id: { type: "number" },
+    days: { type: "number" },
+  },
+  get_analytics: {},
+  get_forecast: {
+    months: { type: "number" },
+    currency: { type: "string", maxLength: 3 },
+    cancel: { type: "string", maxLength: 500 },
+  },
+  compare: {
+    period: { type: "string", maxLength: 20 },
+    currency: { type: "string", maxLength: 3 },
+  },
+  bulk_operations: {
+    action: { type: "string", maxLength: 20 },
+    status: { type: "string", maxLength: 10 },
+    tag_name: { type: "string", maxLength: 50 },
+    filter_tag: { type: "string", maxLength: 50 },
+    filter_status: { type: "string", maxLength: 10 },
+    filter_name: { type: "string", maxLength: 200 },
+  },
+  get_trials: {
+    expiring_soon: { type: "number" },
   },
 }

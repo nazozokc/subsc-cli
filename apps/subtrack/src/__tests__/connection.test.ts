@@ -168,3 +168,27 @@ test("restoreDb rejects an encrypted backup with the wrong key", async () => {
   delete process.env.SUBSC_CLI_DB_PASSPHRASE
   expect(() => conn.restoreDb(backupPath)).toThrow(/Failed to decrypt/i)
 })
+
+test("restoreDb rejects a decompression bomb (zip bomb) backup", async () => {
+  process.env.SUBSC_CLI_DB_DIR = mainDir
+
+  // Highly-compressible payload that decompresses far beyond the 256 MB cap
+  // (gzip of 300 MB of zeros is only a few hundred KB on disk)
+  const bomb = gzipSync(Buffer.alloc(300 * 1024 * 1024))
+  const backupPath = join(mainDir, "bomb.db.gz")
+  writeFileSync(backupPath, bomb)
+
+  expect(() => conn.restoreDb(backupPath)).toThrow(/decompression bomb|refusing/i)
+})
+
+test("restoreDb rejects a gzip whose payload decompresses over the cap even when encrypted", async () => {
+  process.env.SUBSC_CLI_DB_DIR = mainDir
+
+  // Encrypted variant: decrypts fine, but the inner gzip blows past the cap
+  const bomb = gzipSync(Buffer.alloc(300 * 1024 * 1024))
+  const encrypted = Buffer.from((await import("../crypto.ts")).encryptBuffer(bomb))
+  const backupPath = join(mainDir, "bomb.db.enc")
+  writeFileSync(backupPath, encrypted)
+
+  expect(() => conn.restoreDb(backupPath)).toThrow(/decompression bomb|refusing/i)
+})
