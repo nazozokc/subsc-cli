@@ -1,4 +1,5 @@
 import { consola } from "consola"
+import { fail } from "./error.ts"
 import pc from "picocolors"
 import { getSubscriptions } from "./db.ts"
 import type { SharedArgs, Currency } from "./types.ts"
@@ -194,7 +195,7 @@ export async function handleTimeline(options: TimelineOptions = {}): Promise<voi
   const months = options.months ?? 12
 
   if (months < 1) {
-    consola.error("months must be a positive integer")
+    fail("months must be a positive integer")
     return
   }
 

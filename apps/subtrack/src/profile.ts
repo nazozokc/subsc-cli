@@ -1,4 +1,5 @@
 import { consola } from "consola"
+import { fail } from "./error.ts"
 import pc from "picocolors"
 import { input, select } from "@inquirer/prompts"
 import { loadConfig, saveConfig } from "./config.ts"
@@ -15,7 +16,7 @@ function validateName(name: string): boolean {
 /** Save a new profile or overwrite an existing one. */
 export function saveProfile(name: string, filter: ProfileFilter): void {
   if (!validateName(name)) {
-    consola.error(
+    fail(
       "Profile name must be 1-50 characters, using only letters, numbers, hyphens, and underscores",
     )
     return
@@ -65,7 +66,7 @@ export function showProfile(name: string): void {
   const filter = profiles[name]
 
   if (!filter) {
-    consola.error(`Profile "${name}" not found`)
+    fail(`Profile "${name}" not found`)
     return
   }
 
@@ -82,7 +83,7 @@ export function switchProfile(name: string): void {
   const profiles = config.profiles ?? {}
 
   if (!profiles[name]) {
-    consola.error(`Profile "${name}" not found`)
+    fail(`Profile "${name}" not found`)
     return
   }
 
@@ -97,7 +98,7 @@ export function deleteProfile(name: string): void {
   const profiles = config.profiles ?? {}
 
   if (!profiles[name]) {
-    consola.error(`Profile "${name}" not found`)
+    fail(`Profile "${name}" not found`)
     return
   }
 
@@ -178,14 +179,14 @@ export async function handleProfile(command?: ProfileCommand, name?: string, fil
           paymentMethod: method.trim() || undefined,
         }
       } else if (!name) {
-        consola.error("Profile name required")
+        fail("Profile name required")
         return
       }
       saveProfile(name, filter ?? {})
       break
     case "show":
       if (!name) {
-        consola.error("Profile name required")
+        fail("Profile name required")
         return
       }
       showProfile(name)

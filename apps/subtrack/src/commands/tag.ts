@@ -1,6 +1,7 @@
 // ── Tag commands ───────────────────────────────────────
 import { define } from "gunshi"
 import { consola } from "consola"
+import { fail } from "../error.ts"
 import { handleTags } from "../subscription.ts"
 import { handleTagList, handleTagRename, handleTagDelete, handleTagPrune, handleTagMerge } from "../tag.ts"
 
@@ -13,7 +14,7 @@ export const tagsCommand = define({
   run: (ctx) => {
     const tagNames = (ctx.values.names as string[] | undefined) ?? []
     if (tagNames.length === 0) {
-      consola.error("Please specify at least one tag")
+      fail("Please specify at least one tag")
       return
     }
     handleTags(tagNames)

@@ -3,6 +3,7 @@
  */
 
 import { consola } from "consola"
+import { fail } from "./error.ts"
 import { getDb, saveDb, getDbPath } from "./db.ts"
 import { pruneAuditLogs } from "./db.ts"
 import { pruneTags } from "./db.ts"
@@ -33,7 +34,7 @@ export function handleCleanup(options: CleanupOptions = {}): void {
   } else if (integrityOk) {
     consola.success("Integrity check: passed")
   } else {
-    consola.error(`Integrity check: FAILED — ${checkResult}`)
+    fail(`Integrity check: FAILED — ${checkResult}`)
   }
 
   // ── VACUUM ───────────────────────────────────────────
@@ -48,7 +49,7 @@ export function handleCleanup(options: CleanupOptions = {}): void {
       if (options.json) {
         results.vacuum = { error: msg }
       } else {
-        consola.error(`VACUUM failed: ${msg}`)
+        fail(`VACUUM failed: ${msg}`)
       }
       return
     }

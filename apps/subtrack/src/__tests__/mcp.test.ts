@@ -185,3 +185,38 @@ describe("startMcpServer", () => {
     expect(typeof startMcpServer).toBe("function")
   })
 })
+
+describe("MCP input validation", () => {
+  test("validateArgs rejects oversized bulk_operations filter_name", async () => {
+    const { validateArgs, INPUT_VALIDATIONS } = await import("../mcp/security.ts")
+    const err = validateArgs(
+      { action: "status", filter_name: "x".repeat(5000) },
+      INPUT_VALIDATIONS.bulk_operations!,
+    )
+    expect(err).toMatch(/too long/)
+  })
+
+  test("validateArgs rejects wrong types for previously-uncovered tools", async () => {
+    const { validateArgs, INPUT_VALIDATIONS } = await import("../mcp/security.ts")
+    // list_subscriptions desc must be boolean
+    const err = validateArgs(
+      { desc: "yes" },
+      INPUT_VALIDATIONS.list_subscriptions!,
+    )
+    expect(err).toMatch(/boolean/)
+    // get_forecast currency must be a short string
+    const err2 = validateArgs(
+      { currency: "A".repeat(100) },
+      INPUT_VALIDATIONS.get_forecast!,
+    )
+    expect(err2).toMatch(/too long/)
+  })
+
+  test("every registered tool has an input validation schema", async () => {
+    const { INPUT_VALIDATIONS } = await import("../mcp/security.ts")
+    const { TOOLS } = await import("../mcp/tools.ts")
+    for (const tool of TOOLS) {
+      expect(INPUT_VALIDATIONS[tool.name], `missing schema for ${tool.name}`).toBeDefined()
+    }
+  })
+})

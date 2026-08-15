@@ -13,7 +13,8 @@ import { handleNotify } from "../notify.ts"
 import { handleTimeline } from "../timeline.ts"
 import { handleOptimize } from "../optimize.ts"
 import { handleStats } from "../stats.ts"
-import type { Cycle } from "../types.ts"
+import type { Cycle, NotifyChannel } from "../types.ts"
+import { fail } from "../error.ts"
 
 export const summaryCommand = define({
   name: "summary",
@@ -55,7 +56,7 @@ export const upcomingCommand = define({
   run: (ctx) => {
     const days = ctx.values.days !== undefined ? Number(ctx.values.days) : undefined
     if (days !== undefined && (isNaN(days) || days < 0 || !Number.isInteger(days))) {
-      consola.error("days must be a non-negative integer")
+      fail("days must be a non-negative integer")
       return
     }
     handleUpcoming(days, { json: ctx.values.json })
@@ -93,12 +94,12 @@ export const calendarCommand = define({
   run: (ctx) => {
     const rawMonth = ctx.values.month !== undefined ? Number(ctx.values.month) : undefined
     if (rawMonth !== undefined && (isNaN(rawMonth) || rawMonth < 1 || rawMonth > 12 || !Number.isInteger(rawMonth))) {
-      consola.error("month must be an integer between 1 and 12")
+      fail("month must be an integer between 1 and 12")
       return
     }
     const rawYear = ctx.values.year !== undefined ? Number(ctx.values.year) : undefined
     if (rawYear !== undefined && (isNaN(rawYear) || rawYear < 1 || !Number.isInteger(rawYear))) {
-      consola.error("year must be a positive integer")
+      fail("year must be a positive integer")
       return
     }
     handleCalendar({ month: rawMonth, year: rawYear, json: ctx.values.json })
@@ -141,12 +142,12 @@ export const historyCommand = define({
     const positionals = ctx.positionals as string[]
     const id = ctx.values.id !== undefined ? Number(ctx.values.id) : positionals[1] ? Number(positionals[1]) : undefined
     if (id !== undefined && (isNaN(id) || !Number.isInteger(id) || id < 1)) {
-      consola.error("id must be a positive integer")
+      fail("id must be a positive integer")
       return
     }
     const days = ctx.values.days !== undefined ? Number(ctx.values.days) : undefined
     if (days !== undefined && (isNaN(days) || days < 1 || !Number.isInteger(days))) {
-      consola.error("days must be a positive integer")
+      fail("days must be a positive integer")
       return
     }
     handleHistory(id, { all: ctx.values.all, json: ctx.values.json, days })
@@ -158,16 +159,21 @@ export const notifyCommand = define({
   description: "Send desktop notification for upcoming bills",
   args: {
     days: { type: "string", description: "Number of days (default: config notifyDays or 7)" },
+    channel: { type: "string", short: "c", description: "Notification channel: os, slack, webhook (default: config notifyChannels or os)" },
     "dry-run": { type: "boolean", description: "Show upcoming bills without sending notification" },
     json: { type: "boolean", short: "j", description: "Output as JSON" },
   },
   run: async (ctx) => {
     const days = ctx.values.days !== undefined ? Number(ctx.values.days) : undefined
     if (days !== undefined && (isNaN(days) || days < 0 || !Number.isInteger(days))) {
-      consola.error("days must be a non-negative integer")
+      fail("days must be a non-negative integer")
       return
     }
-    await handleNotify({ days, dryRun: ctx.values["dry-run"], json: ctx.values.json })
+    if (ctx.values.channel !== undefined && !["os", "slack", "webhook"].includes(ctx.values.channel)) {
+      fail("channel must be one of: os, slack, webhook")
+      return
+    }
+    await handleNotify({ days, channel: ctx.values.channel as NotifyChannel | undefined, dryRun: ctx.values["dry-run"], json: ctx.values.json })
   },
 })
 
@@ -182,7 +188,7 @@ export const timelineCommand = define({
   run: (ctx) => {
     const months = ctx.values.months !== undefined ? Number(ctx.values.months) : undefined
     if (months !== undefined && (isNaN(months) || months < 1 || !Number.isInteger(months))) {
-      consola.error("months must be a positive integer")
+      fail("months must be a positive integer")
       return
     }
     handleTimeline({ months, categories: ctx.values.categories, json: ctx.values.json })
@@ -195,14 +201,28 @@ export const optimizeCommand = define({
   args: {
     json: { type: "boolean", short: "j", description: "Output as JSON" },
     "min-savings": { type: "string", description: "Minimum yearly savings to show (default: 0)" },
+    currency: { type: "string", short: "c", description: "Convert all prices to target currency" },
+    "discount-rate": { type: "string", description: "Assumed yearly discount rate for annual plans in % (default: 15)" },
+    exclude: { type: "string", description: "Comma-separated subscription names to exclude from analysis" },
   },
   run: (ctx) => {
     const minSavings = ctx.values["min-savings"] !== undefined ? Number(ctx.values["min-savings"]) : undefined
     if (minSavings !== undefined && (isNaN(minSavings) || minSavings < 0)) {
-      consola.error("min-savings must be a non-negative number")
+      fail("min-savings must be a non-negative number")
       return
     }
-    handleOptimize({ json: ctx.values.json, minSavings })
+    const discountRate = ctx.values["discount-rate"] !== undefined ? Number(ctx.values["discount-rate"]) : undefined
+    if (discountRate !== undefined && (isNaN(discountRate) || discountRate < 0 || discountRate > 100)) {
+      fail("discount-rate must be a number between 0 and 100")
+      return
+    }
+    handleOptimize({
+      json: ctx.values.json,
+      minSavings,
+      currency: ctx.values.currency,
+      discountRate,
+      exclude: ctx.values.exclude?.split(",").map((s: string) => s.trim()).filter(Boolean),
+    })
   },
 })
 

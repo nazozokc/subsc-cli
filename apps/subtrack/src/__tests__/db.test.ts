@@ -150,6 +150,125 @@ test("writeSubscription supports yearly cycle", async () => {
   expect(subs[0].cycle).toBe("yearly")
 })
 
+// ── Extended fields (vendor, contract, discount, auto-renewal) ──
+
+test("writeSubscription stores extended fields", async () => {
+  const db = await import("../db.ts")
+
+  db.writeSubscription({
+    name: "GitHub Pro",
+    price: 1000,
+    currency: "USD",
+    cycle: "monthly",
+    tags: ["dev"],
+    vendorName: "GitHub",
+    vendorUrl: "https://github.com",
+    planTier: "Pro",
+    discountAmount: 20,
+    discountType: "percentage",
+    contractStart: "2026-01-01",
+    contractEnd: "2026-12-31",
+    autoRenewal: false,
+  })
+
+  const [sub] = db.getSubscriptions()
+  expect(sub).toMatchObject({
+    name: "GitHub Pro",
+    vendorName: "GitHub",
+    vendorUrl: "https://github.com",
+    planTier: "Pro",
+    discountAmount: 20,
+    discountType: "percentage",
+    contractStart: "2026-01-01",
+    contractEnd: "2026-12-31",
+    autoRenewal: false,
+  })
+})
+
+test("writeSubscription defaults autoRenewal to true and nullable fields to null", async () => {
+  const db = await import("../db.ts")
+
+  db.writeSubscription({
+    name: "Minimal",
+    price: 100,
+    currency: "USD",
+    cycle: "monthly",
+    tags: [],
+  })
+
+  const [sub] = db.getSubscriptions()
+  expect(sub.autoRenewal).toBe(true)
+  expect(sub.vendorName).toBeNull()
+  expect(sub.contractStart).toBeNull()
+  expect(sub.discountAmount).toBeNull()
+})
+
+test("updateSubscription updates extended fields", async () => {
+  const db = await import("../db.ts")
+  db.writeSubscription({
+    name: "S",
+    price: 100,
+    currency: "USD",
+    cycle: "monthly",
+    tags: [],
+    autoRenewal: true,
+  })
+
+  const [sub] = db.getSubscriptions()
+  db.updateSubscription(sub.id, {
+    vendorName: "Acme",
+    planTier: "Business",
+    discountAmount: 100,
+    discountType: "fixed",
+    contractEnd: "2026-06-30",
+    autoRenewal: false,
+  })
+
+  const updated = db.getSubscription(sub.id)
+  expect(updated).toMatchObject({
+    vendorName: "Acme",
+    planTier: "Business",
+    discountAmount: 100,
+    discountType: "fixed",
+    contractEnd: "2026-06-30",
+    autoRenewal: false,
+  })
+})
+
+test("getSubscription includes extended fields", async () => {
+  const db = await import("../db.ts")
+  db.writeSubscription({
+    name: "Target",
+    price: 500,
+    currency: "JPY",
+    cycle: "monthly",
+    tags: [],
+    vendorName: "Vendor X",
+    contractStart: "2025-04-01",
+  })
+
+  const found = db.getSubscription(db.getSubscriptions()[0].id)
+  expect(found?.vendorName).toBe("Vendor X")
+  expect(found?.contractStart).toBe("2025-04-01")
+})
+
+test("findSubscriptionByName includes extended fields", async () => {
+  const db = await import("../db.ts")
+  db.writeSubscription({
+    name: "Lookup Me",
+    price: 100,
+    currency: "USD",
+    cycle: "monthly",
+    tags: [],
+    vendorName: "Vendor Y",
+    autoRenewal: false,
+  })
+
+  const found = db.findSubscriptionByName("lookup me")
+  expect(found?.vendorName).toBe("Vendor Y")
+  expect(found?.autoRenewal).toBe(false)
+})
+
 test("getSubscriptions returns all subscriptions ordered by id", async () => {
   const db = await import("../db.ts")
 

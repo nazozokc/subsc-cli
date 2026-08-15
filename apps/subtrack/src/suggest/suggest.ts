@@ -5,6 +5,7 @@
  */
 
 import { consola } from "consola"
+import { fail } from "../error.ts"
 import pc from "picocolors"
 import {
   getSuggestions,
@@ -58,7 +59,7 @@ export function handleSuggestList(flags: SuggestListFlags = {}): void {
 export function handleSuggestView(id: number): void {
   const suggestion = getSuggestion(id)
   if (!suggestion) {
-    consola.error(`Suggestion #${id} not found.`)
+    fail(`Suggestion #${id} not found.`)
     return
   }
 
@@ -99,7 +100,7 @@ export function handleSuggestDismiss(id: number): void {
   if (ok) {
     consola.success(`Suggestion #${id} dismissed.`)
   } else {
-    consola.error(`Suggestion #${id} not found or already processed.`)
+    fail(`Suggestion #${id} not found or already processed.`)
   }
 }
 
@@ -118,11 +119,11 @@ export function handleSuggestDismissAll(flags: SuggestDismissFlags = {}): void {
 export function handleSuggestAdd(id: number): void {
   const suggestion = getSuggestion(id)
   if (!suggestion) {
-    consola.error(`Suggestion #${id} not found.`)
+    fail(`Suggestion #${id} not found.`)
     return
   }
   if (suggestion.status !== "pending") {
-    consola.error(`Suggestion #${id} is already ${suggestion.status}.`)
+    fail(`Suggestion #${id} is already ${suggestion.status}.`)
     return
   }
 

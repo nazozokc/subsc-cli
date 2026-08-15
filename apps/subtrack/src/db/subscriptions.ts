@@ -4,6 +4,15 @@ import type { SharedArgs, AddSharedArgs } from "../types.ts"
 
 const SORT_FIELDS = ["id", "name", "price", "currency", "cycle", "status"] as const
 
+/** Column projection shared by all subscription queries. */
+const SUB_COLUMNS = `
+  id, name, price, currency, cycle, status,
+  billing_day AS billingDay, created_at AS createdAt, notes, payment_method AS paymentMethod,
+  contract_start AS contractStart, contract_end AS contractEnd, auto_renewal AS autoRenewal,
+  vendor_name AS vendorName, vendor_url AS vendorUrl, plan_tier AS planTier,
+  discount_amount AS discountAmount, discount_type AS discountType
+`.trim()
+
 export function mapTags(subs: SharedArgs[]): SharedArgs[] {
   if (subs.length === 0) return subs
 
@@ -31,6 +40,8 @@ export function mapTags(subs: SharedArgs[]): SharedArgs[] {
 
   for (const sub of subs) {
     sub.tags = tagMap.get(sub.id) ?? []
+    // auto_renewal is stored as 0/1 in SQLite; normalize to boolean
+    sub.autoRenewal = !!sub.autoRenewal
   }
 
   return subs
@@ -64,7 +75,7 @@ export const getSubscriptions = (
 
   const subs = execObjs<SharedArgs>(
     db,
-    `SELECT id, name, price, currency, cycle, status, billing_day AS billingDay, created_at AS createdAt, notes, payment_method AS paymentMethod FROM subscriptions ${where} ORDER BY ${field} ${order}${limitClause}${offsetClause}`,
+    `SELECT ${SUB_COLUMNS} FROM subscriptions ${where} ORDER BY ${field} ${order}${limitClause}${offsetClause}`,
     params.length > 0 ? params : undefined,
   )
   return mapTags(subs)
@@ -77,8 +88,21 @@ export const writeSubscription = (data: AddSharedArgs): number => {
   db.run("BEGIN TRANSACTION")
   try {
     db.run(
-      "INSERT INTO subscriptions (name, price, currency, cycle, status, billing_day, created_at, notes, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      [data.name, data.price, data.currency, data.cycle, data.status ?? "active", data.billingDay ?? null, data.createdAt ?? new Date().toISOString().split("T")[0], data.notes ?? null, data.paymentMethod ?? null],
+      `INSERT INTO subscriptions (
+        name, price, currency, cycle, status, billing_day, created_at, notes, payment_method,
+        contract_start, contract_end, auto_renewal,
+        vendor_name, vendor_url, plan_tier,
+        discount_amount, discount_type
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        data.name, data.price, data.currency, data.cycle, data.status ?? "active",
+        data.billingDay ?? null, data.createdAt ?? new Date().toISOString().split("T")[0],
+        data.notes ?? null, data.paymentMethod ?? null,
+        data.contractStart ?? null, data.contractEnd ?? null,
+        data.autoRenewal === false ? 0 : 1,
+        data.vendorName ?? null, data.vendorUrl ?? null, data.planTier ?? null,
+        data.discountAmount ?? null, data.discountType ?? null,
+      ],
     )
 
     const idRow = execObj<Record<string, SqlValue>>(
@@ -128,7 +152,7 @@ export const getSubscription = (id: number): SharedArgs | undefined => {
   const db = getDb()
   const sub = execObj<SharedArgs>(
     db,
-    "SELECT id, name, price, currency, cycle, status, billing_day AS billingDay, created_at AS createdAt, notes, payment_method AS paymentMethod FROM subscriptions WHERE id = ?",
+    `SELECT ${SUB_COLUMNS} FROM subscriptions WHERE id = ?`,
     [id],
   )
   if (!sub) return undefined
@@ -154,6 +178,14 @@ export const updateSubscription = (
     if (fields.billingDay !== undefined) { sets.push("billing_day = ?"); params.push(fields.billingDay) }
     if (fields.notes !== undefined) { sets.push("notes = ?"); params.push(fields.notes || null) }
     if (fields.paymentMethod !== undefined) { sets.push("payment_method = ?"); params.push(fields.paymentMethod || null) }
+    if (fields.contractStart !== undefined) { sets.push("contract_start = ?"); params.push(fields.contractStart || null) }
+    if (fields.contractEnd !== undefined) { sets.push("contract_end = ?"); params.push(fields.contractEnd || null) }
+    if (fields.autoRenewal !== undefined) { sets.push("auto_renewal = ?"); params.push(fields.autoRenewal ? 1 : 0) }
+    if (fields.vendorName !== undefined) { sets.push("vendor_name = ?"); params.push(fields.vendorName || null) }
+    if (fields.vendorUrl !== undefined) { sets.push("vendor_url = ?"); params.push(fields.vendorUrl || null) }
+    if (fields.planTier !== undefined) { sets.push("plan_tier = ?"); params.push(fields.planTier || null) }
+    if (fields.discountAmount !== undefined) { sets.push("discount_amount = ?"); params.push(fields.discountAmount ?? null) }
+    if (fields.discountType !== undefined) { sets.push("discount_type = ?"); params.push(fields.discountType || null) }
 
     if (sets.length > 0) {
       params.push(id)
@@ -212,7 +244,7 @@ export const findSubscriptionByName = (name: string): SharedArgs | undefined => 
   const db = getDb()
   const subs = execObjs<SharedArgs>(
     db,
-    "SELECT id, name, price, currency, cycle, status, billing_day AS billingDay, created_at AS createdAt, notes, payment_method AS paymentMethod FROM subscriptions WHERE LOWER(name) = LOWER(?) LIMIT 1",
+    `SELECT ${SUB_COLUMNS} FROM subscriptions WHERE LOWER(name) = LOWER(?) LIMIT 1`,
     [name],
   )
   if (subs.length === 0) return undefined

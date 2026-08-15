@@ -1,6 +1,7 @@
 import { openSync, fstatSync, readSync, closeSync } from "node:fs"
 import os from "node:os"
 import { consola } from "consola"
+import { fail } from "./error.ts"
 import type { UsageImportFlags } from "./types.ts"
 import { addLlmUsageFromLog } from "./db.ts"
 import { safeJsonParse } from "./safe-json.ts"
@@ -131,7 +132,7 @@ type ImportResult = {
 export async function handleUsageImport(flags: UsageImportFlags) {
   const filePath = flags.file
   if (!filePath) {
-    consola.error("Usage: subtrack usage import <file> [--dry-run]")
+    fail("Usage: subtrack usage import <file> [--dry-run]")
     return
   }
 
@@ -143,7 +144,7 @@ export async function handleUsageImport(flags: UsageImportFlags) {
     let totalBytes = 0
     let stdinDestroyed = false
     const stdinTimer = setTimeout(() => {
-      consola.error("Stdin read timed out — exceeded 30 seconds")
+      fail("Stdin read timed out — exceeded 30 seconds")
       process.stdin.destroy()
       stdinDestroyed = true
     }, STDIN_TIMEOUT_MS)
@@ -153,7 +154,7 @@ export async function handleUsageImport(flags: UsageImportFlags) {
         totalBytes += buf.length
         if (totalBytes > MAX_STDIN_SIZE) {
           process.stdin.destroy()
-          consola.error(
+          fail(
             `Stdin input too large (max ${MAX_STDIN_SIZE / 1024 / 1024} MB)`,
           )
           return
@@ -170,7 +171,7 @@ export async function handleUsageImport(flags: UsageImportFlags) {
   } else {
     const safeFile = resolveSafePath([os.homedir(), os.tmpdir()], filePath)
     if (!safeFile) {
-      consola.error(
+      fail(
         `File not found or path not allowed — must be within home or temp directory`,
       )
       return
@@ -181,7 +182,7 @@ export async function handleUsageImport(flags: UsageImportFlags) {
       fd = openSync(safeFile, "r")
       const st = fstatSync(fd)
       if (st.size > MAX_FILE_SIZE) {
-        consola.error(
+        fail(
           `File too large (${(st.size / 1024 / 1024).toFixed(1)} MB). Maximum: ${MAX_FILE_SIZE / 1024 / 1024} MB`,
         )
         return
@@ -190,7 +191,7 @@ export async function handleUsageImport(flags: UsageImportFlags) {
       readSync(fd, buffer, 0, st.size, 0)
       content = buffer.toString("utf-8")
     } catch (err) {
-      consola.error(`Cannot read file: ${safeFile} — ${String(err)}`)
+      fail(`Cannot read file: ${safeFile} — ${String(err)}`)
       return
     } finally {
       if (fd !== null) closeSync(fd)
@@ -211,12 +212,12 @@ export async function handleUsageImport(flags: UsageImportFlags) {
     try {
       const parsed = safeJsonParse(trimmed)
       if (!Array.isArray(parsed)) {
-        consola.error("File contains a JSON object, expected an array or JSONL")
+        fail("File contains a JSON object, expected an array or JSONL")
         return
       }
       objects = parsed as Record<string, unknown>[]
     } catch {
-      consola.error("Failed to parse JSON array")
+      fail("Failed to parse JSON array")
       return
     }
   } else {

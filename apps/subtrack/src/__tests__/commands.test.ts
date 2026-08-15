@@ -829,11 +829,18 @@ test("handleAdd shows info when cancelled at confirm", async () => {
     .mockResolvedValueOnce("")               // notes (empty)
     .mockResolvedValueOnce("")               // paymentMethod (empty)
     .mockResolvedValueOnce("")               // billingDay (empty)
+    .mockResolvedValueOnce("")               // vendorName (empty)
+    .mockResolvedValueOnce("")               // vendorUrl (empty)
+    .mockResolvedValueOnce("")               // planTier (empty)
+    .mockResolvedValueOnce("")               // contractStart (empty)
+    .mockResolvedValueOnce("")               // contractEnd (empty)
+    .mockResolvedValueOnce("")               // discountAmount (empty)
   vi.mocked(select)
     .mockResolvedValueOnce("JPY")            // currency
     .mockResolvedValueOnce("monthly")        // cycle
     .mockResolvedValueOnce("active")         // status
   vi.mocked(confirm)
+    .mockResolvedValueOnce(true)             // autoRenewal
     .mockResolvedValueOnce(false)            // decline save
 
   const { handleAdd } = await import("../commands.ts")
