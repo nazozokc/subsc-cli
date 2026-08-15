@@ -5,6 +5,7 @@
 
 import { input, confirm, select } from "@inquirer/prompts"
 import { consola } from "consola"
+import { fail } from "../error.ts"
 import type { AddFlags, Cycle, Status } from "../types.ts"
 import { getSubscriptions, writeSubscription, getAllTags } from "../db.ts"
 import { formatPrice } from "../price.ts"
@@ -22,6 +23,13 @@ import {
   validateBillingDay,
   validateNotes,
   validatePaymentMethod,
+  validateVendorName,
+  validateVendorUrl,
+  validatePlanTier,
+  validateDateString,
+  validateDiscountValue,
+  validateDiscountType,
+  validateAutoRenewal,
   promptString,
   promptSelect,
 } from "../prompts.ts"
@@ -38,6 +46,14 @@ export async function resolveAddOptions(flags: AddFlags): Promise<{
   billingDay: number | null
   notes: string | null
   paymentMethod: string | null
+  contractStart: string | null
+  contractEnd: string | null
+  autoRenewal: boolean
+  vendorName: string | null
+  vendorUrl: string | null
+  planTier: string | null
+  discountAmount: number | null
+  discountType: "percentage" | "fixed" | null
 } | null> {
   const nameRes = await promptString(
     flags.name,
@@ -100,7 +116,7 @@ export async function resolveAddOptions(flags: AddFlags): Promise<{
     const trimmed = notesStr.trim()
     if (trimmed) {
       const valid = validateNotes(trimmed)
-      if (valid !== true) { consola.error(valid); return null }
+      if (valid !== true) { fail(valid); return null }
       notes = trimmed
     }
   } else if (prompted) {
@@ -118,7 +134,7 @@ export async function resolveAddOptions(flags: AddFlags): Promise<{
     const trimmed = paymentMethodStr.trim()
     if (trimmed) {
       const valid = validatePaymentMethod(trimmed)
-      if (valid !== true) { consola.error(valid); return null }
+      if (valid !== true) { fail(valid); return null }
       paymentMethod = trimmed
     }
   } else if (prompted) {
@@ -136,7 +152,7 @@ export async function resolveAddOptions(flags: AddFlags): Promise<{
     const trimmed = billingDayStr.trim()
     if (trimmed) {
       const valid = validateBillingDay(trimmed)
-      if (valid !== true) { consola.error(valid); return null }
+      if (valid !== true) { fail(valid); return null }
       billingDay = Number(trimmed)
     }
   } else if (prompted) {
@@ -145,6 +161,139 @@ export async function resolveAddOptions(flags: AddFlags): Promise<{
       validate: validateBillingDay,
     })
     if (dayStr.trim()) billingDay = Number(dayStr)
+  }
+
+  // Optional text fields: vendor name / URL / plan tier
+  let vendorName: string | null = null
+  const vendorNameStr = flags.vendorName
+  if (vendorNameStr !== undefined) {
+    const trimmed = vendorNameStr.trim()
+    if (trimmed) {
+      const valid = validateVendorName(trimmed)
+      if (valid !== true) { fail(valid); return null }
+      vendorName = trimmed
+    }
+  } else if (prompted) {
+    const vn = await input({
+      message: "vendor name (optional, max 100 chars)",
+      validate: validateVendorName,
+    })
+    if (vn.trim()) vendorName = vn.trim()
+  }
+
+  let vendorUrl: string | null = null
+  const vendorUrlStr = flags.vendorUrl
+  if (vendorUrlStr !== undefined) {
+    const trimmed = vendorUrlStr.trim()
+    if (trimmed) {
+      const valid = validateVendorUrl(trimmed)
+      if (valid !== true) { fail(valid); return null }
+      vendorUrl = trimmed
+    }
+  } else if (prompted) {
+    const vu = await input({
+      message: "vendor URL (optional)",
+      validate: validateVendorUrl,
+    })
+    if (vu.trim()) vendorUrl = vu.trim()
+  }
+
+  let planTier: string | null = null
+  const planTierStr = flags.planTier
+  if (planTierStr !== undefined) {
+    const trimmed = planTierStr.trim()
+    if (trimmed) {
+      const valid = validatePlanTier(trimmed)
+      if (valid !== true) { fail(valid); return null }
+      planTier = trimmed
+    }
+  } else if (prompted) {
+    const pt = await input({
+      message: "plan tier (optional, max 100 chars)",
+      validate: validatePlanTier,
+    })
+    if (pt.trim()) planTier = pt.trim()
+  }
+
+  // Contract period: optional YYYY-MM-DD dates
+  let contractStart: string | null = null
+  const contractStartStr = flags.contractStart
+  if (contractStartStr !== undefined) {
+    const trimmed = contractStartStr.trim()
+    if (trimmed) {
+      const valid = validateDateString(trimmed)
+      if (valid !== true) { fail(valid); return null }
+      contractStart = trimmed
+    }
+  } else if (prompted) {
+    const cs = await input({
+      message: "contract start (YYYY-MM-DD, optional)",
+      validate: validateDateString,
+    })
+    if (cs.trim()) contractStart = cs.trim()
+  }
+
+  let contractEnd: string | null = null
+  const contractEndStr = flags.contractEnd
+  if (contractEndStr !== undefined) {
+    const trimmed = contractEndStr.trim()
+    if (trimmed) {
+      const valid = validateDateString(trimmed)
+      if (valid !== true) { fail(valid); return null }
+      contractEnd = trimmed
+    }
+  } else if (prompted) {
+    const ce = await input({
+      message: "contract end (YYYY-MM-DD, optional)",
+      validate: validateDateString,
+    })
+    if (ce.trim()) contractEnd = ce.trim()
+  }
+
+  // Discount: optional amount + type
+  let discountAmount: number | null = null
+  const discountAmountStr = flags.discountAmount
+  if (discountAmountStr !== undefined) {
+    const trimmed = discountAmountStr.trim()
+    if (trimmed) {
+      const valid = validateDiscountValue(trimmed)
+      if (valid !== true) { fail(valid); return null }
+      discountAmount = Number(trimmed)
+    }
+  } else if (prompted) {
+    const da = await input({
+      message: "discount amount (optional, non-negative integer)",
+      validate: validateDiscountValue,
+    })
+    if (da.trim()) discountAmount = Number(da)
+  }
+
+  let discountType: "percentage" | "fixed" | null = null
+  const discountTypeStr = flags.discountType
+  if (discountTypeStr !== undefined) {
+    const trimmed = discountTypeStr.trim()
+    if (trimmed) {
+      const valid = validateDiscountType(trimmed)
+      if (valid !== true) { fail(valid); return null }
+      discountType = trimmed as "percentage" | "fixed"
+    }
+  } else if (prompted && discountAmount !== null) {
+    const dt = await input({
+      message: "discount type (percentage or fixed, optional)",
+      validate: validateDiscountType,
+    })
+    if (dt.trim()) discountType = dt.trim() as "percentage" | "fixed"
+  }
+
+  // autoRenewal: default true
+  let autoRenewal = true
+  const autoRenewalStr = flags.autoRenewal
+  if (autoRenewalStr !== undefined) {
+    const valid = validateAutoRenewal(autoRenewalStr)
+    if (valid !== true) { fail(valid); return null }
+    autoRenewal = autoRenewalStr === "true"
+  } else if (prompted) {
+    autoRenewal = await confirm({ message: "auto renew?", default: true })
   }
 
   // status
@@ -176,7 +325,7 @@ export async function resolveAddOptions(flags: AddFlags): Promise<{
     }
   }
 
-  return { name, price, currency, cycle: cycle as Cycle, tags, status: status as Status, billingDay, notes, paymentMethod }
+  return { name, price, currency, cycle: cycle as Cycle, tags, status: status as Status, billingDay, notes, paymentMethod, contractStart, contractEnd, autoRenewal, vendorName, vendorUrl, planTier, discountAmount, discountType }
 }
 
 export async function handleAdd(flags: AddFlags) {
@@ -191,6 +340,6 @@ export async function handleAdd(flags: AddFlags) {
     })
     consola.success(`Added subscription: ${result.name}`)
   } catch (error) {
-    consola.error(`Failed to add subscription: ${String(error)}`)
+    fail(`Failed to add subscription: ${String(error)}`)
   }
 }

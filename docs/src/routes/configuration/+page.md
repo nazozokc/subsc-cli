@@ -79,8 +79,7 @@ See the [Commands reference](/commands#config) for full details.
 | `monthlyBudget` | Monthly spending budget in USD (0 = disabled) | `0` |
 | `theme` | Display theme | `default` |
 | `notifyDays` | Default look-ahead days for `subtrack notify` | `7` |
-| `notifyChannels` | Notification channels (comma-separated: `os`, `email`, `slack`, `webhook`) | `os` |
-| `notifyEmail` | Email address for email notifications | — |
+| `notifyChannels` | Notification channels (comma-separated: `os`, `slack`, `webhook`) | `os` |
 | `slackWebhook` | Slack webhook URL for Slack notifications | — |
 | `webhookUrl` | Generic webhook URL for notifications | — |
 | `yearlyBudget` | Yearly budget target in USD | — |

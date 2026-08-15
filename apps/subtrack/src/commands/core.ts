@@ -12,6 +12,7 @@ import {
 } from "../subscription.ts"
 import { handleSearch } from "../search.ts"
 import { saveDb } from "../db.ts"
+import { fail } from "../error.ts"
 
 export const listCommand = define({
   name: "list",
@@ -32,12 +33,12 @@ export const listCommand = define({
   run: (ctx) => {
     const limit = ctx.values.limit !== undefined ? Number(ctx.values.limit) : undefined
     if (limit !== undefined && (isNaN(limit) || limit < 1 || !Number.isInteger(limit))) {
-      consola.error("limit must be a positive integer")
+      fail("limit must be a positive integer")
       return
     }
     const offset = ctx.values.offset !== undefined ? Number(ctx.values.offset) : undefined
     if (offset !== undefined && (isNaN(offset) || offset < 0 || !Number.isInteger(offset))) {
-      consola.error("offset must be a non-negative integer")
+      fail("offset must be a non-negative integer")
       return
     }
     handleList({ ...ctx.values, limit, offset, includeArchived: ctx.values["include-archived"] })
@@ -56,6 +57,14 @@ export const addCommand = define({
     billingDay: { type: "string", description: "Billing day of month (1-31)" },
     status: { type: "string", description: "Status: active, paused, cancelled (default: active)" },
     paymentMethod: { type: "string", description: "Payment method (e.g. credit_card, paypal)" },
+    vendorName: { type: "string", description: "Vendor name" },
+    vendorUrl: { type: "string", description: "Vendor URL" },
+    planTier: { type: "string", description: "Plan tier (e.g. Pro, Family)" },
+    discountAmount: { type: "string", description: "Discount amount (non-negative integer)" },
+    discountType: { type: "string", description: "Discount type: percentage or fixed" },
+    contractStart: { type: "string", description: "Contract start date (YYYY-MM-DD)" },
+    contractEnd: { type: "string", description: "Contract end date (YYYY-MM-DD)" },
+    autoRenewal: { type: "string", description: "Auto renew: true or false (default: true)" },
   },
   run: (ctx) => handleAdd(ctx.values),
 })
@@ -73,6 +82,14 @@ export const editCommand = define({
     status: { type: "string", description: "Status: active, paused, cancelled" },
     billingDay: { type: "string", description: "Billing day of month (1-31)" },
     paymentMethod: { type: "string", description: "Payment method" },
+    vendorName: { type: "string", description: "Vendor name" },
+    vendorUrl: { type: "string", description: "Vendor URL" },
+    planTier: { type: "string", description: "Plan tier (e.g. Pro, Family)" },
+    discountAmount: { type: "string", description: "Discount amount (non-negative integer)" },
+    discountType: { type: "string", description: "Discount type: percentage or fixed" },
+    contractStart: { type: "string", description: "Contract start date (YYYY-MM-DD)" },
+    contractEnd: { type: "string", description: "Contract end date (YYYY-MM-DD)" },
+    autoRenewal: { type: "string", description: "Auto renew: true or false" },
   },
   run: (ctx) => handleEdit(ctx.values.id ? Number(ctx.values.id) : undefined, ctx.values),
 })
@@ -104,7 +121,7 @@ export const cloneCommand = define({
     const positionals = ctx.positionals as string[]
     const id = ctx.values.id !== undefined ? Number(ctx.values.id) : positionals[1] ? Number(positionals[1]) : undefined
     if (id === undefined || isNaN(id) || !Number.isInteger(id) || id < 1) {
-      consola.error("Valid subscription ID is required")
+      fail("Valid subscription ID is required")
       return
     }
     handleClone(id, ctx.values)
@@ -121,7 +138,7 @@ export const archiveCommand = define({
     const positionals = ctx.positionals as string[]
     const id = ctx.values.id !== undefined ? Number(ctx.values.id) : positionals[1] ? Number(positionals[1]) : undefined
     if (id === undefined || isNaN(id) || !Number.isInteger(id) || id < 1) {
-      consola.error("Valid subscription ID is required")
+      fail("Valid subscription ID is required")
       return
     }
     handleArchive(id)
@@ -138,7 +155,7 @@ export const unarchiveCommand = define({
     const positionals = ctx.positionals as string[]
     const id = ctx.values.id !== undefined ? Number(ctx.values.id) : positionals[1] ? Number(positionals[1]) : undefined
     if (id === undefined || isNaN(id) || !Number.isInteger(id) || id < 1) {
-      consola.error("Valid subscription ID is required")
+      fail("Valid subscription ID is required")
       return
     }
     handleUnarchive(id)

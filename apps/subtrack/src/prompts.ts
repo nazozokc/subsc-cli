@@ -1,5 +1,6 @@
 import { input, select } from "@inquirer/prompts"
 import { consola } from "consola"
+import { fail } from "./error.ts"
 import type { Currency, Cycle, Status } from "./types.ts"
 
 export const CURRENCY_CHOICES: { name: string; value: Currency }[] = [
@@ -148,6 +149,11 @@ export function validateDiscountType(v: string): string | true {
   return true
 }
 
+export function validateAutoRenewal(v: string): string | true {
+  if (v !== "true" && v !== "false") return 'Must be "true" or "false"'
+  return true
+}
+
 export function validateTrialName(v: string): string | true {
   if (!v.trim()) return "Name cannot be empty"
   if (v.length > 100) return "Name too long (max 100 chars)"
@@ -180,7 +186,7 @@ export async function promptString(
   if (flag !== undefined) {
     const result = validate(flag)
     if (result !== true) {
-      consola.error(result)
+      fail(result)
       return null
     }
     return { value: flag, prompted: false }
@@ -200,7 +206,7 @@ export async function promptSelect<T extends string>(
 ): Promise<{ value: T; prompted: boolean } | null> {
   if (flag !== undefined) {
     if (!isValid(flag)) {
-      consola.error(`Invalid "${flag}". Valid: ${validChoices(choices)}`)
+      fail(`Invalid "${flag}". Valid: ${validChoices(choices)}`)
       return null
     }
     return { value: flag, prompted: false }

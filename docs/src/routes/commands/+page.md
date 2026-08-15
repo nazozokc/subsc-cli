@@ -118,6 +118,14 @@ Adds a new subscription. Without flags, prompts for all fields interactively. Pr
 | `--status <status>` | Subscription status: `active`, `paused`, `cancelled` (default: `active`) |
 | `--billingDay <n>` | Billing day of month (1–31). If not set, defaults to the creation date |
 | `--paymentMethod <method>` | Payment method (e.g. `credit_card`, `paypal`) |
+| `--vendorName <name>` | Vendor name (max 100 characters) |
+| `--vendorUrl <url>` | Vendor URL |
+| `--planTier <tier>` | Plan tier (e.g. `Pro`, `Family`) |
+| `--discountAmount <n>` | Discount amount — non-negative integer |
+| `--discountType <type>` | Discount type: `percentage` or `fixed` |
+| `--contractStart <date>` | Contract start date (`YYYY-MM-DD`) |
+| `--contractEnd <date>` | Contract end date (`YYYY-MM-DD`) |
+| `--autoRenewal <bool>` | Auto renew: `true` or `false` (default: `true`) |
 
 ### Examples
 
@@ -179,6 +187,14 @@ Edits an existing subscription. Without flags, interactively selects a subscript
 | `--status <status>` | New status: `active`, `paused`, `cancelled` |
 | `--billingDay <n>` | New billing day (1–31, or empty to clear) |
 | `--paymentMethod <method>` | New payment method |
+| `--vendorName <name>` | New vendor name (or empty to clear) |
+| `--vendorUrl <url>` | New vendor URL (or empty to clear) |
+| `--planTier <tier>` | New plan tier (or empty to clear) |
+| `--discountAmount <n>` | New discount amount (or empty to clear) |
+| `--discountType <type>` | New discount type: `percentage` or `fixed` |
+| `--contractStart <date>` | New contract start date (or empty to clear) |
+| `--contractEnd <date>` | New contract end date (or empty to clear) |
+| `--autoRenewal <bool>` | Auto renew: `true` or `false` |
 
 ### Examples
 
@@ -654,6 +670,10 @@ Manages subtrack configuration. Configuration is stored in `~/.config/subtrack/c
 | `defaultCurrency` | Default currency for display and analytics | `USD` |
 | `monthlyBudget` | Monthly spending budget in USD (0 = disabled) | `0` |
 | `theme` | Display theme | `default` |
+| `notifyDays` | Notification look-ahead in days | `7` |
+| `notifyChannels` | Comma-separated channels: `os`, `slack`, `webhook` | `os` |
+| `slackWebhook` | Slack webhook URL for `slack` notifications | — |
+| `webhookUrl` | Generic webhook URL for `webhook` notifications | — |
 
 ### Examples
 
@@ -670,11 +690,15 @@ subtrack config set monthlyBudget 500
 # Set default display currency
 subtrack config set defaultCurrency JPY
 
+# Send notifications to both desktop and Slack
+subtrack config set notifyChannels os,slack
+subtrack config set slackWebhook https://hooks.slack.com/services/...
+
 # Reset all config to defaults
 subtrack config reset
 ```
 
-The `config set` command validates input (e.g., currency codes must be ISO 4217, budget must be non-negative).
+The `config set` command validates input (e.g., currency codes must be ISO 4217, budget must be non-negative, channels must be one of `os`/`slack`/`webhook`).
 
 ## `usage`
 
@@ -1055,6 +1079,9 @@ Analyzes your subscriptions for cost optimization opportunities. Detects potenti
 |--------|-------------|
 | `-j, --json` | Output as JSON |
 | `--min-savings <amount>` | Minimum yearly savings to show (default: 0) |
+| `-c, --currency <C>` | Convert all prices to target currency |
+| `--discount-rate <percent>` | Assumed yearly discount rate for annual plans (default: 15) |
+| `--exclude <names>` | Comma-separated subscription names to exclude from analysis |
 
 ```bash
 # Show all optimization suggestions
@@ -1065,6 +1092,12 @@ subtrack optimize --min-savings 100
 
 # JSON output
 subtrack optimize --json
+
+# Show savings in JPY, assuming 10% annual discount
+subtrack optimize --currency JPY --discount-rate 10
+
+# Skip subscriptions you can't cancel
+subtrack optimize --exclude "GitHub Copilot,Adobe CC"
 ```
 
 ## `compare`
@@ -1114,11 +1147,12 @@ subtrack calendar --json
 
 ## `notify`
 
-Sends an OS desktop notification for upcoming bills. Supports dry-run mode to preview without notifying, and JSON output for scripting.
+Sends a notification for upcoming bills (OS desktop by default). Supports dry-run mode to preview without notifying, and JSON output for scripting.
 
 | Option | Description |
 |--------|-------------|
 | `--days <n>` | Number of days to look ahead (default: config `notifyDays` or 7) |
+| `-c, --channel <name>` | Channel: `os`, `slack`, `webhook` (default: config `notifyChannels` or `os`) |
 | `--dry-run` | Show upcoming bills without sending notification |
 | `-j, --json` | Output as JSON |
 
@@ -1131,6 +1165,9 @@ subtrack notify --dry-run
 
 # Next 30 days
 subtrack notify --days 30
+
+# Send to Slack instead of the desktop
+subtrack notify --channel slack
 
 # JSON output
 subtrack notify --json

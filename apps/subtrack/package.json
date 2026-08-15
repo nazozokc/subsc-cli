@@ -47,6 +47,7 @@
     "start": "tsx --no-warnings src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "lint:typos": "command -v typos >/dev/null 2>&1 && typos || echo 'typos not installed, skipping'",
     "lint:security": "pnpm audit --audit-level=high",
     "lint:types": "tsc --noEmit",
@@ -55,7 +56,9 @@
     "lint:secrets": "secretlint \"src/**/*.ts\""
   },
   "lint-staged": {
-    "*.{ts,tsx}": []
+    "*.{ts,tsx}": [
+      "tsc --noEmit"
+    ]
   },
   "dependencies": {
     "@inkjs/ui": "^2.0.0",
@@ -80,6 +83,7 @@
     "@types/node-notifier": "^8.0.5",
     "@types/react": "^19.2.17",
     "@types/sql.js": "^1.4.11",
+    "@vitest/coverage-v8": "^4.1.10",
     "husky": "^9.1.7",
     "lint-staged": "^15.5.1",
     "secretlint": "^10.2.0",
