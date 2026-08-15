@@ -3,7 +3,7 @@ import initSqlJs from "sql.js"
 import {
   mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync,
 } from "node:fs"
-import { join } from "node:path"
+import { join, parse } from "node:path"
 import { tmpdir } from "node:os"
 import { gzipSync } from "node:zlib"
 import { decryptBuffer, isEncrypted } from "../crypto.ts"
@@ -36,7 +36,7 @@ afterEach(() => {
 
 test("getDbDir rejects system directories", () => {
   const bad = process.platform === "win32"
-    ? [path.parse(process.cwd()).root]
+    ? [parse(process.cwd()).root]
     : ["/", "/etc", "/dev", "/proc", "/sys", "/tmp"]
   for (const dir of bad) {
     process.env.SUBSC_CLI_DB_DIR = dir
