@@ -6,6 +6,7 @@
  */
 
 import { consola } from "consola"
+import { fail } from "./error.ts"
 import { getDb, saveDb, getDbPath } from "./db.ts"
 import { logAudit } from "./audit.ts"
 import { formatBytes, getFileSize } from "./format.ts"
@@ -36,7 +37,7 @@ export function handleMaintenance(options: MaintenanceOptions = {}): void {
     } else if (checkResult === "ok") {
       consola.success("Integrity check: passed")
     } else {
-      consola.error(`Integrity check: FAILED — ${checkResult}`)
+      fail(`Integrity check: FAILED — ${checkResult}`)
       consola.warn(
         "Database integrity issues detected.\n" +
         "  Run 'subtrack backup' immediately, then restore from a known-good backup.",
@@ -56,7 +57,7 @@ export function handleMaintenance(options: MaintenanceOptions = {}): void {
       if (options.json) {
         results.vacuum = { error: msg }
       } else {
-        consola.error(`VACUUM failed: ${msg}`)
+        fail(`VACUUM failed: ${msg}`)
       }
       return
     }

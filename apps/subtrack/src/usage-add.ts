@@ -1,5 +1,6 @@
 import { input, select, confirm, search } from "@inquirer/prompts"
 import { consola } from "consola"
+import { fail } from "./error.ts"
 import type { UsageAddFlags } from "./types.ts"
 import { addLlmUsage } from "./db.ts"
 import { logAudit } from "./audit.ts"
@@ -23,7 +24,7 @@ async function resolveUsageAddOptions(flags: UsageAddFlags) {
   if (flags.cost !== undefined) {
     const costNum = Number(flags.cost)
     if (isNaN(costNum) || costNum < 0) {
-      consola.error("Invalid cost. Enter a non-negative number (e.g. 0.50 for 50 cents)")
+      fail("Invalid cost. Enter a non-negative number (e.g. 0.50 for 50 cents)")
       return null
     }
     manualCostCents = Math.round(costNum * 100)
@@ -33,7 +34,7 @@ async function resolveUsageAddOptions(flags: UsageAddFlags) {
   let provider = flags.provider
   let prompted = false
   if (provider && !LLM_PROVIDER_CHOICES.some((c) => c.value === provider)) {
-    consola.error(`Invalid provider "${provider}". Use one of: openai, anthropic, google-ai, mistral, groq, together, deepseek, cohere, or omit for interactive.`)
+    fail(`Invalid provider "${provider}". Use one of: openai, anthropic, google-ai, mistral, groq, together, deepseek, cohere, or omit for interactive.`)
     return null
   }
   if (!provider) {
@@ -74,7 +75,7 @@ async function resolveUsageAddOptions(flags: UsageAddFlags) {
     // Interactive: search prompt
     prompted = true
     if (!cache || Object.keys(cache).length === 0) {
-      consola.error("No pricing data available. Cannot look up models.")
+      fail("No pricing data available. Cannot look up models.")
       return null
     }
 
@@ -95,7 +96,7 @@ async function resolveUsageAddOptions(flags: UsageAddFlags) {
   let inputTokens: number
   if (flags.inputTokens !== undefined) {
     const result = validateTokens(flags.inputTokens)
-    if (result !== true) { consola.error(result); return null }
+    if (result !== true) { fail(result); return null }
     inputTokens = Number(flags.inputTokens)
   } else {
     prompted = true
@@ -111,7 +112,7 @@ async function resolveUsageAddOptions(flags: UsageAddFlags) {
   let outputTokens: number
   if (flags.outputTokens !== undefined) {
     const result = validateTokens(flags.outputTokens)
-    if (result !== true) { consola.error(result); return null }
+    if (result !== true) { fail(result); return null }
     outputTokens = Number(flags.outputTokens)
   } else {
     prompted = true
@@ -128,7 +129,7 @@ async function resolveUsageAddOptions(flags: UsageAddFlags) {
   const today = new Date().toISOString().split("T")[0]
   if (flags.date !== undefined) {
     const result = validateDate(flags.date)
-    if (result !== true) { consola.error(result); return null }
+    if (result !== true) { fail(result); return null }
     date = flags.date
   } else {
     date = today
@@ -156,7 +157,7 @@ async function resolveUsageAddOptions(flags: UsageAddFlags) {
       costCents = manualCostCents
       manualCost = true
     } else if (!prompted) {
-      consola.error(
+      fail(
         `Could not find pricing for "${model}". Provide --cost to set cost manually (e.g. --cost 0.50 for 50 cents).`,
       )
       return null
@@ -218,6 +219,6 @@ export async function handleUsageAdd(flags: UsageAddFlags) {
       `Added usage: ${result.provider}/${result.model} — $${(result.cost / 100).toFixed(4)} on ${result.date}`,
     )
   } catch (error) {
-    consola.error("Failed to add usage entry:", error)
+    fail(`Failed to add usage entry: ${error instanceof Error ? error.message : String(error)}`)
   }
 }

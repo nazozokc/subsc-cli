@@ -1,5 +1,6 @@
 import { checkbox, confirm } from "@inquirer/prompts"
 import { consola } from "consola"
+import { fail } from "./error.ts"
 import type { LlmUsageEntry } from "./types.ts"
 import { getLlmUsage, deleteLlmUsage } from "./db.ts"
 import { logAudit } from "./audit.ts"
@@ -39,7 +40,7 @@ export async function handleUsageDelete(ids?: number[]) {
         logAudit("usage.delete", { targetType: "usage", targetId: id })
         consola.success(`Deleted usage entry: ${id}`)
       } else {
-        consola.error(`Usage entry with id ${id} not found`)
+        fail(`Usage entry with id ${id} not found`)
       }
     }
     return

@@ -6,6 +6,7 @@
  */
 
 import { consola } from "consola"
+import { fail } from "../error.ts"
 import { loadConfig, saveConfig } from "../config.ts"
 import { writeSuggestionBatch } from "../db/suggestions.ts"
 import { connectAndSearch } from "./imap.ts"
@@ -56,13 +57,13 @@ export async function handleSuggestScan(): Promise<number> {
   const config = loadConfig()
 
   if (!config.imap?.host || !config.imap?.username) {
-    consola.error("IMAP not configured. Run:\n  subtrack config set imapHost <host>\n  subtrack config set imapUsername <email>\n  export SUBTRACK_IMAP_PASSWORD=<password>")
+    fail("IMAP not configured. Run:\n  subtrack config set imapHost <host>\n  subtrack config set imapUsername <email>\n  export SUBTRACK_IMAP_PASSWORD=<password>")
     return 0
   }
 
   const password = process.env.SUBTRACK_IMAP_PASSWORD
   if (!password) {
-    consola.error("IMAP password not set. Run:\n  export SUBTRACK_IMAP_PASSWORD=<password>")
+    fail("IMAP password not set. Run:\n  export SUBTRACK_IMAP_PASSWORD=<password>")
     consola.info("For Gmail, use an App Password (not your regular password)")
     return 0
   }
@@ -73,7 +74,7 @@ export async function handleSuggestScan(): Promise<number> {
     consola.success(`Scan complete. ${count} new suggestion${count !== 1 ? "s" : ""} found.`)
     return count
   } catch (err) {
-    consola.error(`Scan failed: ${err instanceof Error ? err.message : String(err)}`)
+    fail(`Scan failed: ${err instanceof Error ? err.message : String(err)}`)
     return 0
   }
 }

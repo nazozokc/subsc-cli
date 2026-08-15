@@ -1,4 +1,5 @@
 import { consola } from "consola"
+import { fail } from "./error.ts"
 import pc from "picocolors"
 import { getPriceHistory, getAllPriceChanges, getSubscription } from "./db.ts"
 import type { PriceHistoryEntry } from "./db.ts"
@@ -71,7 +72,7 @@ export function handleHistory(id?: number, options: HistoryOptions = {}): void {
   if (id !== undefined) {
     const sub = getSubscription(id)
     if (!sub) {
-      consola.error(`Subscription with id ${id} not found`)
+      fail(`Subscription with id ${id} not found`)
       return
     }
     consola.log(pc.bold(`Price history for: ${sub.name}`))
