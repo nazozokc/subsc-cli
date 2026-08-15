@@ -203,7 +203,7 @@ export type BudgetEntry = {
   period?: "monthly" | "yearly"
 }
 
-export type NotifyChannel = "os" | "email" | "slack" | "webhook"
+export type NotifyChannel = "os" | "slack" | "webhook"
 
 export type ImapConfig = {
   host: string
@@ -237,8 +237,6 @@ export type SubtrackConfig = {
   yearlyBudget?: number
   /** Notification channels (default: ["os"]) */
   notifyChannels?: NotifyChannel[]
-  /** Email for notifications via sendmail/smtp */
-  notifyEmail?: string
   /** Slack webhook URL */
   slackWebhook?: string
   /** Generic webhook URL for notifications */

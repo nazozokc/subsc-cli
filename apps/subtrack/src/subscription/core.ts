@@ -5,6 +5,7 @@
 
 import { checkbox, confirm, select } from "@inquirer/prompts"
 import { consola } from "consola"
+import { fail } from "../error.ts"
 import type { Currency, SharedArgs, AddFlags } from "../types.ts"
 import {
   getSubscriptions,
@@ -59,7 +60,7 @@ export async function handleDelete(ids?: number[]) {
     for (const id of ids) {
       const sub = getSubscription(id)
       if (!sub) {
-        consola.error(`Subscription with id ${id} not found`)
+        fail(`Subscription with id ${id} not found`)
         continue
       }
       deleteSubscription(id)
@@ -125,7 +126,7 @@ export async function handleTags(taglist: string[]) {
 export async function handleClone(id: number, flags: Partial<AddFlags> = {}): Promise<void> {
   const sub = getSubscription(id)
   if (!sub) {
-    consola.error(`Subscription with id ${id} not found`)
+    fail(`Subscription with id ${id} not found`)
     return
   }
 
@@ -134,7 +135,7 @@ export async function handleClone(id: number, flags: Partial<AddFlags> = {}): Pr
   if (flags.price !== undefined) {
     const parsed = Number(flags.price)
     if (!isFinite(parsed) || isNaN(parsed)) {
-      consola.error(`Invalid price: "${flags.price}"`)
+      fail(`Invalid price: "${flags.price}"`)
       return
     }
     price = parsed
@@ -160,7 +161,7 @@ export async function handleClone(id: number, flags: Partial<AddFlags> = {}): Pr
     })
     consola.success(`Cloned: "${sub.name}" → "${newName}" (id=${newId})`)
   } catch (error) {
-    consola.error(`Failed to clone subscription: ${String(error)}`)
+    fail(`Failed to clone subscription: ${String(error)}`)
   }
 }
 
@@ -169,7 +170,7 @@ export async function handleClone(id: number, flags: Partial<AddFlags> = {}): Pr
 export function handleArchive(id: number) {
   const sub = getSubscription(id)
   if (!sub) {
-    consola.error(`Subscription with id ${id} not found`)
+    fail(`Subscription with id ${id} not found`)
     return
   }
   if (sub.status === "archived") {
@@ -189,7 +190,7 @@ export function handleArchive(id: number) {
 export function handleUnarchive(id: number) {
   const sub = getSubscription(id)
   if (!sub) {
-    consola.error(`Subscription with id ${id} not found`)
+    fail(`Subscription with id ${id} not found`)
     return
   }
   if (sub.status !== "archived") {

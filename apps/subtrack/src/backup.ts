@@ -1,4 +1,5 @@
 import { consola } from "consola"
+import { fail } from "./error.ts"
 import {
   mkdirSync, existsSync, statSync, openSync, writeSync, closeSync, constants,
 } from "node:fs"
@@ -61,9 +62,9 @@ function writeCompressedBackup(destPath: string, encrypt: boolean): boolean {
   } catch (err) {
     const nodeErr = err as NodeJS.ErrnoException
     if (nodeErr.code === "EEXIST") {
-      consola.error(`Backup file already exists: ${destPath}`)
+      fail(`Backup file already exists: ${destPath}`)
     } else {
-      consola.error(`Backup failed: ${nodeErr.message}`)
+      fail(`Backup failed: ${nodeErr.message}`)
     }
     return false
   }
@@ -100,7 +101,7 @@ export async function handleBackup(destination?: string, options: { encrypt?: bo
     if (destination) {
       const safeDest = resolveSafeOutputPath([os.homedir(), os.tmpdir()], destination)
       if (!safeDest) {
-        consola.error(`Invalid backup destination — must be within home directory`)
+        fail(`Invalid backup destination — must be within home directory`)
         return
       }
       dest = safeDest
@@ -109,12 +110,12 @@ export async function handleBackup(destination?: string, options: { encrypt?: bo
       mkdirSync(dest, { recursive: true, mode: 0o700 })
     }
     if (!statSync(dest).isDirectory()) {
-      consola.error(`Backup destination must be a directory: ${dest}`)
+      fail(`Backup destination must be a directory: ${dest}`)
       return
     }
   } catch (err) {
     const nodeErr = err as NodeJS.ErrnoException
-    consola.error(`Backup destination is not accessible: ${nodeErr.message}`)
+    fail(`Backup destination is not accessible: ${nodeErr.message}`)
     return
   }
 
@@ -146,7 +147,7 @@ export async function handleRestore(
     // ── Non-interactive ──────────────────────────────────
     const safePath = resolveSafePath([os.homedir(), os.tmpdir()], path.resolve(file))
     if (!safePath) {
-      consola.error(`Invalid backup file — must be within home directory`)
+      fail(`Invalid backup file — must be within home directory`)
       return
     }
 
@@ -188,7 +189,7 @@ export async function handleRestore(
         `Restored ${subs.length} subscription${subs.length !== 1 ? "s" : ""} from: ${resolvedPath}`,
       )
     } catch (e) {
-      consola.error(`Restore failed: ${String(e)}`)
+      fail(`Restore failed: ${String(e)}`)
     }
     return
   }
@@ -198,7 +199,7 @@ export async function handleRestore(
   if (options.dir) {
     const safeDir = resolveSafePath([os.homedir(), os.tmpdir()], path.resolve(options.dir))
     if (!safeDir) {
-      consola.error(`Invalid search directory — must be within home directory`)
+      fail(`Invalid search directory — must be within home directory`)
       return
     }
     searchDir = safeDir
@@ -210,7 +211,7 @@ export async function handleRestore(
   try {
     backups = getBackupFiles(searchDir)
   } catch {
-    consola.error(`Cannot read directory: ${searchDir}`)
+    fail(`Cannot read directory: ${searchDir}`)
     return
   }
 
@@ -262,6 +263,6 @@ export async function handleRestore(
       `Restored ${subs.length} subscription${subs.length !== 1 ? "s" : ""} from: ${selected}`,
     )
   } catch (e) {
-    consola.error(`Restore failed: ${String(e)}`)
+    fail(`Restore failed: ${String(e)}`)
   }
 }

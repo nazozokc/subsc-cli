@@ -1,4 +1,5 @@
 import { consola } from "consola"
+import { fail } from "./error.ts"
 import { writeFileSync } from "node:fs"
 import os from "node:os"
 import type { SharedArgs, Currency } from "./types.ts"
@@ -253,7 +254,7 @@ export async function handleExport(
 ) {
   const supported = ["csv", "json", "md", "excel", "ics"] as const
   if (!(supported as readonly string[]).includes(format)) {
-    consola.error(`Unsupported export format: "${format}". Supported: ${supported.join(", ")}`)
+    fail(`Unsupported export format: "${format}". Supported: ${supported.join(", ")}`)
     return
   }
 
@@ -289,7 +290,7 @@ export async function handleExport(
     const buf = await exportExcel(list)
     if (options.output) {
       const safePath = resolveSafeOutputPath([os.homedir(), os.tmpdir()], options.output)
-      if (!safePath) { consola.error(`Invalid output path — must be within home directory`); return }
+      if (!safePath) { fail(`Invalid output path — must be within home directory`); return }
       writeFileSync(safePath, buf, { mode: 0o600 })
       consola.success(`Exported to: ${safePath}`)
     } else {
@@ -308,7 +309,7 @@ export async function handleExport(
 
   if (options.output) {
     const safePath = resolveSafeOutputPath([os.homedir(), os.tmpdir()], options.output)
-    if (!safePath) { consola.error(`Invalid output path — must be within home directory`); return }
+    if (!safePath) { fail(`Invalid output path — must be within home directory`); return }
     writeFileSync(safePath, content, { mode: 0o600 })
     consola.success(`Exported to: ${safePath}`)
   } else {

@@ -34,8 +34,11 @@ function validateDbDir(dir: string): void {
   }
   const normalized = path.resolve(dir)
   // Prevent pointing to sensitive system directories
-  const forbidden = ["/", "/etc", "/dev", "/proc", "/sys", "/tmp"]
-  if (forbidden.includes(normalized)) {
+  // (on Windows, path.resolve("/") is a drive root like "D:\", so compare
+  // against the filesystem root instead of a literal "/")
+  const root = path.parse(normalized).root
+  const forbidden = ["/etc", "/dev", "/proc", "/sys", "/tmp"]
+  if (normalized === root || forbidden.includes(normalized)) {
     throw new Error(`SUBSC_CLI_DB_DIR cannot be a system directory: ${normalized}`)
   }
 }

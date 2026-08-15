@@ -1,4 +1,5 @@
 import { consola } from "consola"
+import { fail } from "./error.ts"
 import { statSync, readFileSync } from "node:fs"
 import { writeSubscription, findSubscriptionByName } from "./db.ts"
 import { logAudit } from "./audit.ts"
@@ -49,14 +50,14 @@ export async function handleImport(
   options: { dryRun?: boolean; deduplicate?: boolean },
 ) {
   if (!file) {
-    consola.error("Usage: subtrack import <file> [--dry-run]")
+    fail("Usage: subtrack import <file> [--dry-run]")
     return
   }
 
   // Validate path is within allowed base directories (also verifies existence)
   const safeFile = resolveSafePath([os.homedir(), os.tmpdir()], file)
   if (!safeFile) {
-    consola.error(`File not found or path not allowed — must be within home or temp directory`)
+    fail(`File not found or path not allowed — must be within home or temp directory`)
     return
   }
 
@@ -64,14 +65,14 @@ export async function handleImport(
   try {
     const st = statSync(safeFile)
     if (st.size > MAX_CSV_SIZE) {
-      consola.error(
+      fail(
         `File too large (${(st.size / 1024 / 1024).toFixed(1)} MB). Maximum: ${MAX_CSV_SIZE / 1024 / 1024} MB`,
       )
       return
     }
     content = readFileSync(safeFile, "utf-8")
   } catch (err) {
-    consola.error(`Failed to read file: ${String(err)}`)
+    fail(`Failed to read file: ${String(err)}`)
     return
   }
   // Strip BOM and normalize line endings
@@ -80,13 +81,13 @@ export async function handleImport(
   const lines = clean.split("\n").map((l) => l.trim()).filter(Boolean)
 
   if (lines.length < 2) {
-    consola.error("CSV file must have a header row and at least one data row")
+    fail("CSV file must have a header row and at least one data row")
     return
   }
 
   const dataLines = lines.slice(1)
   if (dataLines.length > MAX_CSV_ROWS) {
-    consola.error(
+    fail(
       `CSV file has ${dataLines.length} data rows (max ${MAX_CSV_ROWS}). ` +
       "Split the file into smaller batches.",
     )
@@ -100,7 +101,7 @@ export async function handleImport(
   const expectedNotes = "name,cycle,tags,price,currency,notes"
   const actual = header.join(",")
   if (actual !== expectedBase && actual !== expectedNotes) {
-    consola.error(
+    fail(
       `Invalid CSV header. Expected: ${expectedBase} or ${expectedNotes}`,
     )
     return
