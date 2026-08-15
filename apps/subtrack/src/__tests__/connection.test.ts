@@ -35,8 +35,11 @@ afterEach(() => {
 // ── Directory validation ───────────────────────────────
 
 test("getDbDir rejects system directories", () => {
-  for (const bad of ["/", "/etc", "/dev", "/proc", "/sys", "/tmp"]) {
-    process.env.SUBSC_CLI_DB_DIR = bad
+  const bad = process.platform === "win32"
+    ? [path.parse(process.cwd()).root]
+    : ["/", "/etc", "/dev", "/proc", "/sys", "/tmp"]
+  for (const dir of bad) {
+    process.env.SUBSC_CLI_DB_DIR = dir
     expect(() => conn.getDbDir()).toThrow(/system directory/)
   }
   process.env.SUBSC_CLI_DB_DIR = mainDir
