@@ -62,12 +62,12 @@
   },
   "dependencies": {
     "@inquirer/prompts": "^8.5.2",
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "cli-table3": "^0.6.5",
     "consola": "^3.4.2",
     "exceljs": "^4.4.0",
-    "gunshi": "^0.35.1",
-    "imapflow": "^1.4.7",
+    "gunshi": "^0.37.1",
+    "imapflow": "^1.7.0",
     "node-notifier": "^10.0.1",
     "picocolors": "^1.1.1",
     "sql.js": "^1.14.1"
