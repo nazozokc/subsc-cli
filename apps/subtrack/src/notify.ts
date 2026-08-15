@@ -11,6 +11,24 @@ export type NotifyOptions = {
   channel?: NotifyChannel
 }
 
+const WEBHOOK_TIMEOUT_MS = 10_000
+
+/** POST JSON to a webhook with a hard timeout so a hung endpoint cannot hang the CLI. */
+async function postJson(url: string, payload: unknown): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS)
+  try {
+    return await globalThis.fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 export async function handleNotify(options: NotifyOptions = {}): Promise<void> {
   const config = loadConfig()
   const days = options.days ?? config.notifyDays ?? 7
@@ -114,13 +132,9 @@ async function sendSlackNotification(
   }))
 
   try {
-    const response = await globalThis.fetch(webhookUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text: `subtrack: *${entries.length} upcoming bill${entries.length > 1 ? "s" : ""}* in ${days} day${days > 1 ? "s" : ""}`,
-        attachments,
-      }),
+    const response = await postJson(webhookUrl, {
+      text: `subtrack: *${entries.length} upcoming bill${entries.length > 1 ? "s" : ""}* in ${days} day${days > 1 ? "s" : ""}`,
+      attachments,
     })
     if (response.ok) {
       consola.success("Slack notification sent")
@@ -144,23 +158,17 @@ async function sendWebhookNotification(
     return
   }
 
-  const payload = {
-    event: "upcoming_bills",
-    days,
-    count: entries.length,
-    entries: entries.map((e) => ({
-      name: e.sub.name,
-      price: e.sub.price,
-      currency: e.sub.currency,
-      cycle: e.sub.cycle,
-    })),
-  }
-
   try {
-    const response = await globalThis.fetch(webhookUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+    const response = await postJson(webhookUrl, {
+      event: "upcoming_bills",
+      days,
+      count: entries.length,
+      entries: entries.map((e) => ({
+        name: e.sub.name,
+        price: e.sub.price,
+        currency: e.sub.currency,
+        cycle: e.sub.cycle,
+      })),
     })
     if (response.ok) {
       consola.success("Webhook notification sent")

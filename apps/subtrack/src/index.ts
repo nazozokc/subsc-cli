@@ -12,7 +12,10 @@ const pkg = require("../package.json") as { version: string }
 const mainCommand = define({
   name: "subtrack",
   description: "Manage subscription services from your terminal",
-  run: () => consola.info('Run "subtrack --help" for available commands'),
+  run: async () => {
+    const { handleMenu } = await import("./menu.ts")
+    return handleMenu()
+  },
 })
 
 // Signal handlers for clean shutdown

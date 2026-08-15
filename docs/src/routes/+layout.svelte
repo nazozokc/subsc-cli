@@ -35,7 +35,6 @@
       title: "Guides",
       items: [
         { href: "/guides", label: "Usage Guides" },
-        { href: "/tui", label: "Interactive TUI" },
         { href: "/data", label: "Data & Storage" },
         { href: "/configuration", label: "Configuration" },
       ],

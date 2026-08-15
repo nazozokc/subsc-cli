@@ -180,8 +180,10 @@ export function setConfig(key: string, value: string): boolean {
   }
 
   saveConfig(config)
-  logAudit("config.set", { details: `${key} = ${value}` })
-  consola.success(`Set ${key} = ${value}`)
+  // Mask secrets in terminal output and audit log
+  const displayValue = key === "slackWebhook" || key === "webhookUrl" ? maskSecret(value) : value
+  logAudit("config.set", { details: `${key} = ${displayValue}` })
+  consola.success(`Set ${key} = ${displayValue}`)
   return true
 }
 
@@ -230,6 +232,22 @@ function isKnownKey(key: string): boolean {
          (IMAP_KEYS as readonly string[]).includes(key as typeof IMAP_KEYS[number])
 }
 
+/**
+ * Mask webhook URLs (bearer-like secrets) so they never leak into
+ * terminal output / scrollback / shell history.
+ */
+function maskSecret(value: string | undefined): string {
+  if (!value) return "(not set)"
+  try {
+    const url = new URL(value)
+    // Keep scheme + host, mask the path (Slack tokens live in the path)
+    const maskedPath = url.pathname === "/" ? "" : "/***"
+    return `${url.protocol}//${url.host}${maskedPath}`
+  } catch {
+    return "(set)"
+  }
+}
+
 function getConfigDisplayValue(key: string, config: SubtrackConfig): string {
   switch (key) {
     case "imapHost": return config.imap?.host ?? "(not set)"
@@ -237,8 +255,8 @@ function getConfigDisplayValue(key: string, config: SubtrackConfig): string {
     case "imapTls": return String(config.imap?.tls ?? true)
     case "imapUsername": return config.imap?.username ?? "(not set)"
     case "notifyChannels": return config.notifyChannels?.length ? config.notifyChannels.join(",") : "(not set)"
-    case "slackWebhook": return config.slackWebhook ?? "(not set)"
-    case "webhookUrl": return config.webhookUrl ?? "(not set)"
+    case "slackWebhook": return maskSecret(config.slackWebhook)
+    case "webhookUrl": return maskSecret(config.webhookUrl)
     default: return String((config as Record<string, unknown>)[key] ?? "")
   }
 }

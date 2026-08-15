@@ -18,7 +18,7 @@ import {
   timelineCommand, optimizeCommand, statsCommand,
 } from "./report.ts"
 import {
-  tuiCommand, mcpCommand, profileCommand,
+  mcpCommand, profileCommand,
   auditCommand, auditListCmd, auditPruneCmd,
   maintenanceCommand, cleanupCommand, currencyCommand,
 } from "./misc.ts"
@@ -38,7 +38,7 @@ export {
   analyticsCommand, compareCommand, calendarCommand,
   forecastCommand, historyCommand, notifyCommand,
   timelineCommand, optimizeCommand, statsCommand,
-  tuiCommand, mcpCommand, profileCommand,
+  mcpCommand, profileCommand,
   auditCommand, auditListCmd, auditPruneCmd,
   maintenanceCommand, cleanupCommand, currencyCommand,
   suggestCommand,
@@ -58,7 +58,6 @@ export const subCommands = {
   search: searchCommand,
   trial: trialCommand,
   bulk: bulkCommand,
-  tui: tuiCommand,
   forecast: forecastCommand,
   export: exportCommand,
   import: importCommand,
