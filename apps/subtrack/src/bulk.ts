@@ -1,5 +1,6 @@
 import { input, confirm, select } from "@inquirer/prompts"
 import { consola } from "consola"
+import { fail } from "./error.ts"
 import type { SharedArgs, Status } from "./types.ts"
 import { getSubscriptions, updateSubscription, deleteSubscription } from "./db.ts"
 import { logAudit } from "./audit.ts"
@@ -98,7 +99,7 @@ export async function handleBulkStatus(
   options: BulkOptions,
 ): Promise<void> {
   if (!targetStatus || !isValidStatus(targetStatus)) {
-    consola.error(`Invalid status "${targetStatus}". Must be active, paused, or cancelled`)
+    fail(`Invalid status "${targetStatus}". Must be active, paused, or cancelled`)
     return
   }
 
@@ -157,7 +158,7 @@ export async function handleBulkTagAdd(
   filters: BulkFilters,
 ): Promise<void> {
   if (!tag?.trim()) {
-    consola.error("Tag name is required")
+    fail("Tag name is required")
     return
   }
 
@@ -192,7 +193,7 @@ export async function handleBulkTagRemove(
   filters: BulkFilters,
 ): Promise<void> {
   if (!tag?.trim()) {
-    consola.error("Tag name is required")
+    fail("Tag name is required")
     return
   }
 

@@ -325,6 +325,41 @@ test("exportCsv begins with BOM", async () => {
   expect(csv.charCodeAt(0)).toBe(0xfeff)
 })
 
+test("exportCsv escapes formula injection chars in ALL fields (status, cycle, price, currency)", async () => {
+  const { exportCsv } = await import("../export.ts")
+  const csv = exportCsv([
+    makeSub({
+      name: "safe",
+      status: "=SUM(A1)" as SharedArgs["status"],
+      cycle: "+SUM(B1)" as SharedArgs["cycle"],
+      currency: "@SUM(C1)" as SharedArgs["currency"],
+      price: -42,
+    }),
+  ])
+  const row = csv.split("\n")[1]!
+  // Formula-prefixed values must be neutralized with a tab prefix
+  expect(row).toContain("\t=SUM(A1)")
+  expect(row).toContain("\t+SUM(B1)")
+  expect(row).toContain("\t@SUM(C1)")
+  // The formula prefix must not appear raw
+  expect(row).not.toMatch(/,=SUM/)
+  expect(row).not.toMatch(/,@SUM/)
+})
+
+test("exportIcs strips bare CR characters (line injection) from fields", async () => {
+  const { exportIcs } = await import("../export.ts")
+  const ics = exportIcs([
+    makeSub({ name: "Injected\rBEGIN:VEVENT", notes: "evil\rEND:VCALENDAR" }),
+  ])
+  // Line-level injection impossible: exactly one real BEGIN:VEVENT / END:VCALENDAR
+  const lines = ics.split(/\r?\n/)
+  expect(lines.filter((l) => l.trim() === "BEGIN:VEVENT")).toHaveLength(1)
+  expect(lines.filter((l) => l.trim() === "END:VCALENDAR")).toHaveLength(1)
+  // Injected content is escaped as \\n text on a single line, not a new line
+  expect(ics).toContain("SUMMARY:Injected\\nBEGIN:VEVENT")
+  expect(ics).toContain("DESCRIPTION:Notes: evil\\nEND:VCALENDAR")
+})
+
 // ── exportMd tests ───────────────────────────────────────
 
 test("exportMd returns header and separator when no subscriptions", async () => {

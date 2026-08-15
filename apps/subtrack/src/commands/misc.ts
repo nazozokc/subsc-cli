@@ -1,24 +1,14 @@
-// ── Misc commands (tui, mcp, audit, maintenance, cleanup, currency, profile) ──
+// ── Misc commands (mcp, audit, maintenance, cleanup, currency, profile) ──
 import { define } from "gunshi"
 import { consola } from "consola"
+import { fail } from "../error.ts"
 import { handleProfile } from "../profile.ts"
 import { handleAuditList, handleAuditPrune } from "../audit.ts"
 import { handleMaintenance } from "../maintenance.ts"
 import { handleCleanup } from "../cleanup.ts"
 import { handleCurrencyList } from "../currency.ts"
-// Lazy imports for TUI and MCP to avoid loading Ink/React/MCP SDK WASM at module load time
+// Lazy imports for MCP to avoid loading MCP SDK WASM at module load time
 import type { Status } from "../types.ts"
-
-// ── TUI ────────────────────────────────────────────────
-
-export const tuiCommand = define({
-  name: "tui",
-  description: "Interactive terminal UI",
-  run: async () => {
-    const { handleTui } = await import("../tui.tsx")
-    return handleTui()
-  },
-})
 
 // ── MCP ──────────────────────────────────────────────
 
@@ -45,7 +35,7 @@ const profileSaveCmd = define({
   },
   run: (ctx) => {
     const name = ctx.values.name
-    if (!name) { consola.error("Profile name required"); return }
+    if (!name) { fail("Profile name required"); return }
     const rawTag = ctx.values.tag as string | string[] | undefined
     const tagValues = Array.isArray(rawTag) ? rawTag : rawTag ? [rawTag] : []
     const tags = tagValues.length > 0
@@ -114,7 +104,7 @@ export const auditListCmd = define({
   run: (ctx) => {
     const limit = ctx.values.limit !== undefined ? Number(ctx.values.limit) : 50
     if (limit !== undefined && (isNaN(limit) || limit < 1 || !Number.isInteger(limit))) {
-      consola.error("limit must be a positive integer")
+      fail("limit must be a positive integer")
       return
     }
     handleAuditList({ action: ctx.values.action, limit, json: ctx.values.json, from: ctx.values.from, to: ctx.values.to })
@@ -132,7 +122,7 @@ export const auditPruneCmd = define({
   run: (ctx) => {
     const days = ctx.values.days !== undefined ? Number(ctx.values.days) : 90
     if (days !== undefined && (isNaN(days) || days < 1 || !Number.isInteger(days))) {
-      consola.error("days must be a positive integer")
+      fail("days must be a positive integer")
       return
     }
     handleAuditPrune({ days, force: ctx.values.force, json: ctx.values.json })
@@ -175,7 +165,7 @@ export const cleanupCommand = define({
   run: (ctx) => {
     const auditDays = ctx.values["audit-days"] !== undefined ? Number(ctx.values["audit-days"]) : 90
     if (auditDays !== undefined && (isNaN(auditDays) || auditDays < 1 || !Number.isInteger(auditDays))) {
-      consola.error("audit-days must be a positive integer")
+      fail("audit-days must be a positive integer")
       return
     }
     handleCleanup({ vacuum: ctx.values.vacuum, auditDays, json: ctx.values.json })

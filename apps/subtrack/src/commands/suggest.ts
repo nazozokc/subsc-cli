@@ -2,6 +2,7 @@
 
 import { define } from "gunshi"
 import { consola } from "consola"
+import { fail } from "../error.ts"
 import {
   handleSuggestList,
   handleSuggestView,
@@ -32,7 +33,7 @@ const suggestViewCmd = define({
   },
   run: (ctx) => {
     const id = Number(ctx.values.id)
-    if (isNaN(id)) { consola.error("Invalid suggestion ID"); return }
+    if (isNaN(id)) { fail("Invalid suggestion ID"); return }
     handleSuggestView(id)
   },
 })
@@ -45,7 +46,7 @@ const suggestAddCmd = define({
   },
   run: (ctx) => {
     const id = Number(ctx.values.id)
-    if (isNaN(id)) { consola.error("Invalid suggestion ID"); return }
+    if (isNaN(id)) { fail("Invalid suggestion ID"); return }
     handleSuggestAdd(id)
   },
 })
@@ -62,10 +63,10 @@ const suggestDismissCmd = define({
       handleSuggestDismissAll()
     } else if (ctx.values.id) {
       const id = Number(ctx.values.id)
-      if (isNaN(id)) { consola.error("Invalid suggestion ID"); return }
+      if (isNaN(id)) { fail("Invalid suggestion ID"); return }
       handleSuggestDismiss(id)
     } else {
-      consola.error("Specify a suggestion ID or use --all")
+      fail("Specify a suggestion ID or use --all")
     }
   },
 })

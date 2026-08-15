@@ -11,6 +11,24 @@ export type NotifyOptions = {
   channel?: NotifyChannel
 }
 
+const WEBHOOK_TIMEOUT_MS = 10_000
+
+/** POST JSON to a webhook with a hard timeout so a hung endpoint cannot hang the CLI. */
+async function postJson(url: string, payload: unknown): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS)
+  try {
+    return await globalThis.fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 export async function handleNotify(options: NotifyOptions = {}): Promise<void> {
   const config = loadConfig()
   const days = options.days ?? config.notifyDays ?? 7
@@ -55,9 +73,6 @@ export async function handleNotify(options: NotifyOptions = {}): Promise<void> {
       case "os":
         await sendOsNotification(entries, days)
         break
-      case "email":
-        await sendEmailNotification(entries, days, config.notifyEmail)
-        break
       case "slack":
         await sendSlackNotification(entries, days, config.slackWebhook)
         break
@@ -99,47 +114,6 @@ async function sendOsNotification(
   })
 }
 
-// ── Email Notification ──────────────────────────────────
-
-async function sendEmailNotification(
-  entries: { sub: { name: string; price: number; currency: string; cycle: string; nextDate?: Date } }[],
-  days: number,
-  emailTo?: string,
-): Promise<void> {
-  if (!emailTo) {
-    consola.warn("Email notification configured but no notifyEmail set. Use: subtrack config set notifyEmail you@example.com")
-    return
-  }
-
-  const lines = entries.map((e) => {
-    const date = e.sub.nextDate
-      ? `${e.sub.nextDate.getFullYear()}-${String(e.sub.nextDate.getMonth() + 1).padStart(2, "0")}-${String(e.sub.nextDate.getDate()).padStart(2, "0")}`
-      : "upcoming"
-    return `${date}  ${e.sub.name}: ${formatPrice(e.sub.price, e.sub.currency)}/${e.sub.cycle}`
-  })
-
-  const subject = `subtrack: ${entries.length} upcoming bill${entries.length > 1 ? "s" : ""} in ${days} day${days > 1 ? "s" : ""}`
-  const body = lines.join("\n")
-
-  // Use sendmail via child_process (simple approach, works on most Unix systems)
-  try {
-    const { execSync } = await import("node:child_process")
-    const sendmailPath = process.platform === "linux" ? "/usr/sbin/sendmail" : "/usr/bin/sendmail"
-    const msg = `From: subtrack <noreply@subtrack>
-To: ${emailTo}
-Subject: ${subject}
-Content-Type: text/plain; charset=utf-8
-
-${body}
-`
-    execSync(`${sendmailPath} -t`, { input: msg, timeout: 10000 })
-    consola.success(`Email notification sent to ${emailTo}`)
-  } catch (err) {
-    consola.warn(`Failed to send email: ${err instanceof Error ? err.message : String(err)}`)
-    consola.info("To send via SMTP instead, set up a local MTA (postfix/msmtp) or use a webhook.")
-  }
-}
-
 // ── Slack Webhook ───────────────────────────────────────
 
 async function sendSlackNotification(
@@ -158,13 +132,9 @@ async function sendSlackNotification(
   }))
 
   try {
-    const response = await globalThis.fetch(webhookUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text: `subtrack: *${entries.length} upcoming bill${entries.length > 1 ? "s" : ""}* in ${days} day${days > 1 ? "s" : ""}`,
-        attachments,
-      }),
+    const response = await postJson(webhookUrl, {
+      text: `subtrack: *${entries.length} upcoming bill${entries.length > 1 ? "s" : ""}* in ${days} day${days > 1 ? "s" : ""}`,
+      attachments,
     })
     if (response.ok) {
       consola.success("Slack notification sent")
@@ -188,23 +158,17 @@ async function sendWebhookNotification(
     return
   }
 
-  const payload = {
-    event: "upcoming_bills",
-    days,
-    count: entries.length,
-    entries: entries.map((e) => ({
-      name: e.sub.name,
-      price: e.sub.price,
-      currency: e.sub.currency,
-      cycle: e.sub.cycle,
-    })),
-  }
-
   try {
-    const response = await globalThis.fetch(webhookUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+    const response = await postJson(webhookUrl, {
+      event: "upcoming_bills",
+      days,
+      count: entries.length,
+      entries: entries.map((e) => ({
+        name: e.sub.name,
+        price: e.sub.price,
+        currency: e.sub.currency,
+        cycle: e.sub.cycle,
+      })),
     })
     if (response.ok) {
       consola.success("Webhook notification sent")

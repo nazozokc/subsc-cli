@@ -1,5 +1,6 @@
 import { input, confirm, checkbox, select } from "@inquirer/prompts"
 import { consola } from "consola"
+import { fail } from "./error.ts"
 import pc from "picocolors"
 import CliTable3 from "cli-table3"
 import type { TrialEntry, AddTrialArgs, TrialAddFlags, Cycle } from "./types.ts"
@@ -59,7 +60,7 @@ async function resolveTrialAddOptions(flags: TrialAddFlags): Promise<AddTrialArg
     const trimmed = priceStr.trim()
     if (trimmed) {
       const num = Number(trimmed)
-      if (isNaN(num) || num < 0) { consola.error("Price must be a non-negative number"); return null }
+      if (isNaN(num) || num < 0) { fail("Price must be a non-negative number"); return null }
       price = Math.round(num)
     }
   } else if (prompted) {
@@ -95,7 +96,7 @@ async function resolveTrialAddOptions(flags: TrialAddFlags): Promise<AddTrialArg
     const trimmed = notesStr.trim()
     if (trimmed) {
       const valid = validateNotes(trimmed)
-      if (valid !== true) { consola.error(valid); return null }
+      if (valid !== true) { fail(valid); return null }
       notes = trimmed
     }
   } else if (prompted) {
@@ -134,7 +135,7 @@ export async function handleTrialAdd(flags: TrialAddFlags): Promise<void> {
     writeTrial(result)
     consola.success(`Added trial: ${result.name}`)
   } catch (error) {
-    consola.error(`Failed to add trial: ${String(error)}`)
+    fail(`Failed to add trial: ${String(error)}`)
   }
 }
 
@@ -202,7 +203,7 @@ export async function handleTrialDelete(ids?: number[]): Promise<void> {
     for (const id of ids) {
       const trial = getTrial(id)
       if (!trial) {
-        consola.error(`Trial with id ${id} not found`)
+        fail(`Trial with id ${id} not found`)
         continue
       }
       deleteTrial(id)

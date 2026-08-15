@@ -1,4 +1,5 @@
 import { consola } from "consola"
+import { fail } from "./error.ts"
 import { getTagsWithCount, renameTag, deleteTag, pruneTags, mergeTag } from "./db.ts"
 import { logAudit } from "./audit.ts"
 
@@ -18,7 +19,7 @@ export function handleTagList() {
 
 export function handleTagRename(oldName: string, newName: string) {
   if (!oldName || !newName) {
-    consola.error("Usage: subtrack tag rename <old> <new>")
+    fail("Usage: subtrack tag rename <old> <new>")
     return
   }
   try {
@@ -26,29 +27,29 @@ export function handleTagRename(oldName: string, newName: string) {
       logAudit("tag.rename", { details: `"${oldName}" → "${newName}"` })
       consola.success(`Renamed tag: "${oldName}" → "${newName}"`)
     } else {
-      consola.error(`Tag "${oldName}" not found`)
+      fail(`Tag "${oldName}" not found`)
     }
   } catch (e) {
-    consola.error(`Failed to rename tag: ${String(e)}`)
+    fail(`Failed to rename tag: ${String(e)}`)
   }
 }
 
 export function handleTagDelete(name: string) {
   if (!name) {
-    consola.error("Usage: subtrack tag delete <name>")
+    fail("Usage: subtrack tag delete <name>")
     return
   }
   if (deleteTag(name)) {
     logAudit("tag.delete", { details: `"${name}"` })
     consola.success(`Deleted tag: "${name}"`)
   } else {
-    consola.error(`Tag "${name}" not found`)
+    fail(`Tag "${name}" not found`)
   }
 }
 
 export function handleTagMerge(source: string, target: string) {
   if (!source || !target) {
-    consola.error("Usage: subtrack tag merge <source> <target>")
+    fail("Usage: subtrack tag merge <source> <target>")
     return
   }
   try {
@@ -56,10 +57,10 @@ export function handleTagMerge(source: string, target: string) {
       logAudit("tag.merge", { details: `"${source}" → "${target}"` })
       consola.success(`Merged tag: "${source}" → "${target}"`)
     } else {
-      consola.error(`Tag "${source}" not found`)
+      fail(`Tag "${source}" not found`)
     }
   } catch (e) {
-    consola.error(`Failed to merge tag: ${String(e)}`)
+    fail(`Failed to merge tag: ${String(e)}`)
   }
 }
 

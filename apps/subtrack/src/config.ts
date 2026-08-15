@@ -5,6 +5,7 @@ import { consola } from "consola"
 import { safeJsonParse } from "./safe-json.ts"
 import { encryptBuffer, decryptBuffer, hasEncryptionKey } from "./crypto.ts"
 import { logAudit } from "./audit.ts"
+import { fail } from "./error.ts"
 import type { SubtrackConfig } from "./types.ts"
 
 export const CONFIG_KEYS = [
@@ -12,6 +13,9 @@ export const CONFIG_KEYS = [
   "monthlyBudget",
   "theme",
   "notifyDays",
+  "notifyChannels",
+  "slackWebhook",
+  "webhookUrl",
 ] as const
 
 /** IMAP-related config keys (not stored directly on SubtrackConfig). */
@@ -96,7 +100,7 @@ export function setConfig(key: string, value: string): boolean {
   switch (key) {
     case "defaultCurrency": {
       if (!/^[A-Z]{3}$/.test(value)) {
-        consola.error(`Invalid currency code: "${value}"`)
+        fail(`Invalid currency code: "${value}"`)
         return false
       }
       config.defaultCurrency = value
@@ -105,7 +109,7 @@ export function setConfig(key: string, value: string): boolean {
     case "monthlyBudget": {
       const num = Number(value)
       if (isNaN(num) || num < 0) {
-        consola.error("monthlyBudget must be a non-negative number")
+        fail("monthlyBudget must be a non-negative number")
         return false
       }
       config.monthlyBudget = num
@@ -117,20 +121,43 @@ export function setConfig(key: string, value: string): boolean {
     case "notifyDays": {
       const num = Number(value)
       if (isNaN(num) || num < 0 || !Number.isInteger(num)) {
-        consola.error("notifyDays must be a non-negative integer")
+        fail("notifyDays must be a non-negative integer")
         return false
       }
       config.notifyDays = num
       break
     }
+    case "notifyChannels": {
+      const channels = value.split(",").map((c) => c.trim().toLowerCase()).filter(Boolean)
+      if (channels.length === 0 || channels.some((c) => !["os", "slack", "webhook"].includes(c))) {
+        fail("notifyChannels must be a comma-separated list of: os, slack, webhook")
+        return false
+      }
+      config.notifyChannels = channels as import("./types.ts").NotifyChannel[]
+      break
+    }
+    case "slackWebhook":
+      if (!value.startsWith("https://")) {
+        fail("slackWebhook must be an https:// URL")
+        return false
+      }
+      config.slackWebhook = value
+      break
+    case "webhookUrl":
+      if (!value.startsWith("https://")) {
+        fail("webhookUrl must be an https:// URL")
+        return false
+      }
+      config.webhookUrl = value
+      break
     case "imapHost":
-      if (!value) { consola.error("imapHost must not be empty"); return false }
+      if (!value) { fail("imapHost must not be empty"); return false }
       config.imap = mergeImapConfig(config, { host: value })
       break
     case "imapPort": {
       const port = Number(value)
       if (isNaN(port) || port < 1 || port > 65535 || !Number.isInteger(port)) {
-        consola.error("imapPort must be an integer between 1 and 65535")
+        fail("imapPort must be an integer between 1 and 65535")
         return false
       }
       config.imap = mergeImapConfig(config, { port })
@@ -138,23 +165,25 @@ export function setConfig(key: string, value: string): boolean {
     }
     case "imapTls":
       if (value !== "true" && value !== "false") {
-        consola.error("imapTls must be 'true' or 'false'")
+        fail("imapTls must be 'true' or 'false'")
         return false
       }
       config.imap = mergeImapConfig(config, { tls: value === "true" })
       break
     case "imapUsername":
-      if (!value) { consola.error("imapUsername must not be empty"); return false }
+      if (!value) { fail("imapUsername must not be empty"); return false }
       config.imap = mergeImapConfig(config, { username: value })
       break
     default:
-      consola.error(`Unknown config key: "${key}"`)
+      fail(`Unknown config key: "${key}"`)
       return false
   }
 
   saveConfig(config)
-  logAudit("config.set", { details: `${key} = ${value}` })
-  consola.success(`Set ${key} = ${value}`)
+  // Mask secrets in terminal output and audit log
+  const displayValue = key === "slackWebhook" || key === "webhookUrl" ? maskSecret(value) : value
+  logAudit("config.set", { details: `${key} = ${displayValue}` })
+  consola.success(`Set ${key} = ${displayValue}`)
   return true
 }
 
@@ -182,7 +211,7 @@ export function saveConfig(config: SubtrackConfig): void {
 export function handleConfigList(): void {
   const config = loadConfig()
   for (const key of CONFIG_KEYS) {
-    consola.log(`${key}: ${config[key]}`)
+    consola.log(`${key}: ${getConfigDisplayValue(key, config)}`)
   }
   // Show IMAP config
   if (config.imap) {
@@ -203,12 +232,31 @@ function isKnownKey(key: string): boolean {
          (IMAP_KEYS as readonly string[]).includes(key as typeof IMAP_KEYS[number])
 }
 
+/**
+ * Mask webhook URLs (bearer-like secrets) so they never leak into
+ * terminal output / scrollback / shell history.
+ */
+function maskSecret(value: string | undefined): string {
+  if (!value) return "(not set)"
+  try {
+    const url = new URL(value)
+    // Keep scheme + host, mask the path (Slack tokens live in the path)
+    const maskedPath = url.pathname === "/" ? "" : "/***"
+    return `${url.protocol}//${url.host}${maskedPath}`
+  } catch {
+    return "(set)"
+  }
+}
+
 function getConfigDisplayValue(key: string, config: SubtrackConfig): string {
   switch (key) {
     case "imapHost": return config.imap?.host ?? "(not set)"
     case "imapPort": return String(config.imap?.port ?? 993)
     case "imapTls": return String(config.imap?.tls ?? true)
     case "imapUsername": return config.imap?.username ?? "(not set)"
+    case "notifyChannels": return config.notifyChannels?.length ? config.notifyChannels.join(",") : "(not set)"
+    case "slackWebhook": return maskSecret(config.slackWebhook)
+    case "webhookUrl": return maskSecret(config.webhookUrl)
     default: return String((config as Record<string, unknown>)[key] ?? "")
   }
 }
@@ -216,7 +264,7 @@ function getConfigDisplayValue(key: string, config: SubtrackConfig): string {
 export function handleConfigGet(key: string): void {
   const config = loadConfig()
   if (!isKnownKey(key)) {
-    consola.error(`Unknown config key: "${key}". Valid: ${[...CONFIG_KEYS, ...IMAP_KEYS].join(", ")}`)
+    fail(`Unknown config key: "${key}". Valid: ${[...CONFIG_KEYS, ...IMAP_KEYS].join(", ")}`)
     return
   }
   consola.log(`${key}: ${getConfigDisplayValue(key, config)}`)
@@ -224,7 +272,7 @@ export function handleConfigGet(key: string): void {
 
 export function handleConfigSet(key: string, value: string): void {
   if (!isKnownKey(key)) {
-    consola.error(`Unknown config key: "${key}". Valid: ${[...CONFIG_KEYS, ...IMAP_KEYS].join(", ")}`)
+    fail(`Unknown config key: "${key}". Valid: ${[...CONFIG_KEYS, ...IMAP_KEYS].join(", ")}`)
     return
   }
   setConfig(key, value)
@@ -239,7 +287,7 @@ export async function handleConfigReset(): Promise<void> {
       const shaPath = configPath + ".sha256"
       if (existsSync(shaPath)) unlinkSync(shaPath)
     } catch (err) {
-      consola.error(`Failed to remove config file: ${err instanceof Error ? err.message : String(err)}`)
+      fail(`Failed to remove config file: ${err instanceof Error ? err.message : String(err)}`)
       return
     }
   }

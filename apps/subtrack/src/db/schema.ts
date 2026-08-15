@@ -85,6 +85,26 @@ export function runMigrations(db: Database): void {
     db.run("ALTER TABLE subscriptions ADD COLUMN payment_method TEXT")
   }
 
+  // Migration: add extended subscription columns if missing (contract, vendor, discount, auto-renewal)
+  const extendedCols: [string, string][] = [
+    ["contract_start", "TEXT"],
+    ["contract_end", "TEXT"],
+    ["auto_renewal", "INTEGER NOT NULL DEFAULT 1"],
+    ["vendor_name", "TEXT"],
+    ["vendor_url", "TEXT"],
+    ["plan_tier", "TEXT"],
+    ["discount_amount", "INTEGER"],
+    ["discount_type", "TEXT"],
+  ]
+  for (const [name, ddl] of extendedCols) {
+    const has = subCols.length > 0 && subCols[0].values.some(
+      (row) => String(row[1]) === name,
+    )
+    if (!has) {
+      db.run(`ALTER TABLE subscriptions ADD COLUMN ${name} ${ddl}`)
+    }
+  }
+
   // Audit log table
   createAuditTable(db)
 

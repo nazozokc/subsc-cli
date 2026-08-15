@@ -1,13 +1,21 @@
 #!/usr/bin/env node
 import { cli, define } from "gunshi"
 import { consola } from "consola"
+import { createRequire } from "node:module"
 import { saveDb } from "./db.ts"
 import { subCommands } from "./commands/index.ts"
+
+// Single source of truth for the version is package.json
+const require = createRequire(import.meta.url)
+const pkg = require("../package.json") as { version: string }
 
 const mainCommand = define({
   name: "subtrack",
   description: "Manage subscription services from your terminal",
-  run: () => consola.info('Run "subtrack --help" for available commands'),
+  run: async () => {
+    const { handleMenu } = await import("./menu.ts")
+    return handleMenu()
+  },
 })
 
 // Signal handlers for clean shutdown
@@ -28,7 +36,7 @@ process.umask(0o077)
 try {
   await cli(process.argv.slice(2), mainCommand, {
     name: "subtrack",
-    version: "7.0.8",
+    version: pkg.version,
     subCommands,
   })
 } catch (error) {
@@ -39,5 +47,7 @@ try {
     for (const e of error.errors) { consola.error(String(e)) }
     process.exit(1)
   }
-  throw error
+  // Unexpected error: report cleanly and exit non-zero
+  consola.error(error instanceof Error ? error.message : String(error))
+  process.exit(1)
 }
