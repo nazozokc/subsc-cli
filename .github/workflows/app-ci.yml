@@ -6,16 +6,14 @@ on:
     branches: [main]
     paths:
       - "apps/subtrack/**"
-      - ".github/workflows/check.yml"
-      - ".github/workflows/app-ci.yml"
+      - ".github/workflows/**"
       - "pnpm-workspace.yaml"
       - "package.json"
   pull_request:
     branches: [main]
     paths:
       - "apps/subtrack/**"
-      - ".github/workflows/check.yml"
-      - ".github/workflows/app-ci.yml"
+      - ".github/workflows/**"
       - "pnpm-workspace.yaml"
       - "package.json"
 
