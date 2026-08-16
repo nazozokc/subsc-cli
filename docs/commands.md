@@ -750,6 +750,8 @@ Lists LLM API usage entries with optional filtering.
 | `--provider <name>` | Filter by provider |
 | `--from <YYYY-MM-DD>` | Start date (inclusive) |
 | `--to <YYYY-MM-DD>` | End date (inclusive) |
+| `--limit <n>` | Max entries to show (default: 100) |
+| `--offset <n>` | Skip the first N entries (for paging) |
 | `-j, --json` | Output as JSON |
 
 ```bash
@@ -759,11 +761,40 @@ subtrack usage list
 # Filter by provider and date range
 subtrack usage list --provider openai --from 2026-01-01 --to 2026-06-30
 
+# Page through entries
+subtrack usage list --limit 50 --offset 100
+
 # JSON output
 subtrack usage list --json
 ```
 
-Shows up to 100 entries with provider, model, token counts, cost, date, and description. Displays a total cost at the bottom.
+Shows up to 100 entries by default (configurable with `--limit`) with provider, model, token counts, cost, date, and description. Displays a total cost at the bottom.
+
+### `usage edit`
+
+Updates fields of an existing LLM API usage entry. Only the fields you pass as flags are changed; everything else is left untouched.
+
+| Option | Description |
+|--------|-------------|
+| `<id>` | Entry ID to edit (required) |
+| `--provider <name>` | New provider name |
+| `--model <name>` | New model name |
+| `--input-tokens <n>` | New input token count |
+| `--output-tokens <n>` | New output token count |
+| `--date <YYYY-MM-DD>` | New date |
+| `--description <text>` | New description (empty string clears it) |
+| `--cost <USD>` | New total cost in USD (e.g. `0.50` for 50 cents) |
+
+```bash
+# Fix the cost of entry 3
+subtrack usage edit 3 --cost 0.75
+
+# Update model and tokens
+subtrack usage edit 5 --model gpt-4o-mini --input-tokens 500 --output-tokens 250
+
+# Clear the description
+subtrack usage edit 7 --description ""
+```
 
 ### `usage delete`
 
@@ -839,7 +870,7 @@ subtrack usage refresh --all
 
 ### `usage total`
 
-Shows aggregated LLM API usage costs for a given period, including a provider breakdown.
+Shows aggregated LLM API usage for a given period: cost broken down by provider and by model, plus total input/output tokens.
 
 | Option | Description |
 |--------|-------------|
@@ -848,7 +879,7 @@ Shows aggregated LLM API usage costs for a given period, including a provider br
 | `--period <period>` | Period: `monthly`, `quarterly`, `yearly` (default: `monthly`) |
 | `-j, --json` | Output as JSON |
 
-When neither `--from`/`--to` nor `--period` is specified, defaults to the current month.
+When neither `--from`/`--to` nor `--period` is specified, defaults to the current month. The JSON output includes `total` (cost in USD cents), `tokens` (`inputTokens`/`outputTokens`), `byProvider`, and `byModel` (per-model cost and token totals).
 
 ```bash
 # Current month total
