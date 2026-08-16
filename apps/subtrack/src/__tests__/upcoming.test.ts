@@ -122,3 +122,78 @@ test("showUpcoming excludes cancelled subscriptions", async () => {
   expect(output).toContain("Active")
   expect(output).not.toContain("Cancelled")
 })
+
+// ── calculateNextBilling / nextDateForCycle ─────────────
+
+const baseSub = {
+  id: 1,
+  name: "Test",
+  price: 1000,
+  currency: "JPY",
+  cycle: "monthly" as const,
+  tags: [] as string[],
+  status: "active" as const,
+  billingDay: 15,
+  createdAt: "2026-01-01",
+  notes: null,
+  paymentMethod: null,
+  contractStart: null,
+  contractEnd: null,
+  autoRenewal: true,
+  vendorName: null,
+  vendorUrl: null,
+  planTier: null,
+  discountAmount: null,
+  discountType: null,
+}
+
+test("monthly billing day 31 clamps to last day of short months", async () => {
+  const { calculateNextBilling } = await import("../upcoming.ts")
+  const sub = { ...baseSub, cycle: "monthly", billingDay: 31 }
+  // Feb 10 -> next billing is Feb 28 (not Mar 3 via JS overflow)
+  expect(calculateNextBilling(sub, new Date(2026, 1, 10))).toEqual(new Date(2026, 1, 28))
+  // Apr 10 -> Apr 30
+  expect(calculateNextBilling(sub, new Date(2026, 3, 10))).toEqual(new Date(2026, 3, 30))
+  // May 1 -> May 31
+  expect(calculateNextBilling(sub, new Date(2026, 4, 1))).toEqual(new Date(2026, 4, 31))
+})
+
+test("quarterly billing respects billingDay instead of createdAt day", async () => {
+  const { calculateNextBilling } = await import("../upcoming.ts")
+  // createdAt Jan 5, billingDay 20 -> next from Feb 1 is Apr 20 (not Mar 31 via clamp bug)
+  const sub = { ...baseSub, cycle: "quarterly", billingDay: 20, createdAt: "2026-01-05" }
+  expect(calculateNextBilling(sub, new Date(2026, 1, 1))).toEqual(new Date(2026, 3, 20))
+  // From Apr 21 -> Jul 20
+  expect(calculateNextBilling(sub, new Date(2026, 3, 21))).toEqual(new Date(2026, 6, 20))
+})
+
+test("quarterly without billingDay falls back to createdAt day", async () => {
+  const { calculateNextBilling } = await import("../upcoming.ts")
+  const sub = { ...baseSub, cycle: "quarterly", billingDay: null, createdAt: "2026-01-05" }
+  expect(calculateNextBilling(sub, new Date(2026, 1, 1))).toEqual(new Date(2026, 3, 5))
+  // Quarter boundary exactly at fromDate
+  expect(calculateNextBilling(sub, new Date(2026, 3, 5))).toEqual(new Date(2026, 3, 5))
+})
+
+test("semi-annual billing respects billingDay", async () => {
+  const { calculateNextBilling } = await import("../upcoming.ts")
+  const sub = { ...baseSub, cycle: "semi-annual", billingDay: 10, createdAt: "2026-02-03" }
+  expect(calculateNextBilling(sub, new Date(2026, 2, 1))).toEqual(new Date(2026, 7, 10))
+})
+
+test("weekly billing anchors on billingDay of the createdAt month", async () => {
+  const { calculateNextBilling } = await import("../upcoming.ts")
+  // createdAt Jan 5, billingDay 20 -> anchor Jan 20, then +7d steps
+  const sub = { ...baseSub, cycle: "weekly", billingDay: 20, createdAt: "2026-01-05" }
+  expect(calculateNextBilling(sub, new Date(2026, 1, 1))).toEqual(new Date(2026, 1, 3))
+  // createdAt Jan 5, no billingDay -> anchor Jan 5
+  const sub2 = { ...baseSub, cycle: "weekly", billingDay: null, createdAt: "2026-01-05" }
+  expect(calculateNextBilling(sub2, new Date(2026, 1, 1))).toEqual(new Date(2026, 1, 2))
+})
+
+test("bi-weekly billing follows 14-day steps from anchor", async () => {
+  const { calculateNextBilling } = await import("../upcoming.ts")
+  const sub = { ...baseSub, cycle: "bi-weekly", billingDay: null, createdAt: "2026-01-05" }
+  // Jan 5 + 2*14 = Feb 2
+  expect(calculateNextBilling(sub, new Date(2026, 1, 1))).toEqual(new Date(2026, 1, 2))
+})

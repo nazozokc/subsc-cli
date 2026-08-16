@@ -19,47 +19,59 @@ function getBillingDay(sub: SharedArgs): number {
   return created.getDate()
 }
 
-function addMonths(date: Date, n: number): Date {
-  const result = new Date(date)
-  result.setMonth(result.getMonth() + n)
-  return result
+/**
+ * Build a date with the given day clamped to the last day of the month,
+ * avoiding JS Date overflow (e.g. day 31 in February -> Feb 28).
+ */
+function dateWithClampedDay(year: number, month: number, day: number): Date {
+  const lastDay = new Date(year, month + 1, 0).getDate()
+  return new Date(year, month, Math.min(day, lastDay))
+}
+
+/**
+ * Date of the k-th period occurrence anchored on `anchorDate`,
+ * billed on `day` (clamped to the month length).
+ */
+function periodDate(anchorDate: Date, periodMonths: number, k: number, day: number): Date {
+  const monthIndex = anchorDate.getMonth() + k * periodMonths
+  const year = anchorDate.getFullYear() + Math.floor(monthIndex / 12)
+  const month = ((monthIndex % 12) + 12) % 12
+  return dateWithClampedDay(year, month, day)
 }
 
 export function nextDateForCycle(anchorDay: number, anchorDate: Date, cycle: Cycle, fromDate: Date): Date {
   switch (cycle) {
     case "monthly": {
       // Calculate next billing date based on anchor day
-      const candidate = new Date(fromDate.getFullYear(), fromDate.getMonth(), anchorDay)
+      const candidate = dateWithClampedDay(fromDate.getFullYear(), fromDate.getMonth(), anchorDay)
       if (candidate >= fromDate) return candidate
       // Move to next month
-      return new Date(fromDate.getFullYear(), fromDate.getMonth() + 1, anchorDay)
+      return dateWithClampedDay(fromDate.getFullYear(), fromDate.getMonth() + 1, anchorDay)
     }
     case "yearly": {
-      const candidate = new Date(fromDate.getFullYear(), anchorDate.getMonth(), anchorDay)
+      const candidate = dateWithClampedDay(fromDate.getFullYear(), anchorDate.getMonth(), anchorDay)
       if (candidate >= fromDate) return candidate
-      return new Date(fromDate.getFullYear() + 1, anchorDate.getMonth(), anchorDay)
+      return dateWithClampedDay(fromDate.getFullYear() + 1, anchorDate.getMonth(), anchorDay)
     }
-    case "weekly": {
-      // Every 7 days from anchor
-      const diff = fromDate.getTime() - anchorDate.getTime()
-      const weeksSince = Math.ceil(diff / (7 * 24 * 60 * 60 * 1000))
-      return new Date(anchorDate.getTime() + weeksSince * 7 * 24 * 60 * 60 * 1000)
-    }
+    case "weekly":
     case "bi-weekly": {
-      const diff = fromDate.getTime() - anchorDate.getTime()
-      const periodsSince = Math.ceil(diff / (14 * 24 * 60 * 60 * 1000))
-      return new Date(anchorDate.getTime() + periodsSince * 14 * 24 * 60 * 60 * 1000)
+      // Every 7/14 days from the anchor (billing day of the anchor month)
+      const periodDays = cycle === "weekly" ? 7 : 14
+      const anchor = dateWithClampedDay(anchorDate.getFullYear(), anchorDate.getMonth(), anchorDay)
+      const msPerPeriod = periodDays * 24 * 60 * 60 * 1000
+      const periodsSince = Math.ceil((fromDate.getTime() - anchor.getTime()) / msPerPeriod)
+      return new Date(anchor.getTime() + Math.max(0, periodsSince) * msPerPeriod)
     }
-    case "quarterly": {
-      // Every 3 months from anchor
-      const monthsSince = (fromDate.getFullYear() - anchorDate.getFullYear()) * 12 + (fromDate.getMonth() - anchorDate.getMonth())
-      const quartersSince = Math.ceil(monthsSince / 3)
-      return addMonths(new Date(anchorDate), quartersSince * 3)
-    }
+    case "quarterly":
     case "semi-annual": {
-      const monthsSince = (fromDate.getFullYear() - anchorDate.getFullYear()) * 12 + (fromDate.getMonth() - anchorDate.getMonth())
-      const halvesSince = Math.ceil(monthsSince / 6)
-      return addMonths(new Date(anchorDate), halvesSince * 6)
+      // Every 3/6 months from the anchor month, billed on anchorDay
+      const periodMonths = cycle === "quarterly" ? 3 : 6
+      let k = 0
+      for (;;) {
+        const candidate = periodDate(anchorDate, periodMonths, k, anchorDay)
+        if (candidate >= fromDate) return candidate
+        k++
+      }
     }
   }
 }
@@ -67,19 +79,6 @@ export function nextDateForCycle(anchorDay: number, anchorDate: Date, cycle: Cyc
 export function calculateNextBilling(sub: SharedArgs, fromDate: Date): Date {
   const anchorDate = toDate(sub.createdAt)
   const day = getBillingDay(sub)
-
-  // For monthly and yearly, use the billing day directly
-  if (sub.cycle === "monthly" || sub.cycle === "yearly" || sub.cycle === "quarterly" || sub.cycle === "semi-annual") {
-    const candidate = nextDateForCycle(day, anchorDate, sub.cycle, fromDate)
-    // Handle month overflow (e.g., day 31 in February)
-    if (candidate.getDate() !== day) {
-      // Cap to last day of month
-      candidate.setDate(0) // go to last day of previous month
-    }
-    return candidate
-  }
-
-  // For weekly/bi-weekly, cycle from anchor
   return nextDateForCycle(day, anchorDate, sub.cycle, fromDate)
 }
 
