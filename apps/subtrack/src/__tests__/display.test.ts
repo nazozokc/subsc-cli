@@ -708,7 +708,8 @@ describe("showPayment with --api", () => {
     await showPayment("monthly", "JPY", [makeSub({ name: "Sub", price: 1000, currency: "JPY" })], true)
     const combined = logMessages.join("\n")
     // --currency path shows "+ API ¥..." inline instead of separate "API usage:" line
+    // API cost is stored in cents: 100 cents = $1.00 → ¥160 at rate 160 JPY/USD
     expect(combined).toContain("+ API")
-    expect(combined).toContain("¥16,000")
+    expect(combined).toContain("¥160")
   })
 })

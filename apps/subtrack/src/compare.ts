@@ -69,7 +69,7 @@ function renderCompareTable(
 
   for (const row of rows) {
     if (row.isDivider) {
-      table.push([pc.dim("─".repeat(20)), pc.dim("─"), pc.dim("─"), pc.dim("─")])
+      table.push([{ colSpan: 4, content: pc.dim("─") }])
     } else if (row.isGrandTotal) {
       table.push([
         pc.bold(pc.yellow(row.label)),
@@ -179,13 +179,17 @@ export async function showCompare(
     const curApi = getLlmUsageTotal(currentRange.from, currentRange.to)
     const prevApi = getLlmUsageTotal(previousRange.from, previousRange.to)
 
+    // API cost is stored in USD cents — convert to dollars (major units)
+    const curApiUsd = curApi / 100
+    const prevApiUsd = prevApi / 100
+
     // Convert API cost if currency specified
-    let curApiDisplay = curApi
-    let prevApiDisplay = prevApi
+    let curApiDisplay = curApiUsd
+    let prevApiDisplay = prevApiUsd
     if (targetCurrency && rates) {
       try {
-        curApiDisplay = convertPrice(Math.round(curApi), "USD", targetCurrency, rates.rates)
-        prevApiDisplay = convertPrice(Math.round(prevApi), "USD", targetCurrency, rates.rates)
+        curApiDisplay = convertPrice(curApiUsd, "USD", targetCurrency, rates.rates)
+        prevApiDisplay = convertPrice(prevApiUsd, "USD", targetCurrency, rates.rates)
       } catch { /* keep as USD */ }
     }
 

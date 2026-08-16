@@ -73,11 +73,11 @@ export const showPayment = async (
       }
 
       if (includeApi && apiTotal > 0) {
-        // Convert API cost (USD) to target currency
+        // Convert API cost (USD cents) to target currency
         let apiConverted = 0
         try {
           apiConverted = convertPrice(
-            Math.round(apiTotal),
+            apiTotal / 100,
             "USD",
             currency,
             rates.rates,

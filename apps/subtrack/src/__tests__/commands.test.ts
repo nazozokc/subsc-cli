@@ -849,6 +849,11 @@ test("handleCompare with --api includes API usage", async () => {
   const combined = logMessages.join("\n")
   expect(combined).toContain("API Usage")
   expect(combined).toContain("Grand Total")
+  // API cost is stored in cents: 0.5 cents = $0.005 → rounds to $0
+  // (regression guard: cents must not be treated as dollars)
+  expect(combined).toContain("$0")
+  expect(combined).not.toContain("$1")
+  expect(combined).toContain("¥980")
 })
 
 test("handleCompare with --currency converts prices", async () => {
