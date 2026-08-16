@@ -156,6 +156,7 @@ export async function handleBulkDelete(
 export async function handleBulkTagAdd(
   tag: string,
   filters: BulkFilters,
+  options: BulkOptions = {},
 ): Promise<void> {
   if (!tag?.trim()) {
     fail("Tag name is required")
@@ -174,7 +175,7 @@ export async function handleBulkTagAdd(
   const ok = await confirmAction(
     `Add tag "${tagName}" to`,
     list.length,
-    false,
+    options.force,
   )
   if (!ok) { consola.info("Cancelled"); return }
 
@@ -191,6 +192,7 @@ export async function handleBulkTagAdd(
 export async function handleBulkTagRemove(
   tag: string,
   filters: BulkFilters,
+  options: BulkOptions = {},
 ): Promise<void> {
   if (!tag?.trim()) {
     fail("Tag name is required")
@@ -209,7 +211,7 @@ export async function handleBulkTagRemove(
   const ok = await confirmAction(
     `Remove tag "${tagName}" from`,
     list.length,
-    false,
+    options.force,
   )
   if (!ok) { consola.info("Cancelled"); return }
 

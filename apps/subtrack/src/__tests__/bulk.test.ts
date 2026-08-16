@@ -305,6 +305,17 @@ test("bulk tag add empty tag shows error", async () => {
   expect(errorMessages.some((m) => m.includes("Tag name is required"))).toBe(true)
 })
 
+test("bulk tag add with force skips confirmation", async () => {
+  seedSub("Target", { tags: [] })
+
+  const { handleBulkTagAdd } = await import("../bulk.ts")
+  await handleBulkTagAdd("newtag", { name: "Target" }, { force: true })
+
+  const target = dbModule.getSubscriptions().find((s) => s.name === "Target")
+  expect(target?.tags).toContain("newtag")
+  expect(confirm).not.toHaveBeenCalled()
+})
+
 // ── handleBulkTagRemove ──────────────────────────────────
 
 test("bulk tag remove with name filter", async () => {
@@ -325,6 +336,17 @@ test("bulk tag remove empty tag shows error", async () => {
   await handleBulkTagRemove("", {})
 
   expect(errorMessages.some((m) => m.includes("Tag name is required"))).toBe(true)
+})
+
+test("bulk tag remove with force skips confirmation", async () => {
+  seedSub("Target", { tags: ["oldtag"] })
+
+  const { handleBulkTagRemove } = await import("../bulk.ts")
+  await handleBulkTagRemove("oldtag", { name: "Target" }, { force: true })
+
+  const target = dbModule.getSubscriptions().find((s) => s.name === "Target")
+  expect(target?.tags).toEqual([])
+  expect(confirm).not.toHaveBeenCalled()
 })
 
 // ── Interactive mode (no filters given) ──────────────────

@@ -36,8 +36,9 @@ const bulkTagAddCmd = define({
     tag: { type: "string", description: "Filter by tag" },
     status: { type: "string", description: "Filter by current status" },
     name: { type: "string", description: "Filter by name pattern" },
+    force: { type: "boolean", short: "f", description: "Skip confirmation" },
   },
-  run: (ctx) => handleBulkTagAdd(ctx.values.add, { tag: ctx.values.tag, status: ctx.values.status, name: ctx.values.name }),
+  run: (ctx) => handleBulkTagAdd(ctx.values.add, { tag: ctx.values.tag, status: ctx.values.status, name: ctx.values.name }, { force: ctx.values.force }),
 })
 
 const bulkTagRemoveCmd = define({
@@ -48,8 +49,9 @@ const bulkTagRemoveCmd = define({
     tag: { type: "string", description: "Filter by tag" },
     status: { type: "string", description: "Filter by current status" },
     name: { type: "string", description: "Filter by name pattern" },
+    force: { type: "boolean", short: "f", description: "Skip confirmation" },
   },
-  run: (ctx) => handleBulkTagRemove(ctx.values.remove, { tag: ctx.values.tag, status: ctx.values.status, name: ctx.values.name }),
+  run: (ctx) => handleBulkTagRemove(ctx.values.remove, { tag: ctx.values.tag, status: ctx.values.status, name: ctx.values.name }, { force: ctx.values.force }),
 })
 
 const bulkTagCmd = define({
