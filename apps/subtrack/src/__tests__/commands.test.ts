@@ -1153,6 +1153,212 @@ test("handleUsageList displays entries", async () => {
   expect(combined).toContain("Total")
 })
 
+test("handleUsageList respects limit", async () => {
+  const db = await import("../db.ts")
+  for (let i = 0; i < 5; i++) {
+    db.addLlmUsage({
+      provider: "openai",
+      model: `model-${i}`,
+      input_tokens: 10,
+      output_tokens: 5,
+      cost: 0.01,
+      date: `2026-06-0${i + 1}`,
+      description: null,
+    })
+  }
+
+  const { handleUsageList } = await import("../usage.ts")
+  await handleUsageList({ limit: 3 })
+  const combined = logMessages.join("\n")
+  expect(combined).toContain("model-4") // newest first
+  expect(combined).not.toContain("model-0")
+})
+
+test("handleUsageList respects offset", async () => {
+  const db = await import("../db.ts")
+  for (let i = 0; i < 5; i++) {
+    db.addLlmUsage({
+      provider: "openai",
+      model: `model-${i}`,
+      input_tokens: 10,
+      output_tokens: 5,
+      cost: 0.01,
+      date: `2026-06-0${i + 1}`,
+      description: null,
+    })
+  }
+
+  const { handleUsageList } = await import("../usage.ts")
+  await handleUsageList({ offset: 2 })
+  const combined = logMessages.join("\n")
+  expect(combined).not.toContain("model-4")
+  expect(combined).toContain("model-2")
+})
+
+test("handleUsageList with json includes entries", async () => {
+  const db = await import("../db.ts")
+  db.addLlmUsage({
+    provider: "openai",
+    model: "gpt-4o",
+    input_tokens: 100,
+    output_tokens: 50,
+    cost: 0.5,
+    date: "2026-06-19",
+    description: "json test",
+  })
+
+  const writes: string[] = []
+  const origWrite = process.stdout.write.bind(process.stdout)
+  process.stdout.write = ((chunk: string) => {
+    writes.push(String(chunk))
+    return true
+  }) as typeof process.stdout.write
+  try {
+    const { handleUsageList } = await import("../usage.ts")
+    await handleUsageList({ json: true })
+  } finally {
+    process.stdout.write = origWrite
+  }
+
+  const parsed = JSON.parse(writes.join(""))
+  expect(parsed).toHaveLength(1)
+  expect(parsed[0].model).toBe("gpt-4o")
+})
+
+// ── handleUsageEdit ─────────────────────────────────────
+
+test("handleUsageEdit updates fields", async () => {
+  const db = await import("../db.ts")
+  db.addLlmUsage({
+    provider: "openai",
+    model: "gpt-4o",
+    input_tokens: 100,
+    output_tokens: 50,
+    cost: 0.5,
+    date: "2026-06-19",
+    description: "before",
+  })
+  const id = db.getLlmUsage()[0].id
+
+  const { handleUsageEdit } = await import("../usage.ts")
+  await handleUsageEdit(id, { cost: "1.25", description: "after edit" })
+
+  const entries = db.getLlmUsage()
+  expect(entries).toHaveLength(1)
+  expect(entries[0].cost).toBe(125)
+  expect(entries[0].description).toBe("after edit")
+  expect(entries[0].model).toBe("gpt-4o") // untouched
+  expect(successMessages.some((m) => m.includes(String(id)))).toBe(true)
+})
+
+test("handleUsageEdit updates tokens and date", async () => {
+  const db = await import("../db.ts")
+  db.addLlmUsage({
+    provider: "openai",
+    model: "gpt-4o",
+    input_tokens: 100,
+    output_tokens: 50,
+    cost: 0.5,
+    date: "2026-06-19",
+    description: null,
+  })
+  const id = db.getLlmUsage()[0].id
+
+  const { handleUsageEdit } = await import("../usage.ts")
+  await handleUsageEdit(id, { inputTokens: "500", outputTokens: "250", date: "2026-07-01" })
+
+  const entries = db.getLlmUsage()
+  expect(entries[0].input_tokens).toBe(500)
+  expect(entries[0].output_tokens).toBe(250)
+  expect(entries[0].date).toBe("2026-07-01")
+})
+
+test("handleUsageEdit with non-existent id shows error", async () => {
+  const { handleUsageEdit } = await import("../usage.ts")
+  await handleUsageEdit(999, { cost: "1.00" })
+  expect(errorMessages.some((m) => m.includes("not found"))).toBe(true)
+})
+
+test("handleUsageEdit with no fields shows error", async () => {
+  const { handleUsageEdit } = await import("../usage.ts")
+  await handleUsageEdit(1, {})
+  expect(errorMessages.some((m) => m.includes("No fields to update"))).toBe(true)
+})
+
+test("handleUsageEdit with invalid cost shows error", async () => {
+  const { handleUsageEdit } = await import("../usage.ts")
+  await handleUsageEdit(1, { cost: "abc" })
+  expect(errorMessages.some((m) => m.toLowerCase().includes("invalid cost"))).toBe(true)
+})
+
+test("handleUsageEdit with invalid tokens shows error", async () => {
+  const { handleUsageEdit } = await import("../usage.ts")
+  await handleUsageEdit(1, { inputTokens: "abc" })
+  expect(errorMessages.some((m) => m.toLowerCase().includes("invalid input tokens"))).toBe(true)
+})
+
+test("handleUsageEdit with invalid provider shows error", async () => {
+  const { handleUsageEdit } = await import("../usage.ts")
+  await handleUsageEdit(1, { provider: "nonexistent" })
+  expect(errorMessages.some((m) => m.toLowerCase().includes("invalid provider"))).toBe(true)
+})
+
+test("handleUsageEdit with invalid id shows error", async () => {
+  const { handleUsageEdit } = await import("../usage.ts")
+  await handleUsageEdit(0, { cost: "1.00" })
+  expect(errorMessages.some((m) => m.includes("positive integer"))).toBe(true)
+})
+
+// ── handleUsageTotal ─────────────────────────────────────
+
+test("handleUsageTotal json includes tokens and byModel", async () => {
+  const db = await import("../db.ts")
+  db.addLlmUsage({ provider: "openai", model: "gpt-4o", input_tokens: 100, output_tokens: 50, cost: 1.0, date: "2026-06-01", description: null })
+  db.addLlmUsage({ provider: "openai", model: "gpt-4o", input_tokens: 200, output_tokens: 100, cost: 2.0, date: "2026-06-15", description: null })
+  db.addLlmUsage({ provider: "anthropic", model: "claude-3", input_tokens: 300, output_tokens: 150, cost: 3.0, date: "2026-06-10", description: null })
+
+  const writes: string[] = []
+  const origWrite = process.stdout.write.bind(process.stdout)
+  process.stdout.write = ((chunk: string) => {
+    writes.push(String(chunk))
+    return true
+  }) as typeof process.stdout.write
+  try {
+    const { handleUsageTotal } = await import("../usage-total.ts")
+    handleUsageTotal({ from: "2026-06-01", to: "2026-06-30", json: true })
+  } finally {
+    process.stdout.write = origWrite
+  }
+
+  const out = JSON.parse(writes.join(""))
+  expect(out.total).toBe(6.0)
+  expect(out.tokens).toEqual({ inputTokens: 600, outputTokens: 300 })
+  expect(out.byProvider).toHaveLength(2)
+  expect(out.byModel).toHaveLength(2)
+  const gpt4o = out.byModel.find((m: { model: string }) => m.model === "gpt-4o")
+  expect(gpt4o).toMatchObject({ total: 3.0, inputTokens: 300, outputTokens: 150 })
+})
+
+test("handleUsageTotal display shows tokens and by model", async () => {
+  const db = await import("../db.ts")
+  db.addLlmUsage({ provider: "openai", model: "gpt-4o", input_tokens: 100, output_tokens: 50, cost: 1.0, date: "2026-06-01", description: null })
+
+  const { handleUsageTotal } = await import("../usage-total.ts")
+  handleUsageTotal({ from: "2026-06-01", to: "2026-06-30" })
+  const combined = logMessages.join("\n")
+  expect(combined).toContain("By provider")
+  expect(combined).toContain("By model")
+  expect(combined).toContain("gpt-4o")
+  expect(combined).toContain("Tokens: 100 in / 50 out")
+  expect(combined).toContain("Total: $0.01") // cost 1.0 = 1 cent
+})
+
+test("handleUsageTotal shows info when no usage in range", async () => {
+  const { handleUsageTotal } = await import("../usage-total.ts")
+  handleUsageTotal({ from: "2020-01-01", to: "2020-01-31" })
+  expect(infoMessages.some((m) => m.includes("No API usage found"))).toBe(true)
+})
+
 // ── handleUsageDelete ─────────────────────────────────────
 
 test("handleUsageDelete deletes by ID (non-interactive)", async () => {

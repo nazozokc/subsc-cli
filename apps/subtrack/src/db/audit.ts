@@ -31,6 +31,7 @@ export type AuditAction =
   | "config.reset"
   | "backup.restore"
   | "usage.add"
+  | "usage.edit"
   | "usage.delete"
   | "cleanup"
 

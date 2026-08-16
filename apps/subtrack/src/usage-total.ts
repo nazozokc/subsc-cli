@@ -3,7 +3,13 @@
  */
 
 import { consola } from "consola"
-import { getLlmUsageTotal, getLlmUsageTotalByProvider } from "./db.ts"
+import pc from "picocolors"
+import {
+  getLlmUsageTotal,
+  getLlmUsageTokenTotal,
+  getLlmUsageTotalByProvider,
+  getLlmUsageTotalByModel,
+} from "./db.ts"
 import { getPeriodDateRange } from "./date-utils.ts"
 import type { Cycle } from "./types.ts"
 
@@ -29,13 +35,17 @@ export function handleUsageTotal(options: UsageTotalOptions = {}): void {
 
   const total = getLlmUsageTotal(from, to)
   const byProvider = getLlmUsageTotalByProvider(from, to)
+  const byModel = getLlmUsageTotalByModel(from, to)
+  const tokens = getLlmUsageTokenTotal(from, to)
 
   if (options.json) {
     process.stdout.write(JSON.stringify({
       from,
       to,
       total,
+      tokens,
       byProvider,
+      byModel,
     }, null, 2) + "\n")
     return
   }
@@ -46,9 +56,22 @@ export function handleUsageTotal(options: UsageTotalOptions = {}): void {
   }
 
   consola.log(`── LLM API Usage (${from} → ${to}) ──`)
+  consola.log(pc.bold("  By provider:"))
   for (const p of byProvider) {
-    consola.log(`  ${p.provider}: $${(p.total / 100).toFixed(2)}`)
+    consola.log(`    ${p.provider}: $${(p.total / 100).toFixed(2)}`)
+  }
+  if (byModel.length > 0) {
+    consola.log(pc.bold("  By model:"))
+    for (const m of byModel) {
+      consola.log(
+        `    ${m.model}: $${(m.total / 100).toFixed(2)} ` +
+        `(${m.inputTokens.toLocaleString()} in / ${m.outputTokens.toLocaleString()} out)`,
+      )
+    }
   }
   consola.log(`  ${"─".repeat(20)}`)
+  consola.log(
+    `  Tokens: ${tokens.inputTokens.toLocaleString()} in / ${tokens.outputTokens.toLocaleString()} out`,
+  )
   consola.log(`  Total: $${(total / 100).toFixed(2)}`)
 }

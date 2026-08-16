@@ -987,6 +987,63 @@ test("getLlmUsageTotalByProvider groups cost by provider", async () => {
   expect(anthropic?.total).toBe(3.0)
 })
 
+test("getLlmUsageTokenTotal sums tokens in date range", async () => {
+  const db = await import("../db.ts")
+  db.addLlmUsage({ provider: "openai", model: "gpt-4o", input_tokens: 100, output_tokens: 50, cost: 1.0, date: "2026-06-01", description: null })
+  db.addLlmUsage({ provider: "openai", model: "gpt-4o-mini", input_tokens: 200, output_tokens: 100, cost: 2.0, date: "2026-06-15", description: null })
+  db.addLlmUsage({ provider: "anthropic", model: "claude-3", input_tokens: 300, output_tokens: 150, cost: 3.0, date: "2026-07-01", description: null })
+
+  const tokens = db.getLlmUsageTokenTotal("2026-06-01", "2026-06-30")
+  expect(tokens).toEqual({ inputTokens: 300, outputTokens: 150 }) // 100+200 / 50+100
+})
+
+test("getLlmUsageTokenTotal returns zeros for empty range", async () => {
+  const db = await import("../db.ts")
+  const tokens = db.getLlmUsageTokenTotal("2020-01-01", "2020-01-31")
+  expect(tokens).toEqual({ inputTokens: 0, outputTokens: 0 })
+})
+
+test("getLlmUsageTotalByModel groups cost and tokens by model", async () => {
+  const db = await import("../db.ts")
+  db.addLlmUsage({ provider: "openai", model: "gpt-4o", input_tokens: 100, output_tokens: 50, cost: 1.0, date: "2026-06-01", description: null })
+  db.addLlmUsage({ provider: "openai", model: "gpt-4o", input_tokens: 200, output_tokens: 100, cost: 2.0, date: "2026-06-15", description: null })
+  db.addLlmUsage({ provider: "anthropic", model: "claude-3", input_tokens: 300, output_tokens: 150, cost: 3.0, date: "2026-06-10", description: null })
+
+  const byModel = db.getLlmUsageTotalByModel("2026-06-01", "2026-06-30")
+  expect(byModel).toHaveLength(2)
+  const gpt4o = byModel.find((m) => m.model === "gpt-4o")
+  const claude3 = byModel.find((m) => m.model === "claude-3")
+  expect(gpt4o).toMatchObject({ provider: "openai", total: 3.0, inputTokens: 300, outputTokens: 150 })
+  expect(claude3).toMatchObject({ provider: "anthropic", total: 3.0, inputTokens: 300, outputTokens: 150 })
+})
+
+test("updateLlmUsage updates provided fields only", async () => {
+  const db = await import("../db.ts")
+  db.addLlmUsage({ provider: "openai", model: "gpt-4o", input_tokens: 100, output_tokens: 50, cost: 1.0, date: "2026-06-01", description: null })
+  const id = db.getLlmUsage()[0].id
+
+  const ok = db.updateLlmUsage(id, { cost: 2.5, description: "updated" })
+  expect(ok).toBe(true)
+
+  const entries = db.getLlmUsage()
+  expect(entries).toHaveLength(1)
+  expect(entries[0].cost).toBe(2.5)
+  expect(entries[0].description).toBe("updated")
+  expect(entries[0].provider).toBe("openai") // untouched
+  expect(entries[0].input_tokens).toBe(100) // untouched
+})
+
+test("updateLlmUsage returns false for non-existent id", async () => {
+  const db = await import("../db.ts")
+  expect(db.updateLlmUsage(99999, { cost: 1.0 })).toBe(false)
+})
+
+test("updateLlmUsage returns false with no fields", async () => {
+  const db = await import("../db.ts")
+  db.addLlmUsage({ provider: "openai", model: "gpt-4o", input_tokens: 100, output_tokens: 50, cost: 1.0, date: "2026-06-01", description: null })
+  expect(db.updateLlmUsage(db.getLlmUsage()[0].id, {})).toBe(false)
+})
+
 // ── Backup / Restore ─────────────────────────────────────
 
 test("getDefaultBackupDir returns path under getDbDir", async () => {
