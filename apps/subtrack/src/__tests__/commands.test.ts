@@ -710,6 +710,49 @@ test("handleImport skips invalid rows", async () => {
   expect(warnMessages.length).toBeGreaterThan(0)
 })
 
+test("handleImport accepts the export CSV header (roundtrip)", async () => {
+  const header = "name,status,cycle,tags,price,currency,notes,payment_method,contract_start,contract_end,auto_renewal,vendor_name,vendor_url,plan_tier,discount_amount,discount_type"
+  const row = 'Netflix,active,monthly,video;entertainment,1490,JPY,"my notes",credit_card,2026-01-01,2027-01-01,true,Netflix Inc,https://netflix.com,Standard,,'
+  const filePath = writeTempFile("export-format.csv", `${header}\n${row}`)
+
+  const { handleImport } = await import("../import-csv.ts")
+  await handleImport(filePath, {})
+
+  const db = await import("../db.ts")
+  const subs = db.getSubscriptions()
+  expect(subs).toHaveLength(1)
+  expect(subs[0]).toMatchObject({
+    name: "Netflix",
+    status: "active",
+    cycle: "monthly",
+    tags: ["video", "entertainment"],
+    price: 1490,
+    currency: "JPY",
+    notes: "my notes",
+    paymentMethod: "credit_card",
+    contractStart: "2026-01-01",
+    contractEnd: "2027-01-01",
+    autoRenewal: true,
+    vendorName: "Netflix Inc",
+    vendorUrl: "https://netflix.com",
+    planTier: "Standard",
+    discountAmount: null,
+  })
+  expect(successMessages.some((m) => m.includes("1 imported"))).toBe(true)
+})
+
+test("handleImport rejects rows with invalid status in export format", async () => {
+  const header = "name,status,cycle,tags,price,currency"
+  const filePath = writeTempFile("bad-status.csv", `${header}\nBad,bogus,monthly,,100,JPY`)
+
+  const { handleImport } = await import("../import-csv.ts")
+  await handleImport(filePath, {})
+
+  const db = await import("../db.ts")
+  expect(db.getSubscriptions()).toHaveLength(0)
+  expect(warnMessages.some((m) => m.includes('invalid status "bogus"'))).toBe(true)
+})
+
 // ── handleSummary ────────────────────────────────────────
 
 test("handleSummary shows info when no subscriptions", async () => {

@@ -105,7 +105,7 @@ Bulk-import subscriptions from a CSV file:
 subtrack import subscriptions.csv
 ```
 
-The CSV must have the header `name,cycle,tags,price,currency`. Tags are separated by semicolons:
+The CSV must have the header `name,cycle,tags,price,currency` (an optional `notes` column is also accepted; CSVs produced by `subtrack export csv` work as-is). Tags are separated by semicolons:
 
 ```csv
 name,cycle,tags,price,currency
