@@ -220,3 +220,176 @@ describe("MCP input validation", () => {
     }
   })
 })
+
+describe("MCP handlers", () => {
+  test("handleAddSubscription validates cycle and status enums", async () => {
+    const { handleAddSubscription } = await import("../mcp/handlers.ts")
+    const badCycle = await handleAddSubscription({
+      name: "X", price: 100, currency: "USD", cycle: "fortnightly",
+    })
+    expect(badCycle.isError).toBe(true)
+    expect(JSON.stringify(badCycle)).toMatch(/Invalid cycle/)
+
+    const badStatus = await handleAddSubscription({
+      name: "X", price: 100, currency: "USD", cycle: "monthly", status: "deleted",
+    })
+    expect(badStatus.isError).toBe(true)
+    expect(JSON.stringify(badStatus)).toMatch(/Invalid status/)
+
+    const badCurrency = await handleAddSubscription({
+      name: "X", price: 100, currency: "XX", cycle: "monthly",
+    })
+    expect(badCurrency.isError).toBe(true)
+    expect(JSON.stringify(badCurrency)).toMatch(/Invalid currency/)
+
+    const ok = await handleAddSubscription({
+      name: "Valid", price: 100, currency: "USD", cycle: "monthly", status: "paused",
+    })
+    expect(ok.isError).toBeUndefined()
+  })
+
+  test("handleEditSubscription validates enums", async () => {
+    testDb.run(
+      `INSERT INTO subscriptions (id, name, price, currency, cycle, status, billing_day, created_at)
+       VALUES (1, 'Netflix', 1990, 'JPY', 'monthly', 'active', 15, '2026-01-01')`,
+    )
+    const { handleEditSubscription } = await import("../mcp/handlers.ts")
+    const bad = await handleEditSubscription({ id: 1, cycle: "fortnightly" })
+    expect(bad.isError).toBe(true)
+    expect(JSON.stringify(bad)).toMatch(/Invalid cycle/)
+    const badStatus = await handleEditSubscription({ id: 1, status: "deleted" })
+    expect(badStatus.isError).toBe(true)
+  })
+
+  test("handleGetAnalytics includes statusBreakdown distinct from summary", async () => {
+    testDb.run(
+      `INSERT INTO subscriptions (id, name, price, currency, cycle, status, billing_day, created_at)
+       VALUES (1, 'Netflix', 1990, 'JPY', 'monthly', 'active', 15, '2026-01-01'),
+              (2, 'Spotify', 980, 'JPY', 'monthly', 'paused', 1, '2026-01-10'),
+              (3, 'Old', 500, 'JPY', 'monthly', 'cancelled', 5, '2026-03-01'),
+              (4, 'Legacy', 300, 'JPY', 'monthly', 'archived', 5, '2026-03-01')`,
+    )
+    const { handleGetAnalytics } = await import("../mcp/handlers.ts")
+    const res = await handleGetAnalytics({})
+    const data = JSON.parse(res.content[0].text)
+    expect(data.statusBreakdown).toEqual({ active: 1, paused: 1, cancelled: 1, archived: 1 })
+    expect(data.totalCount).toBe(2) // cancelled excluded from summary
+  })
+
+  test("handleListSubscriptions supports limit and offset", async () => {
+    testDb.run(
+      `INSERT INTO subscriptions (id, name, price, currency, cycle, status, billing_day, created_at)
+       VALUES (1, 'A', 100, 'USD', 'monthly', 'active', 1, '2026-01-01'),
+              (2, 'B', 200, 'USD', 'monthly', 'active', 1, '2026-01-01'),
+              (3, 'C', 300, 'USD', 'monthly', 'active', 1, '2026-01-01')`,
+    )
+    const { handleListSubscriptions } = await import("../mcp/handlers.ts")
+    const res = await handleListSubscriptions({ limit: 2 })
+    const data = JSON.parse(res.content[0].text)
+    expect(data).toHaveLength(2)
+    const res2 = await handleListSubscriptions({ limit: 2, offset: 2 })
+    const data2 = JSON.parse(res2.content[0].text)
+    expect(data2).toHaveLength(1)
+    expect(data2[0].name).toBe("C")
+  })
+
+  test("handleListTags returns tags with counts", async () => {
+    testDb.run(
+      `INSERT INTO subscriptions (id, name, price, currency, cycle, status, billing_day, created_at)
+       VALUES (1, 'Netflix', 1990, 'JPY', 'monthly', 'active', 15, '2026-01-01'),
+              (2, 'Spotify', 980, 'JPY', 'monthly', 'active', 1, '2026-01-10')`,
+    )
+    testDb.run(`INSERT INTO tags (id, name) VALUES (1, 'video'), (2, 'music'), (3, 'work')`)
+    testDb.run(`INSERT INTO subscription_tags (subscription_id, tag_id) VALUES (1, 1), (2, 2), (1, 3)`)
+
+    const { handleListTags } = await import("../mcp/handlers.ts")
+    const res = await handleListTags({})
+    const data = JSON.parse(res.content[0].text)
+    expect(data).toEqual([
+      { name: "music", count: 1 },
+      { name: "video", count: 1 },
+      { name: "work", count: 1 },
+    ])
+  })
+
+  test("handleGetTagSubscriptions filters by tags", async () => {
+    testDb.run(
+      `INSERT INTO subscriptions (id, name, price, currency, cycle, status, billing_day, created_at)
+       VALUES (1, 'Netflix', 1990, 'JPY', 'monthly', 'active', 15, '2026-01-01'),
+              (2, 'Spotify', 980, 'JPY', 'monthly', 'active', 1, '2026-01-10')`,
+    )
+    testDb.run(`INSERT INTO tags (id, name) VALUES (1, 'video'), (2, 'music')`)
+    testDb.run(`INSERT INTO subscription_tags (subscription_id, tag_id) VALUES (1, 1), (2, 2)`)
+
+    const { handleGetTagSubscriptions } = await import("../mcp/handlers.ts")
+    const res = await handleGetTagSubscriptions({ tag: "video" })
+    const data = JSON.parse(res.content[0].text)
+    expect(data).toHaveLength(1)
+    expect(data[0].name).toBe("Netflix")
+
+    const noTag = await handleGetTagSubscriptions({})
+    expect(noTag.isError).toBe(true)
+  })
+
+  test("handleGetUsageTotal aggregates tokens and models", async () => {
+    const db = await import("../db.ts")
+    testDb.run(`CREATE TABLE IF NOT EXISTS llm_usage (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      provider TEXT NOT NULL,
+      model TEXT NOT NULL,
+      input_tokens INTEGER NOT NULL DEFAULT 0,
+      output_tokens INTEGER NOT NULL DEFAULT 0,
+      cost REAL NOT NULL DEFAULT 0,
+      date TEXT NOT NULL,
+      description TEXT,
+      generation_id TEXT
+    )`)
+    testDb.run("DELETE FROM llm_usage")
+    db.addLlmUsage({ provider: "openai", model: "gpt-4o", input_tokens: 100, output_tokens: 50, cost: 1.0, date: "2026-08-01", description: null })
+    db.addLlmUsage({ provider: "openai", model: "gpt-4o", input_tokens: 200, output_tokens: 100, cost: 2.0, date: "2026-08-02", description: null })
+
+    const { handleGetUsageTotal } = await import("../mcp/handlers.ts")
+    const res = await handleGetUsageTotal({ from: "2026-08-01", to: "2026-08-31" })
+    const data = JSON.parse(res.content[0].text)
+    expect(data.total).toBe(3.0)
+    expect(data.tokens).toEqual({ inputTokens: 300, outputTokens: 150 })
+    expect(data.byModel).toHaveLength(1)
+    expect(data.byModel[0].model).toBe("gpt-4o")
+  })
+
+  test("handleListUsage lists entries with filters", async () => {
+    const db = await import("../db.ts")
+    testDb.run(`CREATE TABLE IF NOT EXISTS llm_usage (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      provider TEXT NOT NULL,
+      model TEXT NOT NULL,
+      input_tokens INTEGER NOT NULL DEFAULT 0,
+      output_tokens INTEGER NOT NULL DEFAULT 0,
+      cost REAL NOT NULL DEFAULT 0,
+      date TEXT NOT NULL,
+      description TEXT,
+      generation_id TEXT
+    )`)
+    testDb.run("DELETE FROM llm_usage")
+    db.addLlmUsage({ provider: "openai", model: "gpt-4o", input_tokens: 100, output_tokens: 50, cost: 1.0, date: "2026-08-01", description: null })
+    db.addLlmUsage({ provider: "anthropic", model: "claude-3", input_tokens: 100, output_tokens: 50, cost: 1.0, date: "2026-08-02", description: null })
+
+    const { handleListUsage } = await import("../mcp/handlers.ts")
+    const res = await handleListUsage({ provider: "openai" })
+    const data = JSON.parse(res.content[0].text)
+    expect(data).toHaveLength(1)
+    expect(data[0].provider).toBe("openai")
+  })
+
+  test("handleBulkOperations reports errors instead of swallowing them", async () => {
+    testDb.run(
+      `INSERT INTO subscriptions (id, name, price, currency, cycle, status, billing_day, created_at)
+       VALUES (1, 'Netflix', 1990, 'JPY', 'monthly', 'active', 15, '2026-01-01'),
+              (2, 'Spotify', 980, 'JPY', 'monthly', 'active', 1, '2026-01-10')`,
+    )
+    const { handleBulkOperations } = await import("../mcp/handlers.ts")
+    const res = await handleBulkOperations({ action: "status", status: "invalid-status" })
+    expect(res.isError).toBe(true)
+    expect(JSON.stringify(res)).toMatch(/Invalid status/)
+  })
+})

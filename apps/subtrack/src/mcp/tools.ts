@@ -14,6 +14,8 @@ export const TOOLS: Tool[] = [
       properties: {
         sort: { type: "string", description: "Sort field: name, price, currency, cycle, status" },
         desc: { type: "boolean", description: "Sort descending" },
+        limit: { type: "number", description: "Max entries to return (default: all)" },
+        offset: { type: "number", description: "Skip the first N entries (for paging)" },
       },
     },
   },
@@ -191,6 +193,46 @@ export const TOOLS: Tool[] = [
       type: "object",
       properties: {
         expiring_soon: { type: "number", description: "Filter trials expiring within N days" },
+      },
+    },
+  },
+  {
+    name: "list_tags",
+    description: "List all tags with their subscription counts",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "get_tag_subscriptions",
+    description: "Get subscriptions matching one or more tags (AND logic)",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tag: { type: "string", description: "Comma-separated tag names (all must match)" },
+      },
+      required: ["tag"],
+    },
+  },
+  {
+    name: "get_usage_total",
+    description: "Get aggregated LLM API usage for a date range (cost, tokens, provider/model breakdown)",
+    inputSchema: {
+      type: "object",
+      properties: {
+        from: { type: "string", description: "Start date YYYY-MM-DD (default: current month)" },
+        to: { type: "string", description: "End date YYYY-MM-DD (default: current month)" },
+      },
+    },
+  },
+  {
+    name: "list_usage",
+    description: "List LLM API usage entries",
+    inputSchema: {
+      type: "object",
+      properties: {
+        provider: { type: "string", description: "Filter by provider" },
+        from: { type: "string", description: "Start date YYYY-MM-DD" },
+        to: { type: "string", description: "End date YYYY-MM-DD" },
+        limit: { type: "number", description: "Max entries to return (default: 100)" },
       },
     },
   },

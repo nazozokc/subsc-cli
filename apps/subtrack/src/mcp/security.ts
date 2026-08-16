@@ -92,6 +92,8 @@ export const INPUT_VALIDATIONS: Record<string, Record<string, { type: string; ma
   list_subscriptions: {
     sort: { type: "string", maxLength: 20 },
     desc: { type: "boolean" },
+    limit: { type: "number" },
+    offset: { type: "number" },
   },
   get_subscription: {
     id: { type: "number" },
@@ -131,5 +133,19 @@ export const INPUT_VALIDATIONS: Record<string, Record<string, { type: string; ma
   },
   get_trials: {
     expiring_soon: { type: "number" },
+  },
+  list_tags: {},
+  get_tag_subscriptions: {
+    tag: { type: "string", maxLength: 200 },
+  },
+  get_usage_total: {
+    from: { type: "string", maxLength: 10 },
+    to: { type: "string", maxLength: 10 },
+  },
+  list_usage: {
+    provider: { type: "string", maxLength: 50 },
+    from: { type: "string", maxLength: 10 },
+    to: { type: "string", maxLength: 10 },
+    limit: { type: "number" },
   },
 }
