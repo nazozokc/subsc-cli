@@ -655,6 +655,47 @@ test("getSubscriptions sorts by status descending", async () => {
   expect(subs[2].status).toBe("active")
 })
 
+test("getSubscriptions filters by status", async () => {
+  const db = await import("../db.ts")
+  db.writeSubscription({ name: "A", price: 100, currency: "USD", cycle: "monthly", tags: [], status: "active" })
+  db.writeSubscription({ name: "B", price: 100, currency: "USD", cycle: "monthly", tags: [], status: "paused" })
+  db.writeSubscription({ name: "C", price: 100, currency: "USD", cycle: "monthly", tags: [], status: "cancelled" })
+
+  const paused = db.getSubscriptions({ status: "paused" })
+  expect(paused).toHaveLength(1)
+  expect(paused[0].name).toBe("B")
+
+  const cancelled = db.getSubscriptions({ status: "cancelled" })
+  expect(cancelled.map((s) => s.name)).toEqual(["C"])
+})
+
+test("getSubscriptions filters by min/max price", async () => {
+  const db = await import("../db.ts")
+  db.writeSubscription({ name: "Cheap", price: 100, currency: "USD", cycle: "monthly", tags: [] })
+  db.writeSubscription({ name: "Mid", price: 500, currency: "USD", cycle: "monthly", tags: [] })
+  db.writeSubscription({ name: "Pricy", price: 1000, currency: "USD", cycle: "monthly", tags: [] })
+
+  const min = db.getSubscriptions({ minPrice: 500 })
+  expect(min.map((s) => s.name).sort()).toEqual(["Mid", "Pricy"])
+
+  const max = db.getSubscriptions({ maxPrice: 500 })
+  expect(max.map((s) => s.name).sort()).toEqual(["Cheap", "Mid"])
+
+  const range = db.getSubscriptions({ minPrice: 200, maxPrice: 900 })
+  expect(range.map((s) => s.name)).toEqual(["Mid"])
+})
+
+test("getSubscriptions combines status and price filters with pagination", async () => {
+  const db = await import("../db.ts")
+  db.writeSubscription({ name: "A", price: 100, currency: "USD", cycle: "monthly", tags: [] })
+  db.writeSubscription({ name: "B", price: 500, currency: "USD", cycle: "monthly", tags: [] })
+  db.writeSubscription({ name: "C", price: 1000, currency: "USD", cycle: "monthly", tags: [] })
+
+  const subs = db.getSubscriptions({ status: "active", minPrice: 200, limit: 1 })
+  expect(subs).toHaveLength(1)
+  expect(subs[0].name).toBe("B")
+})
+
 // ── getSubscription ───────────────────────────────────────
 
 test("getSubscription returns a single subscription by id", async () => {

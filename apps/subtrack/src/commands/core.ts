@@ -24,6 +24,11 @@ export const listCommand = define({
     api: { type: "boolean", short: "a", description: "Include LLM API usage for current month" },
     notes: { type: "boolean", short: "n", description: "Show notes column" },
     method: { type: "boolean", short: "m", description: "Show payment method column" },
+    contract: { type: "boolean", description: "Show contract dates column" },
+    vendor: { type: "boolean", description: "Show vendor column" },
+    status: { type: "string", description: "Filter by status: active, paused, cancelled, archived" },
+    "min-price": { type: "string", description: "Filter by minimum price" },
+    "max-price": { type: "string", description: "Filter by maximum price" },
     json: { type: "boolean", short: "j", description: "Output as JSON" },
     tags: { type: "string", description: "Comma-separated tag names to filter by (AND logic)" },
     limit: { type: "string", description: "Max number of items to show" },
@@ -41,7 +46,35 @@ export const listCommand = define({
       fail("offset must be a non-negative integer")
       return
     }
-    handleList({ ...ctx.values, limit, offset, includeArchived: ctx.values["include-archived"] })
+    const status = ctx.values.status
+    if (status !== undefined && !["active", "paused", "cancelled", "archived"].includes(status)) {
+      fail("status must be one of: active, paused, cancelled, archived")
+      return
+    }
+    const minPrice = ctx.values["min-price"] !== undefined ? Number(ctx.values["min-price"]) : undefined
+    if (minPrice !== undefined && (isNaN(minPrice) || minPrice < 0)) {
+      fail("min-price must be a non-negative number")
+      return
+    }
+    const maxPrice = ctx.values["max-price"] !== undefined ? Number(ctx.values["max-price"]) : undefined
+    if (maxPrice !== undefined && (isNaN(maxPrice) || maxPrice < 0)) {
+      fail("max-price must be a non-negative number")
+      return
+    }
+    if (minPrice !== undefined && maxPrice !== undefined && minPrice > maxPrice) {
+      fail("min-price cannot be greater than max-price")
+      return
+    }
+    handleList({
+      ...ctx.values,
+      limit,
+      offset,
+      includeArchived: ctx.values["include-archived"],
+      showContract: ctx.values.contract,
+      showVendor: ctx.values.vendor,
+      minPrice,
+      maxPrice,
+    })
   },
 })
 

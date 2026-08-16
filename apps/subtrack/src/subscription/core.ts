@@ -22,7 +22,24 @@ import { formatPrice } from "../price.ts"
 import { spreadSubscription, showApiUsage } from "../display.ts"
 import { logAudit } from "../audit.ts"
 
-export async function handleList(options: { currency?: string; sort?: string; desc?: boolean; api?: boolean; notes?: boolean; method?: boolean; tags?: string; json?: boolean; limit?: number; offset?: number; includeArchived?: boolean }) {
+export async function handleList(options: {
+  currency?: string
+  sort?: string
+  desc?: boolean
+  api?: boolean
+  notes?: boolean
+  method?: boolean
+  tags?: string
+  json?: boolean
+  limit?: number
+  offset?: number
+  includeArchived?: boolean
+  showContract?: boolean
+  showVendor?: boolean
+  status?: string
+  minPrice?: number
+  maxPrice?: number
+}) {
   // Auto-scan for new suggestions (non-blocking on failure)
   if (!options.json) {
     const { autoScan } = await import("../suggest/scan.ts")
@@ -33,13 +50,22 @@ export async function handleList(options: { currency?: string; sort?: string; de
 
   const list = options.tags
     ? tagsSubscription(options.tags.split(",").map((t) => t.trim()))
-    : getSubscriptions({ sort: options.sort, desc: options.desc, limit: options.limit, offset: options.offset, includeArchived: options.includeArchived })
+    : getSubscriptions({
+        sort: options.sort,
+        desc: options.desc,
+        limit: options.limit,
+        offset: options.offset,
+        includeArchived: options.includeArchived,
+        status: options.status,
+        minPrice: options.minPrice,
+        maxPrice: options.maxPrice,
+      })
 
   if (options.json) {
     process.stdout.write(JSON.stringify(list, null, 2) + "\n")
     return
   }
-  await spreadSubscription(list, options.currency as Currency | undefined, options.notes, options.method)
+  await spreadSubscription(list, options.currency as Currency | undefined, options.notes, options.method, options.showContract, options.showVendor)
 
   if (options.api) {
     const now = new Date()

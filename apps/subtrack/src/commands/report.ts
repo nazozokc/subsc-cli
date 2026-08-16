@@ -51,6 +51,7 @@ export const upcomingCommand = define({
   description: "Show upcoming bills within a number of days",
   args: {
     days: { type: "positional", description: "Number of days (default: 7)", required: false },
+    currency: { type: "string", short: "c", description: "Convert all prices to target currency" },
     json: { type: "boolean", short: "j", description: "Output as JSON" },
   },
   run: (ctx) => {
@@ -59,14 +60,26 @@ export const upcomingCommand = define({
       fail("days must be a non-negative integer")
       return
     }
-    handleUpcoming(days, { json: ctx.values.json })
+    handleUpcoming(days, { json: ctx.values.json, currency: ctx.values.currency })
   },
 })
 
 export const analyticsCommand = define({
   name: "analytics",
   description: "Show detailed subscription analytics",
-  run: () => handleAnalytics(),
+  args: {
+    currency: { type: "string", short: "c", description: "Convert all prices to target currency" },
+    period: { type: "string", description: "Period: monthly, yearly (default: monthly)" },
+    json: { type: "boolean", short: "j", description: "Output as JSON" },
+  },
+  run: (ctx) => {
+    const period = ctx.values.period as "monthly" | "yearly" | undefined
+    if (period !== undefined && period !== "monthly" && period !== "yearly") {
+      fail("period must be one of: monthly, yearly")
+      return
+    }
+    handleAnalytics({ currency: ctx.values.currency, period, json: ctx.values.json })
+  },
 })
 
 export const compareCommand = define({
@@ -89,6 +102,7 @@ export const calendarCommand = define({
   args: {
     month: { type: "string", description: "Month (1-12, default: current)" },
     year: { type: "string", description: "Year (default: current)" },
+    currency: { type: "string", short: "c", description: "Convert all prices to target currency" },
     json: { type: "boolean", short: "j", description: "Output as JSON" },
   },
   run: (ctx) => {
@@ -102,7 +116,7 @@ export const calendarCommand = define({
       fail("year must be a positive integer")
       return
     }
-    handleCalendar({ month: rawMonth, year: rawYear, json: ctx.values.json })
+    handleCalendar({ month: rawMonth, year: rawYear, json: ctx.values.json, currency: ctx.values.currency })
   },
 })
 
@@ -117,16 +131,25 @@ export const forecastCommand = define({
     addCurrency: { type: "string", description: "Hypothetical subscription currency" },
     addCycle: { type: "string", description: "Hypothetical subscription cycle" },
     currency: { type: "string", short: "c", description: "Convert all prices to target currency" },
+    json: { type: "boolean", short: "j", description: "Output as JSON" },
   },
-  run: (ctx) => handleForecast({
-    months: ctx.values.months ? Number(ctx.values.months) : undefined,
-    cancel: ctx.values.cancel?.split(",").map((s: string) => s.trim()).filter(Boolean),
-    addName: ctx.values.addName,
-    addPrice: ctx.values.addPrice,
-    addCurrency: ctx.values.addCurrency,
-    addCycle: ctx.values.addCycle,
-    currency: ctx.values.currency,
-  }),
+  run: (ctx) => {
+    const rawMonths = ctx.values.months !== undefined ? Number(ctx.values.months) : undefined
+    if (rawMonths !== undefined && (isNaN(rawMonths) || rawMonths < 1 || !Number.isInteger(rawMonths))) {
+      fail("months must be a positive integer")
+      return
+    }
+    return handleForecast({
+      months: rawMonths,
+      cancel: ctx.values.cancel?.split(",").map((s: string) => s.trim()).filter(Boolean),
+      addName: ctx.values.addName,
+      addPrice: ctx.values.addPrice,
+      addCurrency: ctx.values.addCurrency,
+      addCycle: ctx.values.addCycle,
+      currency: ctx.values.currency,
+      json: ctx.values.json,
+    })
+  },
 })
 
 export const historyCommand = define({

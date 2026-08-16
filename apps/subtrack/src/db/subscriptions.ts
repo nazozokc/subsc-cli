@@ -48,7 +48,16 @@ export function mapTags(subs: SharedArgs[]): SharedArgs[] {
 }
 
 export const getSubscriptions = (
-  options?: { sort?: string; desc?: boolean; limit?: number; offset?: number; includeArchived?: boolean },
+  options?: {
+    sort?: string
+    desc?: boolean
+    limit?: number
+    offset?: number
+    includeArchived?: boolean
+    status?: string
+    minPrice?: number
+    maxPrice?: number
+  },
 ): SharedArgs[] => {
   const db = getDb()
   const field = options?.sort && (SORT_FIELDS as readonly string[]).includes(options.sort) ? options.sort : "id"
@@ -58,12 +67,30 @@ export const getSubscriptions = (
   if (!options?.includeArchived) {
     conditions.push("status != 'archived'")
   }
+  if (options?.status) {
+    conditions.push("status = ?")
+  }
+  if (options?.minPrice !== undefined) {
+    conditions.push("price >= ?")
+  }
+  if (options?.maxPrice !== undefined) {
+    conditions.push("price <= ?")
+  }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : ""
   let limitClause = ""
   let offsetClause = ""
   const params: SqlValue[] = []
 
+  if (options?.status) {
+    params.push(options.status)
+  }
+  if (options?.minPrice !== undefined) {
+    params.push(options.minPrice)
+  }
+  if (options?.maxPrice !== undefined) {
+    params.push(options.maxPrice)
+  }
   if (options?.limit) {
     limitClause = " LIMIT ?"
     params.push(options.limit)
