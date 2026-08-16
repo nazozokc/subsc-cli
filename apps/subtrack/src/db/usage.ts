@@ -157,6 +157,35 @@ export const deleteLlmUsage = (id: number): boolean => {
   return modified
 }
 
+/** Update fields of a usage entry. Returns false if the entry does not exist. */
+export const updateLlmUsage = (id: number, fields: Partial<AddLlmUsageArgs>): boolean => {
+  const db = getDb()
+  const allowed: (keyof AddLlmUsageArgs)[] = [
+    "provider",
+    "model",
+    "input_tokens",
+    "output_tokens",
+    "cost",
+    "date",
+    "description",
+  ]
+  const sets: string[] = []
+  const params: SqlValue[] = []
+  for (const key of allowed) {
+    if (fields[key] !== undefined) {
+      sets.push(`${key} = ?`)
+      params.push(fields[key] as SqlValue)
+    }
+  }
+  if (sets.length === 0) return false
+
+  params.push(id)
+  db.run(`UPDATE llm_usage SET ${sets.join(", ")} WHERE id = ?`, params)
+  const modified = db.getRowsModified() > 0
+  if (modified) saveDb()
+  return modified
+}
+
 /** Sum `cost` for all entries whose `date` falls within [from, to]. Returns USD cents. */
 export const getLlmUsageTotal = (from: string, to: string): number => {
   const db = getDb()
@@ -166,6 +195,22 @@ export const getLlmUsageTotal = (from: string, to: string): number => {
     [from, to],
   )
   return row?.total ?? 0
+}
+
+/** Sum input/output tokens for all entries within [from, to]. */
+export const getLlmUsageTokenTotal = (
+  from: string,
+  to: string,
+): { inputTokens: number; outputTokens: number } => {
+  const db = getDb()
+  const row = execObj<{ inputTokens: number; outputTokens: number }>(
+    db,
+    `SELECT COALESCE(SUM(input_tokens), 0) AS inputTokens,
+            COALESCE(SUM(output_tokens), 0) AS outputTokens
+     FROM llm_usage WHERE date >= ? AND date <= ?`,
+    [from, to],
+  )
+  return { inputTokens: row?.inputTokens ?? 0, outputTokens: row?.outputTokens ?? 0 }
 }
 
 /** Get the sum of `cost` grouped by provider for a date range. */
@@ -180,6 +225,24 @@ export const getLlmUsageTotalByProvider = (
      FROM llm_usage
      WHERE date >= ? AND date <= ?
      GROUP BY provider
+     ORDER BY total DESC`,
+    [from, to],
+  )
+}
+
+/** Get cost + token totals grouped by model for a date range. */
+export const getLlmUsageTotalByModel = (
+  from: string,
+  to: string,
+): { model: string; provider: string; total: number; inputTokens: number; outputTokens: number }[] => {
+  const db = getDb()
+  return execObjs<{ model: string; provider: string; total: number; inputTokens: number; outputTokens: number }>(
+    db,
+    `SELECT model, MAX(provider) AS provider, SUM(cost) AS total,
+            SUM(input_tokens) AS inputTokens, SUM(output_tokens) AS outputTokens
+     FROM llm_usage
+     WHERE date >= ? AND date <= ?
+     GROUP BY model
      ORDER BY total DESC`,
     [from, to],
   )

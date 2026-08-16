@@ -12,7 +12,8 @@ export {
 } from "./db/tags.ts"
 export {
   addLlmUsage, addLlmUsageFromLog, batchAddLlmUsageFromLog,
-  getLlmUsage, deleteLlmUsage, getLlmUsageTotal, getLlmUsageTotalByProvider,
+  getLlmUsage, deleteLlmUsage, updateLlmUsage,
+  getLlmUsageTotal, getLlmUsageTokenTotal, getLlmUsageTotalByProvider, getLlmUsageTotalByModel,
 } from "./db/usage.ts"
 export {
   writeTrial, getTrials, getTrial, deleteTrial, getTrialsExpiringSoon,

@@ -17,7 +17,7 @@ export const showPayment = async (
   includeApi?: boolean,
   byMethod?: boolean,
 ): Promise<void> => {
-  const list = subs ?? getSubscriptions()
+  const list = subs ?? getSubscriptions().filter((s) => s.status !== "cancelled")
 
   if (list.length === 0) {
     consola.info("No subscriptions found")
@@ -113,23 +113,22 @@ export const showPayment = async (
     consola.log(`${ccy} ${formatPrice(rounded, ccy)}/${fmtPeriod}`)
   }
 
-  // Group by payment method
+  // Group by payment method (per-currency to avoid mixing currencies)
   if (byMethod) {
-    const methodGroups: Record<string, number> = {}
-    const methodCurrencies: Record<string, Set<string>> = {}
+    const methodGroups: Record<string, Record<string, number>> = {}
     for (const entry of entries) {
       const method = entry.paymentMethod || "unspecified"
-      methodGroups[method] = (methodGroups[method] ?? 0) + entry.convertedPrice
-      if (!methodCurrencies[method]) methodCurrencies[method] = new Set()
-      methodCurrencies[method].add(entry.currency)
+      if (!methodGroups[method]) methodGroups[method] = {}
+      methodGroups[method][entry.currency] = (methodGroups[method][entry.currency] ?? 0) + entry.convertedPrice
     }
     consola.log("")
     consola.log(pc.bold("By payment method:"))
-    for (const [method, total] of Object.entries(methodGroups).sort()) {
-      const rounded = Math.round(total)
-      const ccies = [...(methodCurrencies[method] ?? new Set())]
-      const ccy = ccies.length === 1 ? ccies[0] : "USD"
-      consola.log(`  ${method.padEnd(16)} ${formatPrice(rounded, ccy)}/${fmtPeriod}`)
+    for (const [method, totals] of Object.entries(methodGroups).sort()) {
+      const priceStr = Object.entries(totals)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([ccy, total]) => formatPrice(Math.round(total), ccy))
+        .join(" + ")
+      consola.log(`  ${method.padEnd(16)} ${priceStr}/${fmtPeriod}`)
     }
   }
 
@@ -266,7 +265,7 @@ export function calcSummary(subs: SharedArgs[]): SummaryData {
 }
 
 export function showSummary(subs?: SharedArgs[]): void {
-  const list = subs ?? getSubscriptions()
+  const list = subs ?? getSubscriptions().filter((s) => s.status !== "cancelled")
 
   if (list.length === 0) {
     consola.info("No subscriptions found")
@@ -323,7 +322,7 @@ export async function handlePayment(
   }
 
   if (options.json) {
-    const subs = getSubscriptions()
+    const subs = getSubscriptions().filter((s) => s.status !== "cancelled")
     if (subs.length === 0) {
       process.stdout.write(JSON.stringify({ period, total: 0, subscriptions: [] }, null, 2) + "\n")
       return
@@ -346,10 +345,10 @@ export async function handlePayment(
 
     let targetCurrency = options.currency as Currency | undefined
     let finalCurrency: string | undefined
+    let rates: FxRates | null = null
     let subTotal = 0
 
     if (targetCurrency) {
-      let rates: FxRates | null = null
       try { rates = await fetchFxRates() } catch { consola.fail("Failed to fetch exchange rates; reporting in original currencies") }
       if (rates) {
         for (const entry of entries) {
@@ -366,13 +365,22 @@ export async function handlePayment(
       subTotal = Object.values(byCurrency).reduce((a, b) => a + b, 0)
     }
 
-    const byMethod: Record<string, { total: number; currencies: string[] }> = {}
+    const byMethod: Record<string, { total: number; currencies: string[]; byCurrency: Record<string, number> }> = {}
     if (options.method) {
       for (const entry of entries) {
         const method = entry.paymentMethod || "unspecified"
-        if (!byMethod[method]) byMethod[method] = { total: 0, currencies: [] }
-        byMethod[method].total += entry.convertedPrice
-        if (!byMethod[method].currencies.includes(entry.currency)) { byMethod[method].currencies.push(entry.currency) }
+        if (!byMethod[method]) byMethod[method] = { total: 0, currencies: [], byCurrency: {} }
+        // Sum in the same currency space as the total: converted when a target
+        // currency is available, otherwise per original currency.
+        const currency = finalCurrency ?? entry.currency
+        let amount = entry.convertedPrice
+        if (finalCurrency && rates) {
+          try { amount = convertPrice(entry.convertedPrice, entry.currency, finalCurrency, rates.rates) }
+          catch { /* keep original amount */ }
+        }
+        byMethod[method].total += amount
+        if (!byMethod[method].currencies.includes(currency)) { byMethod[method].currencies.push(currency) }
+        byMethod[method].byCurrency[currency] = (byMethod[method].byCurrency[currency] ?? 0) + amount
       }
     }
 
@@ -403,7 +411,7 @@ export async function handleSummary(options: JsonOptions = {}) {
   }
 
   if (options.json) {
-    const subs = getSubscriptions()
+    const subs = getSubscriptions().filter((s) => s.status !== "cancelled")
     const data = calcSummary(subs)
     process.stdout.write(JSON.stringify(data, null, 2) + "\n")
     return

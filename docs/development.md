@@ -131,9 +131,10 @@ subtrack/
 │       │   ├── price.ts           # Price formatting helpers
 │       │   ├── usage.ts           # LLM API usage list & delete
 │       │   ├── usage-add.ts       # LLM usage add (interactive & flags)
+│       │   ├── usage-edit.ts      # LLM usage field updates (flags)
 │       │   ├── usage-import.ts    # LLM usage import from JSONL/JSON logs
 │       │   ├── usage-refresh.ts   # Auto-scanner for AI tool usage data
-│       │   ├── usage-total.ts     # Aggregated usage cost summary
+│       │   ├── usage-total.ts     # Aggregated usage cost/token summary
 │       │   ├── scanner.ts         # Scanner framework for AI tool log parsing
 │       │   ├── scanner-types.ts   # Scanner type definitions
 │       │   ├── claude-scanner.ts  # Claude Code log scanner

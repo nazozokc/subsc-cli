@@ -10,15 +10,17 @@ export { handleUsageAdd } from "./usage-add.ts"
 export { handleUsageImport } from "./usage-import.ts"
 export { handleUsageRefresh } from "./usage-refresh.ts"
 export { handleUsageTotal } from "./usage-total.ts"
+export { handleUsageEdit } from "./usage-edit.ts"
 
 export async function handleUsageList(
-  options: { provider?: string; from?: string; to?: string; json?: boolean },
+  options: { provider?: string; from?: string; to?: string; json?: boolean; limit?: number; offset?: number },
 ) {
   const entries = getLlmUsage({
     provider: options.provider,
     from: options.from,
     to: options.to,
-    limit: 100,
+    limit: options.limit ?? 100,
+    offset: options.offset,
     minCost: 0,
   })
 

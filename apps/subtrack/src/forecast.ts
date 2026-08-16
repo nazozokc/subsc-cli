@@ -39,6 +39,7 @@ export async function handleForecast(
 ): Promise<void> {
   // Interactive mode when no options given
   const interactive =
+    !options.json &&
     options.months === undefined &&
     !options.cancel &&
     !options.addName

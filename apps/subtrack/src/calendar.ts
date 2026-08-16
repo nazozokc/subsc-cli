@@ -34,6 +34,61 @@ function clampDay(day: number, year: number, month: number): number {
   return Math.min(day, daysInMonth(year, month))
 }
 
+function toDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split("-").map(Number)
+  return new Date(y, m - 1, d)
+}
+
+/**
+ * Billing days of a subscription within a given month (1-31).
+ * - monthly: every month on the billing day
+ * - yearly: only the anchor month
+ * - quarterly/semi-annual: every 3/6 months from the anchor month
+ * - weekly/bi-weekly: every 7/14 days from the anchor date
+ * The billing day falls back to the created_at day when unset.
+ */
+export function billingDaysInMonth(sub: SharedArgs, year: number, month: number): number[] {
+  const anchorDate = toDate(sub.createdAt)
+  const anchorMonth = anchorDate.getMonth()
+  const day = sub.billingDay ?? anchorDate.getDate()
+  const clampedDay = clampDay(day, year, month)
+
+  switch (sub.cycle) {
+    case "monthly":
+      return [clampedDay]
+    case "yearly":
+      return anchorMonth === month - 1 ? [clampedDay] : []
+    case "quarterly": {
+      const diff = ((month - 1 - anchorMonth) % 12 + 12) % 12
+      return diff % 3 === 0 ? [clampedDay] : []
+    }
+    case "semi-annual": {
+      const diff = ((month - 1 - anchorMonth) % 12 + 12) % 12
+      return diff % 6 === 0 ? [clampedDay] : []
+    }
+    case "weekly":
+    case "bi-weekly": {
+      const periodDays = sub.cycle === "weekly" ? 7 : 14
+      const msPerPeriod = periodDays * 24 * 60 * 60 * 1000
+      const anchor = new Date(
+        anchorDate.getFullYear(),
+        anchorMonth,
+        Math.min(day, daysInMonth(anchorDate.getFullYear(), anchorMonth + 1)),
+      )
+      const start = new Date(year, month - 1, 1).getTime()
+      const end = new Date(year, month - 1, daysInMonth(year, month)).getTime()
+      const days: number[] = []
+      const kStart = Math.max(0, Math.floor((start - anchor.getTime()) / msPerPeriod))
+      for (let k = kStart; ; k++) {
+        const t = anchor.getTime() + k * msPerPeriod
+        if (t > end) break
+        if (t >= start) days.push(new Date(t).getDate())
+      }
+      return days
+    }
+  }
+}
+
 /**
  * Calculate billing events for a given month.
  * @param month - Month number (1-12)
@@ -42,22 +97,23 @@ function clampDay(day: number, year: number, month: number): number {
  */
 export function calcCalendarEntries(month: number, year: number): CalendarEntry[] {
   const subs = getSubscriptions()
-  const active = subs.filter((s) => s.status !== "cancelled" && s.billingDay != null)
+  const active = subs.filter((s) => s.status !== "cancelled")
 
   const dayMap = new Map<number, CalendarEntry["subs"]>()
 
   for (const sub of active) {
-    const day = clampDay(sub.billingDay!, year, month)
-    if (!dayMap.has(day)) {
-      dayMap.set(day, [])
+    for (const day of billingDaysInMonth(sub, year, month)) {
+      if (!dayMap.has(day)) {
+        dayMap.set(day, [])
+      }
+      dayMap.get(day)!.push({
+        name: sub.name,
+        price: sub.price,
+        currency: sub.currency,
+        status: sub.status,
+        id: sub.id,
+      })
     }
-    dayMap.get(day)!.push({
-      name: sub.name,
-      price: sub.price,
-      currency: sub.currency,
-      status: sub.status,
-      id: sub.id,
-    })
   }
 
   const entries: CalendarEntry[] = []

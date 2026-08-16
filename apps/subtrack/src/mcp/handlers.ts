@@ -16,6 +16,13 @@ import {
   getAllPriceChanges,
   getTrials,
   getTrialsExpiringSoon,
+  getTagsWithCount,
+  tagsSubscription,
+  getLlmUsage,
+  getLlmUsageTotal,
+  getLlmUsageTokenTotal,
+  getLlmUsageTotalByProvider,
+  getLlmUsageTotalByModel,
 } from "../db.ts"
 import { calcSummary, calcSubTotal, calcPreviousTotals } from "../payment.ts"
 import { getPeriodDateRange, getPreviousPeriodDateRange, periodFactor } from "../date-utils.ts"
@@ -24,11 +31,14 @@ import { exportCsv, exportJson, exportMd } from "../export.ts"
 import { fetchFxRates, convertPrice } from "../fx.ts"
 import { searchSubscriptions } from "../search.ts"
 import { calcUpcoming } from "../upcoming.ts"
+import { isValidCycle, isValidStatus, isValidCurrency } from "../prompts.ts"
 
 export async function handleListSubscriptions(args?: Record<string, unknown>): Promise<McpResponse> {
   const subs = getSubscriptions({
     sort: args?.sort as string | undefined,
     desc: args?.desc as boolean | undefined,
+    limit: args?.limit as number | undefined,
+    offset: args?.offset as number | undefined,
   })
   return { content: [{ type: "text", text: JSON.stringify(subs) }] }
 }
@@ -57,16 +67,28 @@ export async function handleAddSubscription(args?: Record<string, unknown>): Pro
   if (!args?.name || args?.price === undefined || !args?.currency || !args?.cycle) {
     return { content: [{ type: "text", text: "name, price, currency, and cycle are required" }], isError: true }
   }
+  const currency = String(args.currency)
+  if (!isValidCurrency(currency)) {
+    return { content: [{ type: "text", text: `Invalid currency "${currency}". Use a supported 3-letter ISO code (e.g. USD, JPY)` }], isError: true }
+  }
+  const cycle = String(args.cycle)
+  if (!isValidCycle(cycle)) {
+    return { content: [{ type: "text", text: `Invalid cycle "${cycle}". Use: weekly, bi-weekly, monthly, quarterly, semi-annual, yearly` }], isError: true }
+  }
+  const status = (args.status as Status | undefined) ?? "active"
+  if (!isValidStatus(status)) {
+    return { content: [{ type: "text", text: `Invalid status "${status}". Use: active, paused, cancelled, archived` }], isError: true }
+  }
   const tags = args.tags
     ? String(args.tags).split(",").map((t: string) => t.trim()).filter(Boolean)
     : []
   const addArgs: AddSharedArgs = {
     name: String(args.name),
     price: Number(args.price),
-    currency: String(args.currency),
-    cycle: String(args.cycle) as Cycle,
+    currency,
+    cycle: cycle as Cycle,
     tags,
-    status: (args.status as Status | undefined) ?? "active",
+    status,
     billingDay: args.billingDay !== undefined ? Number(args.billingDay) : null,
     paymentMethod: args.paymentMethod as string | undefined,
     notes: args.notes as string | undefined,
@@ -84,7 +106,7 @@ export async function handleDeleteSubscription(args?: Record<string, unknown>): 
 }
 
 export async function handleGetSummary(_args?: Record<string, unknown>): Promise<McpResponse> {
-  const subs = getSubscriptions()
+  const subs = getSubscriptions().filter((s) => s.status !== "cancelled")
   const summary = calcSummary(subs)
   return { content: [{ type: "text", text: JSON.stringify(summary) }] }
 }
@@ -130,6 +152,15 @@ export async function handleEditSubscription(args?: Record<string, unknown>): Pr
   if (args?.id === undefined) {
     return { content: [{ type: "text", text: "id is required" }], isError: true }
   }
+  if (args.currency !== undefined && !isValidCurrency(String(args.currency))) {
+    return { content: [{ type: "text", text: `Invalid currency "${String(args.currency)}". Use a supported 3-letter ISO code (e.g. USD, JPY)` }], isError: true }
+  }
+  if (args.cycle !== undefined && !isValidCycle(String(args.cycle))) {
+    return { content: [{ type: "text", text: `Invalid cycle "${String(args.cycle)}". Use: weekly, bi-weekly, monthly, quarterly, semi-annual, yearly` }], isError: true }
+  }
+  if (args.status !== undefined && !isValidStatus(String(args.status))) {
+    return { content: [{ type: "text", text: `Invalid status "${String(args.status)}". Use: active, paused, cancelled, archived` }], isError: true }
+  }
   const editFields: Partial<AddSharedArgs> = {}
   if (args.name !== undefined) editFields.name = String(args.name)
   if (args.price !== undefined) editFields.price = Number(args.price)
@@ -159,9 +190,24 @@ export async function handleGetHistory(args?: Record<string, unknown>): Promise<
 }
 
 export async function handleGetAnalytics(_args?: Record<string, unknown>): Promise<McpResponse> {
-  const subs = getSubscriptions()
-  const summary = calcSummary(subs)
-  return { content: [{ type: "text", text: JSON.stringify(summary) }] }
+  const all = getSubscriptions({ includeArchived: true })
+  const active = all.filter((s) => s.status !== "cancelled" && s.status !== "archived")
+  const summary = calcSummary(active)
+  const statusBreakdown = {
+    active: all.filter((s) => s.status === "active").length,
+    paused: all.filter((s) => s.status === "paused").length,
+    cancelled: all.filter((s) => s.status === "cancelled").length,
+    archived: all.filter((s) => s.status === "archived").length,
+  }
+  return {
+    content: [{
+      type: "text",
+      text: JSON.stringify({
+        ...summary,
+        statusBreakdown,
+      }),
+    }],
+  }
 }
 
 export async function handleGetForecast(args?: Record<string, unknown>): Promise<McpResponse> {
@@ -297,18 +343,26 @@ export async function handleBulkOperations(args?: Record<string, unknown>): Prom
 
   const affectedIds = affected.map((s) => s.id)
   let resultCount = 0
+  const errors: string[] = []
+
+  const reportError = (id: number, error: unknown) => {
+    errors.push(`id ${id}: ${error instanceof Error ? error.message : String(error)}`)
+  }
 
   switch (action) {
     case "status": {
       const targetStatus = String(args?.status ?? "active")
+      if (!isValidStatus(targetStatus)) {
+        return { content: [{ type: "text", text: `Invalid status "${targetStatus}". Use: active, paused, cancelled, archived` }], isError: true }
+      }
       for (const id of affectedIds) {
-        try { updateSubscription(id, { status: targetStatus as Status }); resultCount++ } catch { /* skip */ }
+        try { updateSubscription(id, { status: targetStatus as Status }); resultCount++ } catch (error) { reportError(id, error) }
       }
       break
     }
     case "delete": {
       for (const id of affectedIds) {
-        try { deleteSubscription(id); resultCount++ } catch { /* skip */ }
+        try { deleteSubscription(id); resultCount++ } catch (error) { reportError(id, error) }
       }
       break
     }
@@ -320,7 +374,7 @@ export async function handleBulkOperations(args?: Record<string, unknown>): Prom
       for (const s of affected) {
         const currentTags = s.tags ?? []
         if (!currentTags.includes(tagName)) {
-          try { updateSubscription(s.id, { tags: [...currentTags, tagName] }); resultCount++ } catch { /* skip */ }
+          try { updateSubscription(s.id, { tags: [...currentTags, tagName] }); resultCount++ } catch (error) { reportError(s.id, error) }
         }
       }
       break
@@ -333,7 +387,7 @@ export async function handleBulkOperations(args?: Record<string, unknown>): Prom
       for (const s of affected) {
         const currentTags = s.tags ?? []
         if (currentTags.includes(tagName)) {
-          try { updateSubscription(s.id, { tags: currentTags.filter((t) => t !== tagName) }); resultCount++ } catch { /* skip */ }
+          try { updateSubscription(s.id, { tags: currentTags.filter((t) => t !== tagName) }); resultCount++ } catch (error) { reportError(s.id, error) }
         }
       }
       break
@@ -345,7 +399,14 @@ export async function handleBulkOperations(args?: Record<string, unknown>): Prom
   return {
     content: [{
       type: "text",
-      text: JSON.stringify({ action, filters, matchedCount: affected.length, affectedCount: resultCount, affectedIds }),
+      text: JSON.stringify({
+        action,
+        filters,
+        matchedCount: affected.length,
+        affectedCount: resultCount,
+        affectedIds,
+        errors,
+      }),
     }],
   }
 }
@@ -358,6 +419,57 @@ export async function handleGetTrials(args?: Record<string, unknown>): Promise<M
   } else {
     entries = getTrials()
   }
+  return { content: [{ type: "text", text: JSON.stringify(entries) }] }
+}
+
+export async function handleListTags(_args?: Record<string, unknown>): Promise<McpResponse> {
+  const tags = getTagsWithCount()
+  return { content: [{ type: "text", text: JSON.stringify(tags) }] }
+}
+
+export async function handleGetTagSubscriptions(args?: Record<string, unknown>): Promise<McpResponse> {
+  if (!args?.tag) {
+    return { content: [{ type: "text", text: "tag is required" }], isError: true }
+  }
+  const names = String(args.tag).split(",").map((t: string) => t.trim()).filter(Boolean)
+  if (names.length === 0) {
+    return { content: [{ type: "text", text: "tag is required" }], isError: true }
+  }
+  const subs = tagsSubscription(names)
+  return { content: [{ type: "text", text: JSON.stringify(subs) }] }
+}
+
+export async function handleGetUsageTotal(args?: Record<string, unknown>): Promise<McpResponse> {
+  let from: string
+  let to: string
+  if (args?.from && args?.to) {
+    from = String(args.from)
+    to = String(args.to)
+  } else {
+    const range = getPeriodDateRange("monthly")
+    from = range.from
+    to = range.to
+  }
+  const total = getLlmUsageTotal(from, to)
+  const tokens = getLlmUsageTokenTotal(from, to)
+  const byProvider = getLlmUsageTotalByProvider(from, to)
+  const byModel = getLlmUsageTotalByModel(from, to)
+  return {
+    content: [{
+      type: "text",
+      text: JSON.stringify({ from, to, total, tokens, byProvider, byModel }),
+    }],
+  }
+}
+
+export async function handleListUsage(args?: Record<string, unknown>): Promise<McpResponse> {
+  const entries = getLlmUsage({
+    provider: args?.provider as string | undefined,
+    from: args?.from as string | undefined,
+    to: args?.to as string | undefined,
+    limit: (args?.limit as number | undefined) ?? 100,
+    minCost: 0,
+  })
   return { content: [{ type: "text", text: JSON.stringify(entries) }] }
 }
 
@@ -379,4 +491,8 @@ export const HANDLER_MAP: Record<string, (args?: Record<string, unknown>) => Pro
   compare: handleCompare,
   bulk_operations: handleBulkOperations,
   get_trials: handleGetTrials,
+  list_tags: handleListTags,
+  get_tag_subscriptions: handleGetTagSubscriptions,
+  get_usage_total: handleGetUsageTotal,
+  list_usage: handleListUsage,
 }

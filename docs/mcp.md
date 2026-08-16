@@ -46,13 +46,13 @@ In Windsurf settings, add an MCP server pointing to the same command.
 
 ## Available tools
 
-The MCP server exposes 16 tools covering all subscription management operations.
+The MCP server exposes 20 tools covering subscription management, analytics, tagging, and LLM API usage tracking.
 
 ### Subscription CRUD
 
 | Tool | Description |
 |------|-------------|
-| `list_subscriptions` | List all subscriptions with optional sort |
+| `list_subscriptions` | List all subscriptions with optional sort and paging |
 | `get_subscription` | Get a single subscription by ID |
 | `add_subscription` | Add a new subscription |
 | `edit_subscription` | Edit an existing subscription |
@@ -64,12 +64,26 @@ The MCP server exposes 16 tools covering all subscription management operations.
 | Tool | Description |
 |------|-------------|
 | `get_summary` | Subscription summary statistics |
-| `get_analytics` | Detailed analytics with budget tracking |
+| `get_analytics` | Analytics: summary plus per-status breakdown |
 | `get_upcoming` | Upcoming bills within N days |
 | `get_calendar` | Calendar entries for a month |
 | `get_forecast` | Spending forecast with what-if scenarios |
 | `compare` | Compare current vs previous period spending |
 | `get_history` | Price change history |
+
+### Tags
+
+| Tool | Description |
+|------|-------------|
+| `list_tags` | List all tags with subscription counts |
+| `get_tag_subscriptions` | Subscriptions matching one or more tags (AND logic) |
+
+### LLM API Usage
+
+| Tool | Description |
+|------|-------------|
+| `get_usage_total` | Aggregated usage: cost, tokens, provider/model breakdown |
+| `list_usage` | List usage entries with provider/date filters |
 
 ### Data Management
 
@@ -86,6 +100,8 @@ Each tool accepts a JSON object with the following parameters:
 **`list_subscriptions`**
 - `sort` (string, optional): Sort field — `name`, `price`, `currency`, `cycle`, `status`
 - `desc` (boolean, optional): Sort descending
+- `limit` (number, optional): Max entries to return
+- `offset` (number, optional): Skip the first N entries (for paging)
 
 **`get_subscription`**
 - `id` (number, required): Subscription ID
@@ -147,6 +163,27 @@ Each tool accepts a JSON object with the following parameters:
 
 **`get_trials`**
 - `expiring_soon` (number, optional): Filter trials expiring within N days
+
+**`list_tags`**
+- No parameters
+
+**`get_tag_subscriptions`**
+- `tag` (string, required): Comma-separated tag names (all must match)
+
+**`get_usage_total`**
+- `from` (string, optional): Start date `YYYY-MM-DD` (default: current month)
+- `to` (string, optional): End date `YYYY-MM-DD` (default: current month)
+- Returns `total` (cost in USD cents), `tokens`, `byProvider`, and `byModel`
+
+**`list_usage`**
+- `provider` (string, optional): Filter by provider
+- `from` (string, optional): Start date `YYYY-MM-DD`
+- `to` (string, optional): End date `YYYY-MM-DD`
+- `limit` (number, optional): Max entries (default: 100)
+
+## Validation
+
+`add_subscription` and `edit_subscription` validate `currency` (supported ISO 4217 codes), `cycle` (`weekly`, `bi-weekly`, `monthly`, `quarterly`, `semi-annual`, `yearly`), and `status` (`active`, `paused`, `cancelled`, `archived`). Invalid values are rejected with an error. `bulk_operations` validates the target status the same way and reports per-entry errors instead of silently skipping them.
 
 ## Example usage
 

@@ -140,6 +140,21 @@ test("handlePayment json sums monthly totals per subscription", async () => {
   expect(netflix?.periodPrice).toBe(1500)
 })
 
+test("handlePayment json excludes cancelled subscriptions", async () => {
+  const d = await db()
+  d.writeSubscription({ name: "Active", price: 1000, currency: "JPY", cycle: "monthly", tags: [] })
+  d.writeSubscription({ name: "Gone", price: 9999, currency: "JPY", cycle: "monthly", tags: [], status: "cancelled" })
+
+  const { handlePayment } = await import("../payment.ts")
+  const out = await captureJson(() => handlePayment("monthly", { json: true })) as {
+    total: number
+    subscriptions: { name: string }[]
+  }
+
+  expect(out.total).toBe(1000)
+  expect(out.subscriptions.map((s) => s.name)).toEqual(["Active"])
+})
+
 test("handlePayment json converts to target currency", async () => {
   const d = await db()
   d.writeSubscription({ name: "Netflix", price: 1600, currency: "JPY", cycle: "monthly", tags: [] })
@@ -163,11 +178,45 @@ test("handlePayment json groups by payment method", async () => {
 
   const { handlePayment } = await import("../payment.ts")
   const out = await captureJson(() => handlePayment("monthly", { json: true, method: true })) as {
-    byMethod: Record<string, { total: number; currencies: string[] }>
+    byMethod: Record<string, { total: number; currencies: string[]; byCurrency: Record<string, number> }>
   }
 
   expect(out.byMethod.credit_card.total).toBe(3000)
+  expect(out.byMethod.credit_card.byCurrency).toEqual({ JPY: 3000 })
   expect(out.byMethod.unspecified.total).toBe(500)
+})
+
+test("handlePayment json byMethod keeps currencies separate when mixed", async () => {
+  const d = await db()
+  d.writeSubscription({ name: "A", price: 1000, currency: "JPY", cycle: "monthly", tags: [], paymentMethod: "card" })
+  d.writeSubscription({ name: "B", price: 100, currency: "USD", cycle: "monthly", tags: [], paymentMethod: "card" })
+
+  const { handlePayment } = await import("../payment.ts")
+  const out = await captureJson(() => handlePayment("monthly", { json: true, method: true })) as {
+    byMethod: Record<string, { total: number; currencies: string[]; byCurrency: Record<string, number> }>
+  }
+
+  expect(out.byMethod.card.total).toBe(1000 + 100) // raw sum, documented as such
+  expect(out.byMethod.card.currencies.sort()).toEqual(["JPY", "USD"])
+  expect(out.byMethod.card.byCurrency).toEqual({ JPY: 1000, USD: 100 })
+})
+
+test("handlePayment json byMethod converts when target currency is set", async () => {
+  const d = await db()
+  d.writeSubscription({ name: "A", price: 1600, currency: "JPY", cycle: "monthly", tags: [], paymentMethod: "card" })
+  d.writeSubscription({ name: "B", price: 100, currency: "USD", cycle: "monthly", tags: [], paymentMethod: "card" })
+
+  const { handlePayment } = await import("../payment.ts")
+  const out = await captureJson(() => handlePayment("monthly", { json: true, method: true, currency: "USD" })) as {
+    total: number
+    currency: string
+    byMethod: Record<string, { total: number; currencies: string[]; byCurrency: Record<string, number> }>
+  }
+
+  expect(out.currency).toBe("USD")
+  expect(out.total).toBe(10 + 100)
+  expect(out.byMethod.card.total).toBe(10 + 100)
+  expect(out.byMethod.card.byCurrency).toEqual({ USD: 110 })
 })
 
 test("handlePayment json includes API usage when requested", async () => {
@@ -209,6 +258,21 @@ test("handleSummary json returns summary data", async () => {
   expect(out.monthlyByTag.video.monthly.JPY).toBe(1500 + 980)
   // mostExpensive compares raw price (not monthly-adjusted): iCloud yearly = 12000
   expect(out.mostExpensive?.name).toBe("iCloud")
+})
+
+test("handleSummary json excludes cancelled subscriptions", async () => {
+  const d = await db()
+  d.writeSubscription({ name: "Active", price: 1000, currency: "JPY", cycle: "monthly", tags: [] })
+  d.writeSubscription({ name: "Gone", price: 9999, currency: "JPY", cycle: "monthly", tags: [], status: "cancelled" })
+
+  const { handleSummary } = await import("../payment.ts")
+  const out = await captureJson(() => handleSummary({ json: true })) as {
+    totalCount: number
+    monthlyByCurrency: Record<string, number>
+  }
+
+  expect(out.totalCount).toBe(1)
+  expect(out.monthlyByCurrency).toEqual({ JPY: 1000 })
 })
 
 // ── calcSubTotal ──────────────────────────────────────

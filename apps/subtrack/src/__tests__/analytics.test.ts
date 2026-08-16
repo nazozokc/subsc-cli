@@ -142,3 +142,59 @@ test("showAnalytics includes budget info when configured", async () => {
   // Reset budget
   setConfig("monthlyBudget", "0")
 })
+
+test("showAnalytics converts spending to target currency", async () => {
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ base: "USD", rates: { JPY: 160, USD: 1 } }))
+
+  const db = await import("../db.ts")
+  db.writeSubscription({ name: "Netflix", price: 1600, currency: "JPY", cycle: "monthly", tags: [] })
+
+  const { showAnalytics } = await import("../analytics.ts")
+  await showAnalytics({ currency: "USD" })
+
+  const output = logMessages.join("\n")
+  expect(output).toContain("USD    $10")
+
+  globalThis.fetch = originalFetch
+})
+
+test("showAnalytics yearly period shows annual figures", async () => {
+  const db = await import("../db.ts")
+  db.writeSubscription({ name: "Netflix", price: 1000, currency: "JPY", cycle: "monthly", tags: [] })
+
+  const { showAnalytics } = await import("../analytics.ts")
+  await showAnalytics({ period: "yearly" })
+
+  const output = logMessages.join("\n")
+  expect(output).toContain("Yearly spending:")
+  expect(output).toContain("¥12,000")
+})
+
+test("showAnalytics compares budget across currencies with --currency", async () => {
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ base: "USD", rates: { JPY: 160, USD: 1 } }))
+
+  const { resetConfig } = await import("../config.ts")
+  resetConfig()
+  const { setConfig } = await import("../config.ts")
+  setConfig("monthlyBudget", "200")
+  setConfig("defaultCurrency", "USD")
+
+  const db = await import("../db.ts")
+  // ¥16,000 = $100
+  db.writeSubscription({ name: "JP", price: 16000, currency: "JPY", cycle: "monthly", tags: [] })
+
+  const { showAnalytics } = await import("../analytics.ts")
+  await showAnalytics({ currency: "JPY" })
+
+  const output = logMessages.join("\n")
+  expect(output).toContain("Remaining:")
+  // budget $200 - spending $100 => remaining $100
+  expect(output).toContain("$100")
+
+  setConfig("monthlyBudget", "0")
+  globalThis.fetch = originalFetch
+})
