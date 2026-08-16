@@ -21,6 +21,7 @@ import {
   validatePrice,
   validateTags,
   validateBillingDay,
+  validateNotes,
   validatePaymentMethod,
   validateVendorName,
   validateVendorUrl,
@@ -70,7 +71,14 @@ export async function handleEdit(
   if (hasFlags) {
     // Non-interactive: update only flagged fields
     const newData: Partial<AddSharedArgs> = {}
-    if (flags.name !== undefined) newData.name = flags.name
+    if (flags.name !== undefined) {
+      const err = validateName(flags.name)
+      if (err !== true) {
+        fail(`Invalid name: ${err}`)
+        return
+      }
+      newData.name = flags.name
+    }
     if (flags.price !== undefined) {
       const err = validatePrice(flags.price)
       if (err !== true) {
@@ -102,17 +110,37 @@ export async function handleEdit(
     }
     if (flags.billingDay !== undefined) {
       const trimmed = flags.billingDay.trim()
+      const err = validateBillingDay(trimmed)
+      if (err !== true) {
+        fail(`Invalid billing day: ${err}`)
+        return
+      }
       newData.billingDay = trimmed ? Number(trimmed) : null
     }
     if (flags.tags !== undefined) {
+      const err = validateTags(flags.tags)
+      if (err !== true) {
+        fail(`Invalid tags: ${err}`)
+        return
+      }
       newData.tags = flags.tags.split(",").map((t) => t.trim()).filter(Boolean)
     }
     if (flags.notes !== undefined) {
       const trimmed = flags.notes.trim()
+      const err = validateNotes(trimmed)
+      if (err !== true) {
+        fail(`Invalid notes: ${err}`)
+        return
+      }
       newData.notes = trimmed || null
     }
     if (flags.paymentMethod !== undefined) {
       const trimmed = flags.paymentMethod.trim()
+      const err = validatePaymentMethod(trimmed)
+      if (err !== true) {
+        fail(`Invalid payment method: ${err}`)
+        return
+      }
       newData.paymentMethod = trimmed || null
     }
     if (flags.vendorName !== undefined) {

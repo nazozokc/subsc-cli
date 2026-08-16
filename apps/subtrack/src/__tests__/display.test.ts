@@ -493,6 +493,23 @@ test("showPayment --currency falls back when fetch fails", async () => {
   expect(combined).toContain("$10")
 })
 
+test("showPayment byMethod groups per currency without mixing", async () => {
+  const { showPayment } = await import("../payment.ts")
+  await showPayment("monthly", undefined, [
+    makeSub({ name: "A", price: 1000, currency: "JPY", paymentMethod: "card" }),
+    makeSub({ name: "B", price: 10, currency: "USD", paymentMethod: "card" }),
+    makeSub({ name: "C", price: 500, currency: "JPY", paymentMethod: "cash" }),
+  ], false, true)
+
+  const combined = logMessages.join("\n")
+  expect(combined).toContain("By payment method:")
+  // card must show JPY + USD separately, not a bogus single "USD" sum
+  const cardLine = logMessages.find((l) => l.includes("card"))
+  expect(cardLine).toContain("¥1,000 + $10")
+  const cashLine = logMessages.find((l) => l.includes("cash"))
+  expect(cashLine).toContain("¥500")
+})
+
 // ── exportJson tests ──────────────────────────────────────
 
 test("exportJson returns empty array for no subscriptions", async () => {
