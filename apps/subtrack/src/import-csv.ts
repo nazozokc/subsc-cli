@@ -3,9 +3,21 @@ import { fail } from "./error.ts"
 import { statSync, readFileSync } from "node:fs"
 import { writeSubscription, findSubscriptionByName } from "./db.ts"
 import { logAudit } from "./audit.ts"
-import { validateName, validatePrice, validateTags, isValidCurrency, isValidCycle } from "./prompts.ts"
+import {
+  validateName,
+  validatePrice,
+  validateTags,
+  isValidCurrency,
+  isValidCycle,
+  isValidStatus,
+  validateDiscountValue,
+  validateDiscountType,
+  validateAutoRenewal,
+  validateDateString,
+} from "./prompts.ts"
 import os from "node:os"
 import { resolveSafePath } from "./path-utils.ts"
+import type { Status, DiscountType } from "./types.ts"
 
 const MAX_CSV_SIZE = 10 * 1024 * 1024 // 10 MB
 const MAX_CSV_ROWS = 10_000           // max data rows to prevent DoS
@@ -94,17 +106,28 @@ export async function handleImport(
     return
   }
 
-  // Validate header
+  // Validate header: column-name based so both the documented format
+  // (name,cycle,tags,price,currency[,notes]) and the export format
+  // (name,status,cycle,tags,price,currency,notes,payment_method,contract_start,
+  //  contract_end,auto_renewal,vendor_name,vendor_url,plan_tier,discount_amount,
+  //  discount_type) are accepted.
   const header = parseCsvLine(lines[0]).map((h) => h.toLowerCase().trim())
-  const hasNotes = header.length >= 6 && header[5] === "notes"
-  const expectedBase = "name,cycle,tags,price,currency"
-  const expectedNotes = "name,cycle,tags,price,currency,notes"
-  const actual = header.join(",")
-  if (actual !== expectedBase && actual !== expectedNotes) {
+  const colIndex = new Map<string, number>()
+  header.forEach((h, i) => { if (h) colIndex.set(h, i) })
+
+  const requiredCols = ["name", "cycle", "tags", "price", "currency"]
+  const missing = requiredCols.filter((c) => !colIndex.has(c))
+  if (missing.length > 0) {
     fail(
-      `Invalid CSV header. Expected: ${expectedBase} or ${expectedNotes}`,
+      `Invalid CSV header. Required columns: ${requiredCols.join(", ")} (missing: ${missing.join(", ")})`,
     )
     return
+  }
+
+  let fieldsOfRow: string[] = []
+  const col = (name: string): string | undefined => {
+    const idx = colIndex.get(name)
+    return idx === undefined ? undefined : (fieldsOfRow[idx]?.trim() || undefined)
   }
 
   let success = 0
@@ -112,8 +135,9 @@ export async function handleImport(
 
   for (let i = 1; i < lines.length; i++) {
     const fields = parseCsvLine(lines[i])
-    if (fields.length < 5) {
-      consola.warn(`Line ${i + 1}: skipping (expected 5 fields, got ${fields.length})`)
+    fieldsOfRow = fields
+    if (fields.length < requiredCols.length) {
+      consola.warn(`Line ${i + 1}: skipping (expected ${requiredCols.length} fields, got ${fields.length})`)
       failed++
       continue
     }
@@ -126,12 +150,24 @@ export async function handleImport(
       continue
     }
 
-    const name = fields[0]
-    const cycle = fields[1]
-    const tagsStr = fields[2]
-    const priceStr = fields[3]
-    const currency = fields[4]
-    const notes = hasNotes ? (fields[5]?.trim() || null) : null
+    const name = col("name") ?? ""
+    const cycle = col("cycle") ?? ""
+    const tagsStr = col("tags") ?? ""
+    const priceStr = col("price") ?? ""
+    const currency = col("currency") ?? ""
+    const notes = col("notes") ?? null
+
+    // Optional fields — only read when the column exists in the header
+    const status = col("status") ?? "active"
+    const paymentMethod = col("payment_method") ?? null
+    const contractStart = col("contract_start") ?? null
+    const contractEnd = col("contract_end") ?? null
+    const autoRenewal = col("auto_renewal")
+    const vendorName = col("vendor_name") ?? null
+    const vendorUrl = col("vendor_url") ?? null
+    const planTier = col("plan_tier") ?? null
+    const discountAmount = col("discount_amount") ?? null
+    const discountType = col("discount_type") ?? null
 
     // Sanitize: strip control characters from name/notes (CSV injection defense)
     const sanitized = name.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
@@ -152,6 +188,31 @@ export async function handleImport(
       consola.warn(`Line ${i + 1}: invalid cycle "${cycle}"`)
       failed++
       continue
+    }
+    if (!isValidStatus(status)) {
+      consola.warn(`Line ${i + 1}: invalid status "${status}"`)
+      failed++
+      continue
+    }
+    if (discountAmount !== null) {
+      const discountErr = validateDiscountValue(discountAmount)
+      if (discountErr !== true) { consola.warn(`Line ${i + 1}: ${discountErr}`); failed++; continue }
+    }
+    if (discountType !== null) {
+      const discountTypeErr = validateDiscountType(discountType)
+      if (discountTypeErr !== true) { consola.warn(`Line ${i + 1}: ${discountTypeErr}`); failed++; continue }
+    }
+    if (autoRenewal !== undefined) {
+      const autoRenewalErr = validateAutoRenewal(autoRenewal)
+      if (autoRenewalErr !== true) { consola.warn(`Line ${i + 1}: ${autoRenewalErr}`); failed++; continue }
+    }
+    if (contractStart !== null) {
+      const csErr = validateDateString(contractStart)
+      if (csErr !== true) { consola.warn(`Line ${i + 1}: ${csErr}`); failed++; continue }
+    }
+    if (contractEnd !== null) {
+      const ceErr = validateDateString(contractEnd)
+      if (ceErr !== true) { consola.warn(`Line ${i + 1}: ${ceErr}`); failed++; continue }
     }
 
     const tags = tagsStr.split(";").map((t) => t.trim()).filter(Boolean)
@@ -182,6 +243,16 @@ export async function handleImport(
           cycle,
           tags,
           notes: notes ?? undefined,
+          status: status as Status,
+          paymentMethod: paymentMethod ?? undefined,
+          contractStart: contractStart ?? undefined,
+          contractEnd: contractEnd ?? undefined,
+          autoRenewal: autoRenewal === undefined ? undefined : autoRenewal === "true",
+          vendorName: vendorName ?? undefined,
+          vendorUrl: vendorUrl ?? undefined,
+          planTier: planTier ?? undefined,
+          discountAmount: discountAmount === null ? undefined : Number(discountAmount),
+          discountType: discountType as DiscountType | undefined,
         })
         success++
       } catch (e) {

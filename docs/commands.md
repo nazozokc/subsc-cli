@@ -522,7 +522,7 @@ subtrack tag merge entertainment fun
 
 ## `import <file>`
 
-Imports subscriptions from a CSV file. The CSV must have a header row with exactly `name,cycle,tags,price,currency`.
+Imports subscriptions from a CSV file. The CSV must have a header row with `name,cycle,tags,price,currency` (an optional `notes` column is also accepted). CSVs produced by `subtrack export csv` can be imported as-is (extra columns such as `status`, `payment_method`, and contract fields are preserved).
 
 | Argument | Description |
 |----------|-------------|
