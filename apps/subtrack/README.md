@@ -35,6 +35,10 @@ A CLI tool to manage your subscription services from the terminal.
 - **Upcoming bills** — see what's due soon with `subtrack upcoming`
 - **Analytics** — detailed spending breakdown with `subtrack analytics`
 - **Configuration** — customize default currency, monthly budget via `subtrack config`
+- **Budget tracking** — compare spending against monthly/yearly/named budgets with `subtrack budget` (overrun detection for scripts via `--check`)
+- **Duplicate detection** — find and merge duplicate subscriptions with `subtrack dedupe`
+- **Guided cancellation** — cancel subscriptions with a checklist via `subtrack cancel`
+- **Yearly report** — spending overview, monthly chart, price changes, and budget comparison via `subtrack report`
 - **SQLite** storage — portable, zero-config, lives in `~/.config/subtrack/subtrack.db`
 - **Input validation** — name length, price bounds, tag limits
 
@@ -488,6 +492,76 @@ subtrack usage refresh --from 2026-01-01 --to 2026-06-22
 
 # Import usage from JSONL log file
 subtrack usage import usage_log.jsonl
+```
+
+#### `budget`
+
+Shows spending vs a configured budget and detects overruns. Supports monthly,
+yearly, and multiple named budgets.
+
+| Option | Description |
+| ------ | ----------- |
+| `--check` | Exit with code 1 when over budget (for scripts) |
+| `--period <monthly\|yearly>` | Comparison period (default: `monthly`) |
+| `-c, --currency <code>` | Convert all prices to target currency |
+| `--name <name>` | Compare against a named budget from `config budgets` |
+| `-j, --json` | Output as JSON |
+
+```bash
+subtrack config set monthlyBudget 5000
+subtrack budget --check
+
+subtrack config set yearlyBudget 60000
+subtrack budget --period yearly
+
+subtrack config set budgets '[{"name":"streaming","amount":3000,"currency":"JPY","categories":["video"]}]'
+subtrack budget --name streaming
+```
+
+#### `dedupe`
+
+Detects duplicate subscriptions by name similarity. Merges duplicates with
+`dedupe merge <keepId> <removeId>` (price history and tags are preserved).
+
+| Option | Description |
+| ------ | ----------- |
+| `--threshold <0-1>` | Similarity threshold (default: `0.8`) |
+| `-j, --json` | Output as JSON |
+
+```bash
+subtrack dedupe
+subtrack dedupe merge 4 5
+```
+
+#### `cancel <id>`
+
+Cancels a subscription with a guided checklist (export, alternatives, note,
+confirmation). Marks it `cancelled` and sets `contractEnd` when unset.
+
+| Option | Description |
+| ------ | ----------- |
+| `-f, --force` | Skip the checklist and cancel immediately |
+| `-j, --json` | Output subscription info as JSON (no changes) |
+
+```bash
+subtrack cancel 3
+subtrack cancel 3 --force
+```
+
+#### `report`
+
+Shows a yearly report: total spending, monthly bar chart, top subscriptions,
+added/cancelled this year, price changes, and budget comparison.
+
+| Option | Description |
+| ------ | ----------- |
+| `--year <year>` | Target year (default: current year) |
+| `-c, --currency <code>` | Convert all prices to target currency |
+| `-j, --json` | Output as JSON |
+
+```bash
+subtrack report
+subtrack report --year 2025 --currency USD
 ```
 
 ### Non-interactive mode

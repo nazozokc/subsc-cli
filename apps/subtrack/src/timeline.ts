@@ -114,8 +114,9 @@ function calcMonthlyTotalsByCategory(
 
 /**
  * Render a bar chart showing monthly spending.
+ * Shared with the yearly report (report.ts).
  */
-function renderBarChart(totals: MonthTotal[], currency: string = "USD"): string {
+export function renderBarChart(totals: MonthTotal[], currency: string = "USD"): string {
   const max = Math.max(...totals.map((t) => t.total), 1)
   const barWidth = 40
   const labelWidth = 4 // "Dec " or "Jun "

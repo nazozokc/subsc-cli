@@ -13,6 +13,8 @@ import { handleNotify } from "../notify.ts"
 import { handleTimeline } from "../timeline.ts"
 import { handleOptimize } from "../optimize.ts"
 import { handleStats } from "../stats.ts"
+import { handleBudget } from "../budget.ts"
+import { handleReport } from "../report.ts"
 import type { Cycle, NotifyChannel } from "../types.ts"
 import { fail } from "../error.ts"
 
@@ -256,4 +258,48 @@ export const statsCommand = define({
     json: { type: "boolean", short: "j", description: "Output as JSON" },
   },
   run: (ctx) => handleStats({ json: ctx.values.json }),
+})
+
+export const budgetCommand = define({
+  name: "budget",
+  description: "Show spending vs budget and detect budget overruns",
+  args: {
+    check: { type: "boolean", description: "Exit with code 1 when over budget (for scripts)" },
+    period: { type: "string", description: "Period: monthly, yearly (default: monthly)" },
+    currency: { type: "string", short: "c", description: "Convert all prices to target currency" },
+    name: { type: "string", description: "Compare against a named budget (config budgets)" },
+    json: { type: "boolean", short: "j", description: "Output as JSON" },
+  },
+  run: async (ctx) => {
+    const period = (ctx.values.period as "monthly" | "yearly" | undefined) ?? "monthly"
+    if (period !== "monthly" && period !== "yearly") {
+      fail("period must be one of: monthly, yearly")
+      return
+    }
+    await handleBudget({
+      check: ctx.values.check,
+      period,
+      currency: ctx.values.currency,
+      name: ctx.values.name,
+      json: ctx.values.json,
+    })
+  },
+})
+
+export const reportCommand = define({
+  name: "report",
+  description: "Show a yearly subscription report",
+  args: {
+    year: { type: "string", description: "Target year (default: current year)" },
+    currency: { type: "string", short: "c", description: "Convert all prices to target currency" },
+    json: { type: "boolean", short: "j", description: "Output as JSON" },
+  },
+  run: async (ctx) => {
+    const rawYear = ctx.values.year !== undefined ? Number(ctx.values.year) : undefined
+    if (rawYear !== undefined && (isNaN(rawYear) || rawYear < 1970 || rawYear > 9999 || !Number.isInteger(rawYear))) {
+      fail("year must be a valid year (e.g. 2025)")
+      return
+    }
+    await handleReport({ year: rawYear, currency: ctx.values.currency, json: ctx.values.json })
+  },
 })

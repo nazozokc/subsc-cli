@@ -21,6 +21,8 @@ export type AuditAction =
   | "subscription.bulk_tag_add"
   | "subscription.bulk_tag_remove"
   | "subscription.clone"
+  | "subscription.merge"
+  | "subscription.cancel"
   | "trial.add"
   | "trial.delete"
   | "tag.rename"

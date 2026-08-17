@@ -277,3 +277,34 @@ export const findSubscriptionByName = (name: string): SharedArgs | undefined => 
   if (subs.length === 0) return undefined
   return mapTags(subs)[0]
 }
+
+/**
+ * Merge a duplicate subscription into another (transactional).
+ * Tags from the removed subscription are transferred to the kept one,
+ * then the removed subscription is deleted (price_history cascades).
+ */
+export const mergeSubscriptions = (keepId: number, removeId: number): boolean => {
+  const db = getDb()
+  if (keepId === removeId) return true
+
+  db.run("BEGIN TRANSACTION")
+  try {
+    db.run(
+      `INSERT OR IGNORE INTO subscription_tags (subscription_id, tag_id)
+       SELECT ?, tag_id FROM subscription_tags WHERE subscription_id = ?`,
+      [keepId, removeId],
+    )
+    db.run("DELETE FROM subscriptions WHERE id = ?", [removeId])
+    const modified = db.getRowsModified() > 0
+    if (!modified) {
+      db.run("ROLLBACK")
+      return false
+    }
+    db.run("COMMIT")
+    saveDb()
+    return true
+  } catch (error) {
+    try { db.run("ROLLBACK") } catch { /* ok */ }
+    throw error
+  }
+}

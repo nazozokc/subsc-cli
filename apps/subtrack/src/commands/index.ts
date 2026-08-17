@@ -1,7 +1,7 @@
 // ── Barrel: re-exports all command definitions and builds the subCommands map ──
 
 import {
-  listCommand, addCommand, editCommand, deleteCommand,
+  listCommand, addCommand, editCommand, deleteCommand, cancelCommand,
   cloneCommand, archiveCommand, unarchiveCommand, searchCommand,
 } from "./core.ts"
 import { tagsCommand, tagCommand } from "./tag.ts"
@@ -16,16 +16,18 @@ import {
   analyticsCommand, compareCommand, calendarCommand,
   forecastCommand, historyCommand, notifyCommand,
   timelineCommand, optimizeCommand, statsCommand,
+  budgetCommand, reportCommand,
 } from "./report.ts"
 import {
   mcpCommand, profileCommand,
   auditCommand, auditListCmd, auditPruneCmd,
   maintenanceCommand, cleanupCommand, currencyCommand,
+  dedupeCommand,
 } from "./misc.ts"
 import { suggestCommand } from "./suggest.ts"
 
 export {
-  listCommand, addCommand, editCommand, deleteCommand,
+  listCommand, addCommand, editCommand, deleteCommand, cancelCommand,
   cloneCommand, archiveCommand, unarchiveCommand, searchCommand,
   tagsCommand, tagCommand,
   trialCommand,
@@ -38,9 +40,11 @@ export {
   analyticsCommand, compareCommand, calendarCommand,
   forecastCommand, historyCommand, notifyCommand,
   timelineCommand, optimizeCommand, statsCommand,
+  budgetCommand, reportCommand,
   mcpCommand, profileCommand,
   auditCommand, auditListCmd, auditPruneCmd,
   maintenanceCommand, cleanupCommand, currencyCommand,
+  dedupeCommand,
   suggestCommand,
 }
 
@@ -50,6 +54,7 @@ export const subCommands = {
   add: addCommand,
   edit: editCommand,
   delete: deleteCommand,
+  cancel: cancelCommand,
   clone: cloneCommand,
   archive: archiveCommand,
   unarchive: unarchiveCommand,
@@ -76,7 +81,10 @@ export const subCommands = {
   maintenance: maintenanceCommand,
   cleanup: cleanupCommand,
   stats: statsCommand,
+  budget: budgetCommand,
+  report: reportCommand,
   currency: currencyCommand,
+  dedupe: dedupeCommand,
   mcp: mcpCommand,
   analytics: analyticsCommand,
   compare: compareCommand,

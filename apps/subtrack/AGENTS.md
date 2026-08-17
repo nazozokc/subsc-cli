@@ -81,10 +81,14 @@ CLI tool to manage subscription services from the terminal. Node.js + TypeScript
 | `subtrack delete [ids...]` | Delete subscriptions |
 | `subtrack tags <names...>` | Filter by tags (AND logic) |
 | `subtrack tag list\|rename\|delete\|prune` | Manage tags |
-| `subtrack export csv\|json\|md` | Export subscriptions |
+| `subtrack export csv\|json\|md\|ics` | Export subscriptions |
 | `subtrack import <file>` | Import from CSV |
 | `subtrack summary` | Show subscription summary |
 | `subtrack backup [destination]` | Backup database |
 | `subtrack restore [file]` | Restore database |
 | `subtrack payment [period]` | Show payment totals |
+| `subtrack budget` | Show spending vs budget |
+| `subtrack dedupe [merge]` | Detect/merge duplicate subscriptions |
+| `subtrack cancel [id]` | Cancel with guided checklist |
+| `subtrack report` | Yearly subscription report |
 | `subtrack usage add\|list\|delete\|refresh` | Track LLM API usage |

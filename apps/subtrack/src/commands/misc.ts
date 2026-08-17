@@ -7,6 +7,7 @@ import { handleAuditList, handleAuditPrune } from "../audit.ts"
 import { handleMaintenance } from "../maintenance.ts"
 import { handleCleanup } from "../cleanup.ts"
 import { handleCurrencyList } from "../currency.ts"
+import { handleDedupe, handleDedupeMerge } from "../dedupe.ts"
 // Lazy imports for MCP to avoid loading MCP SDK WASM at module load time
 import type { Status } from "../types.ts"
 
@@ -179,4 +180,45 @@ export const currencyCommand = define({
   description: "List supported currencies",
   args: { json: { type: "boolean", short: "j", description: "Output as JSON" } },
   run: (ctx) => handleCurrencyList({ json: ctx.values.json }),
+})
+
+// ── Dedupe ────────────────────────────────────────────
+
+const dedupeMergeCmd = define({
+  name: "merge",
+  description: "Merge a duplicate subscription into another",
+  args: {
+    keep: { type: "positional", description: "Subscription ID to keep" },
+    remove: { type: "positional", description: "Subscription ID to remove" },
+  },
+  run: (ctx) => {
+    const positionals = ctx.positionals as string[]
+    const keep = ctx.values.keep !== undefined ? Number(ctx.values.keep) : positionals[1] ? Number(positionals[1]) : undefined
+    const remove = ctx.values.remove !== undefined ? Number(ctx.values.remove) : positionals[2] ? Number(positionals[2]) : undefined
+    if (keep === undefined || remove === undefined || isNaN(keep) || isNaN(remove) || keep < 1 || remove < 1) {
+      fail("Usage: subtrack dedupe merge <keepId> <removeId>")
+      return
+    }
+    handleDedupeMerge(keep, remove)
+  },
+})
+
+export const dedupeCommand = define({
+  name: "dedupe",
+  description: "Detect duplicate subscriptions by name similarity",
+  args: {
+    threshold: { type: "string", description: "Similarity threshold 0-1 (default: 0.8)" },
+    json: { type: "boolean", short: "j", description: "Output as JSON" },
+  },
+  subCommands: {
+    merge: dedupeMergeCmd,
+  },
+  run: (ctx) => {
+    const threshold = ctx.values.threshold !== undefined ? Number(ctx.values.threshold) : undefined
+    if (threshold !== undefined && (isNaN(threshold) || threshold < 0 || threshold > 1)) {
+      fail("threshold must be between 0 and 1")
+      return
+    }
+    handleDedupe({ threshold, json: ctx.values.json })
+  },
 })
