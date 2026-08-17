@@ -11,6 +11,7 @@ import type { SubtrackConfig } from "./types.ts"
 export const CONFIG_KEYS = [
   "defaultCurrency",
   "monthlyBudget",
+  "yearlyBudget",
   "theme",
   "notifyDays",
   "notifyChannels",
@@ -115,6 +116,21 @@ export function setConfig(key: string, value: string): boolean {
       config.monthlyBudget = num
       break
     }
+    case "yearlyBudget": {
+      const num = Number(value)
+      if (isNaN(num) || num < 0) {
+        fail("yearlyBudget must be a non-negative number")
+        return false
+      }
+      config.yearlyBudget = num
+      break
+    }
+    case "budgets": {
+      const parsed = parseBudgets(value)
+      if (!parsed) return false
+      config.budgets = parsed
+      break
+    }
     case "theme":
       config.theme = value
       break
@@ -213,6 +229,15 @@ export function handleConfigList(): void {
   for (const key of CONFIG_KEYS) {
     consola.log(`${key}: ${getConfigDisplayValue(key, config)}`)
   }
+  // Show named budgets
+  if (config.budgets && config.budgets.length > 0) {
+    for (const b of config.budgets) {
+      const cat = b.categories?.length ? ` (categories: ${b.categories.join(", ")})` : ""
+      consola.log(`budgets: ${b.name} = ${b.amount} ${b.currency}/${b.period ?? "monthly"}${cat}`)
+    }
+  } else {
+    consola.log(`budgets: (not set)`)
+  }
   // Show IMAP config
   if (config.imap) {
     consola.log(`imapHost: ${config.imap.host}`)
@@ -229,7 +254,64 @@ export function handleConfigList(): void {
 
 function isKnownKey(key: string): boolean {
   return (CONFIG_KEYS as readonly string[]).includes(key as ConfigKey) ||
-         (IMAP_KEYS as readonly string[]).includes(key as typeof IMAP_KEYS[number])
+         (IMAP_KEYS as readonly string[]).includes(key as typeof IMAP_KEYS[number]) ||
+         key === "budgets"
+}
+
+/**
+ * Parse a JSON array of named budget entries, e.g.
+ * `[{"name":"entertainment","amount":5000,"currency":"JPY","period":"monthly","categories":["video","music"]}]`
+ * Returns null (after reporting) when the value is invalid.
+ */
+function parseBudgets(value: string): import("./types.ts").BudgetEntry[] | null {
+  let parsed: unknown
+  try {
+    parsed = safeJsonParse<unknown>(value)
+  } catch {
+    fail("budgets must be a valid JSON array of budget entries")
+    return null
+  }
+  if (!Array.isArray(parsed)) {
+    fail("budgets must be a valid JSON array of budget entries")
+    return null
+  }
+  const entries: import("./types.ts").BudgetEntry[] = []
+  for (const item of parsed) {
+    const entry = item as Record<string, unknown>
+    if (!entry || typeof entry !== "object") {
+      fail("Each budget entry must be an object with name, amount, currency")
+      return null
+    }
+    if (typeof entry.name !== "string" || entry.name.trim() === "") {
+      fail("Each budget entry needs a non-empty name")
+      return null
+    }
+    if (typeof entry.amount !== "number" || !isFinite(entry.amount) || entry.amount < 0) {
+      fail(`Budget "${entry.name}": amount must be a non-negative number`)
+      return null
+    }
+    if (typeof entry.currency !== "string" || !/^[A-Z]{3}$/.test(entry.currency)) {
+      fail(`Budget "${entry.name}": currency must be a 3-letter code (e.g. JPY)`)
+      return null
+    }
+    if (entry.period !== undefined && entry.period !== "monthly" && entry.period !== "yearly") {
+      fail(`Budget "${entry.name}": period must be "monthly" or "yearly"`)
+      return null
+    }
+    if (entry.categories !== undefined &&
+        (!Array.isArray(entry.categories) || entry.categories.some((c) => typeof c !== "string"))) {
+      fail(`Budget "${entry.name}": categories must be an array of tag names`)
+      return null
+    }
+    entries.push({
+      name: entry.name,
+      amount: entry.amount,
+      currency: entry.currency,
+      period: entry.period as "monthly" | "yearly" | undefined,
+      categories: entry.categories as string[] | undefined,
+    })
+  }
+  return entries
 }
 
 /**

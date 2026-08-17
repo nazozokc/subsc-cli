@@ -1,5 +1,60 @@
 # Changelog
 
+## 9.0.0 (unreleased)
+
+### ✨ Features
+
+- **Budget Command**: `subtrack budget` compares spending against configured budgets with overrun detection. `--check` exits with code 1 when over budget (cron/scripts), `--period monthly|yearly`, `-c/--currency` conversion, `--name` for named budgets, `-j/--json`. ([PR #104](https://github.com/nazozokc/subtrack/pull/104))
+- **Named Budgets**: `subtrack config set budgets '<json>'` stores named budgets with amount, currency, optional period and category (tag) filters; `subtrack config set yearlyBudget <amount>` for yearly targets. Both shown in `config list`. ([PR #104](https://github.com/nazozokc/subtrack/pull/104))
+- **Duplicate Detection**: `subtrack dedupe` finds duplicate subscriptions by normalized-name Levenshtein similarity (default threshold 0.8, same vendor URL boosted). `subtrack dedupe merge <keepId> <removeId>` merges duplicates transactionally, preserving price history and tags. ([PR #104](https://github.com/nazozokc/subtrack/pull/104))
+- **Guided Cancellation**: `subtrack cancel <id>` cancels with a checklist — optional CSV export, alternative-service check, cancellation-date note, final confirmation. Marks as `cancelled`, sets `contractEnd`, writes audit log. `-f/--force` skips the checklist; `-j/--json` previews without changes. ([PR #104](https://github.com/nazozokc/subtrack/pull/104))
+- **Yearly Report**: `subtrack report` shows total spending, monthly bar chart, top 5 subscriptions by yearly cost, added/cancelled during the year, price changes, and budget comparison. `--year`, `-c/--currency`, `-j/--json`. ([PR #104](https://github.com/nazozokc/subtrack/pull/104))
+- **MCP Server**: tag and usage tools, enum validation, and paging support. ([`ce1dafa`](https://github.com/nazozokc/subtrack/commit/ce1dafa))
+- **Usage Commands**: `usage edit`, token totals, and paging.
+- **List/Analytics/Forecast**: list filters (`--limit`, `--offset`), forecast currency conversion, analytics period options. ([`58aab5b`](https://github.com/nazozokc/subtrack/commit/58aab5b))
+
+### 🐛 Bug Fixes
+
+- Exclude cancelled subscriptions from payment summaries; validate edit flags.
+- Correct billing date calculations in `upcoming` and `calendar`. ([`c08ad7f`](https://github.com/nazozokc/subtrack/commit/c08ad7f))
+- Exclude dist output from type check. ([`66c874c`](https://github.com/nazozokc/subtrack/commit/66c874c))
+- Add `--force` flag to bulk tag commands. ([`64751e4`](https://github.com/nazozokc/subtrack/commit/64751e4))
+- Convert API usage cost from cents to dollars. ([`4f90970`](https://github.com/nazozokc/subtrack/commit/4f90970))
+- Accept export CSV format in import. ([`dbdb5e8`](https://github.com/nazozokc/subtrack/commit/dbdb5e8))
+
+### 📝 Documentation
+
+- Commands, development, and MCP documentation updates. ([`ac2c325`](https://github.com/nazozokc/subtrack/commit/ac2c325))
+
+## 8.4.0 (2026-08-15)
+
+### ✨ Features
+
+- **Extended Subscription Fields**: vendor, plan tier, discounts, contract dates, and auto-renewal with notification config. ([`e45a853`](https://github.com/nazozokc/subtrack/commit/e45a853))
+- **Interactive Category Menu**: replaced the TUI with an interactive main menu. ([`791aa6b`](https://github.com/nazozokc/subtrack/commit/791aa6b))
+
+### 🐛 Bug Fixes
+
+- Harden against decompression bombs, secret leaks, and formula injection. ([`205ae33`](https://github.com/nazozokc/subtrack/commit/205ae33))
+- Reject drive roots on Windows when validating the DB directory. ([`72ef676`](https://github.com/nazozokc/subtrack/commit/72ef676))
+- Raise scrypt memory limit for passphrase-derived keys. ([`26f137e`](https://github.com/nazozokc/subtrack/commit/26f137e))
+- Set non-zero exit code on CLI errors. ([`8652dce`](https://github.com/nazozokc/subtrack/commit/8652dce))
+- Remove email notification channel. ([`085f585`](https://github.com/nazozokc/subtrack/commit/085f585))
+
+### 📝 Documentation
+
+- Migrate documentation site from SvelteKit to VitePress. ([`7446e23`](https://github.com/nazozokc/subtrack/commit/7446e23))
+
+## 8.2.0 (2026-07-26)
+
+### ✨ Features
+
+- **Email Suggestion**: `subtrack suggest` scans email via IMAP and suggests subscription candidates. ([`6a9ad3d`](https://github.com/nazozokc/subtrack/commit/6a9ad3d))
+
+### 🔧 CI & Supply Chain
+
+- Correct `pnpm-lock.yaml` path in `lint:lockfile` script. ([`0f3e1b6`](https://github.com/nazozokc/subtrack/commit/0f3e1b6))
+
 ## 8.1.0 (2026-07-05)
 
 ### ✨ Features

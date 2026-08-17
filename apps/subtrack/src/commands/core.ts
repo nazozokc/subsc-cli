@@ -11,6 +11,7 @@ import {
   handleUnarchive,
 } from "../subscription.ts"
 import { handleSearch } from "../search.ts"
+import { handleCancel } from "../cancel.ts"
 import { saveDb } from "../db.ts"
 import { fail } from "../error.ts"
 
@@ -136,6 +137,25 @@ export const deleteCommand = define({
   run: (ctx) => {
     const ids = ctx.positionals.slice(1).map(Number).filter((n) => !isNaN(n))
     handleDelete(ids.length > 0 ? ids : undefined)
+  },
+})
+
+export const cancelCommand = define({
+  name: "cancel",
+  description: "Cancel a subscription with a guided checklist",
+  args: {
+    id: { type: "positional", description: "Subscription ID to cancel" },
+    force: { type: "boolean", short: "f", description: "Skip the checklist and cancel immediately" },
+    json: { type: "boolean", short: "j", description: "Output subscription info as JSON (no changes)" },
+  },
+  run: async (ctx) => {
+    const positionals = ctx.positionals as string[]
+    const id = ctx.values.id !== undefined ? Number(ctx.values.id) : positionals[1] ? Number(positionals[1]) : undefined
+    if (id === undefined || isNaN(id) || !Number.isInteger(id) || id < 1) {
+      fail("Valid subscription ID is required")
+      return
+    }
+    await handleCancel(id, { force: ctx.values.force, json: ctx.values.json })
   },
 })
 

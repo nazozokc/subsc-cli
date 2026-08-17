@@ -668,11 +668,21 @@ Manages subtrack configuration. Configuration is stored in `~/.config/subtrack/c
 |-----|-------------|---------|
 | `defaultCurrency` | Default currency for display and analytics | `USD` |
 | `monthlyBudget` | Monthly spending budget in USD (0 = disabled) | `0` |
+| `yearlyBudget` | Yearly spending budget (used by `budget --period yearly` and `report`) | — |
+| `budgets` | JSON array of named budgets (see below) | — |
 | `theme` | Display theme | `default` |
 | `notifyDays` | Notification look-ahead in days | `7` |
 | `notifyChannels` | Comma-separated channels: `os`, `slack`, `webhook` | `os` |
 | `slackWebhook` | Slack webhook URL for `slack` notifications | — |
 | `webhookUrl` | Generic webhook URL for `webhook` notifications | — |
+
+Named budgets accept a JSON array of entries with `name`, `amount`, `currency`,
+and optional `period` (`monthly`/`yearly`) and `categories` (tag filter):
+
+```bash
+subtrack config set budgets \
+  '[{"name":"streaming","amount":3000,"currency":"JPY","categories":["video","music"]}]'
+```
 
 ### Examples
 
@@ -685,6 +695,9 @@ subtrack config get defaultCurrency
 
 # Set a monthly budget of $500
 subtrack config set monthlyBudget 500
+
+# Set a yearly budget
+subtrack config set yearlyBudget 60000
 
 # Set default display currency
 subtrack config set defaultCurrency JPY
@@ -1375,3 +1388,96 @@ subtrack mcp
 ```
 
 The MCP server exposes 16 tools for subscription management. See the [MCP page](/mcp) for full details, tool reference, and integration examples.
+
+## `budget`
+
+Shows spending vs a configured budget and detects budget overruns. Supports a single monthly/yearly budget, or multiple named budgets from config.
+
+| Option | Description |
+|--------|-------------|
+| `--check` | Exit with code 1 when over budget (for cron/scripts) |
+| `--period <monthly\|yearly>` | Comparison period (default: `monthly`) |
+| `-c, --currency <code>` | Convert all prices to target currency |
+| `--name <name>` | Compare against a named budget from `config budgets` |
+| `-j, --json` | Output as JSON |
+
+Budgets are configured via `config set`:
+
+```bash
+# Monthly budget
+subtrack config set monthlyBudget 5000
+subtrack budget
+
+# Yearly budget
+subtrack config set yearlyBudget 60000
+subtrack budget --period yearly --check
+
+# Named budget (JSON array — amount, currency, optional period/categories)
+subtrack config set budgets '[{"name":"streaming","amount":3000,"currency":"JPY","categories":["video","music"]}]'
+subtrack budget --name streaming
+
+# Convert everything for a fair comparison
+subtrack budget --currency USD
+```
+
+Named budgets filter subscriptions by their tags when `categories` is set, and can use their own period (`monthly` or `yearly`). `--check` is useful in cron scripts: it sets the exit code to 1 when spending exceeds the budget.
+
+## `dedupe`
+
+Detects duplicate subscriptions by name similarity (Levenshtein distance on normalized names, default threshold 0.8). Pairs sharing the same vendor URL are boosted to a 0.9 score.
+
+| Option | Description |
+|--------|-------------|
+| `--threshold <0-1>` | Similarity threshold (default: `0.8`) |
+| `-j, --json` | Output as JSON |
+
+```bash
+subtrack dedupe
+subtrack dedupe --threshold 0.7
+subtrack dedupe --json
+
+# Merge a duplicate into the keeper (prices, tags, history preserved)
+subtrack dedupe merge <keepId> <removeId>
+```
+
+`dedupe merge` moves the removed subscription's price history and tags onto the kept one and deletes the duplicate. Cancelled subscriptions are excluded from detection.
+
+## `cancel <id>`
+
+Cancels a subscription with a guided checklist: optional data export, alternative-service check, cancellation-date note, and a final confirmation. The subscription is marked `cancelled` (not deleted), `contractEnd` is set to today when unset, and the cancellation is written to the audit log.
+
+| Option | Description |
+|--------|-------------|
+| `-f, --force` | Skip the checklist and cancel immediately |
+| `-j, --json` | Output subscription info as JSON (no changes made) |
+
+```bash
+subtrack cancel 3
+
+# Non-interactive (cron / scripting)
+subtrack cancel 3 --force
+
+# Inspect what would be cancelled without changing anything
+subtrack cancel 3 --json
+```
+
+When the checklist's "note the cancellation date" step is confirmed, `Cancelled: <date>` is appended to the subscription notes. Use `subtrack delete <id>` to remove a cancelled subscription permanently.
+
+## `report`
+
+Shows a yearly subscription report: total spending, monthly bar chart (single currency), top subscriptions by yearly cost, subscriptions added/cancelled during the year, price changes, and budget comparison.
+
+| Option | Description |
+|--------|-------------|
+| `--year <year>` | Target year (default: current year) |
+| `-c, --currency <code>` | Convert all prices to target currency |
+| `-j, --json` | Output as JSON |
+
+```bash
+subtrack report
+subtrack report --year 2025
+subtrack report --currency USD
+subtrack report --json
+```
+
+The monthly chart requires a single currency — use `--currency` to convert. Cancelled subscriptions are counted only until their contract end date. The report compares yearly spending against `yearlyBudget` when configured.

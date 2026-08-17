@@ -91,6 +91,52 @@ test("handleConfigSet shows error for negative budget", async () => {
   expect(errorMessages.some((m) => m.includes("non-negative"))).toBe(true)
 })
 
+test("handleConfigSet sets yearlyBudget", async () => {
+  const { handleConfigSet } = await import("../commands.ts")
+  const { loadConfig } = await import("../config.ts")
+
+  handleConfigSet("yearlyBudget", "120000")
+  expect(loadConfig().yearlyBudget).toBe(120000)
+  expect(successMessages.some((m) => m.includes("Set yearlyBudget = 120000"))).toBe(true)
+})
+
+test("handleConfigSet rejects negative yearlyBudget", async () => {
+  const { handleConfigSet } = await import("../commands.ts")
+  handleConfigSet("yearlyBudget", "-1")
+  expect(errorMessages.some((m) => m.includes("non-negative"))).toBe(true)
+})
+
+test("handleConfigSet stores named budgets from JSON", async () => {
+  const { handleConfigSet } = await import("../commands.ts")
+  const { loadConfig } = await import("../config.ts")
+
+  const json = JSON.stringify([
+    { name: "streaming", amount: 3000, currency: "JPY", period: "monthly", categories: ["video", "music"] },
+    { name: "infra", amount: 60000, currency: "JPY", period: "yearly" },
+  ])
+  handleConfigSet("budgets", json)
+
+  const budgets = loadConfig().budgets
+  expect(budgets).toHaveLength(2)
+  expect(budgets![0]).toMatchObject({ name: "streaming", amount: 3000, currency: "JPY" })
+  expect(budgets![0].categories).toEqual(["video", "music"])
+  expect(budgets![1]).toMatchObject({ name: "infra", amount: 60000, period: "yearly" })
+})
+
+test("handleConfigSet rejects invalid budgets JSON", async () => {
+  const { handleConfigSet } = await import("../commands.ts")
+  handleConfigSet("budgets", "not-json")
+  expect(errorMessages.some((m) => m.includes("valid JSON array"))).toBe(true)
+})
+
+test("handleConfigSet rejects budget entries with bad fields", async () => {
+  const { handleConfigSet } = await import("../commands.ts")
+  handleConfigSet("budgets", JSON.stringify([{ name: "x", amount: -5, currency: "JPY" }]))
+  expect(errorMessages.some((m) => m.includes("non-negative number"))).toBe(true)
+  handleConfigSet("budgets", JSON.stringify([{ name: "x", amount: 100, currency: "JP" }]))
+  expect(errorMessages.some((m) => m.includes("3-letter code"))).toBe(true)
+})
+
 test("handleConfigReset resets config to defaults", async () => {
   const { handleConfigSet, handleConfigReset } = await import("../commands.ts")
   const { loadConfig, resetConfig } = await import("../config.ts")
