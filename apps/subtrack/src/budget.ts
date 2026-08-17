@@ -26,6 +26,8 @@ type ResolvedBudget = {
   amount: number
   currency: string
   categories?: string[]
+  /** Period carried by named budgets (defaults to the requested period) */
+  period?: "monthly" | "yearly"
 }
 
 /**
@@ -49,6 +51,7 @@ export function resolveBudget(
       amount: entry.amount,
       currency: entry.currency || config.defaultCurrency || "USD",
       categories: entry.categories,
+      period: entry.period,
     }
   }
 
@@ -122,9 +125,7 @@ export async function handleBudget(options: BudgetOptions = {}): Promise<void> {
   }
 
   // Named budgets may carry their own period (e.g. yearly vs monthly compare)
-  const comparePeriod = options.name
-    ? (loadConfig().budgets?.find((b) => b.name === options.name)?.period ?? period)
-    : period
+  const comparePeriod = budget.period ?? period
 
   // Fetch FX rates when any conversion might be needed
   const targetCurrency = options.currency as Currency | undefined

@@ -269,6 +269,14 @@ test("mergeSubscriptions transfers tags and deletes the removed one", async () =
   expect(getSubscription(removeId)).toBeUndefined()
 })
 
+test("mergeSubscriptions returns false for identical IDs", async () => {
+  const id = insertSub({ name: "Netflix" })
+  const { mergeSubscriptions } = await import("../db.ts")
+  expect(mergeSubscriptions(id, id)).toBe(false)
+  const { getSubscription } = await import("../db.ts")
+  expect(getSubscription(id)).toBeDefined()
+})
+
 test("handleDedupeMerge merges and logs success", async () => {
   const keepId = insertSub({ name: "Netflix", price: 1000 })
   const removeId = insertSub({ name: "Netflix", price: 1500 })

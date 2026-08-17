@@ -9,6 +9,7 @@ import { periodFactor, OCCURRENCES_PER_YEAR } from "./date-utils.ts"
 import { fetchFxRates, convertPrice } from "./fx.ts"
 import type { FxRates } from "./fx.ts"
 import { renderBarChart } from "./timeline.ts"
+import { fail } from "./error.ts"
 
 export type ReportOptions = {
   /** Target year (default: current year) */
@@ -110,21 +111,28 @@ export function calcCancelledThisYear(subs: SharedArgs[], year: number): { name:
     .sort((a, b) => a.date.localeCompare(b.date))
 }
 
-type YearlyTotals = {
-  totals: MonthTotal[]
-  total: number
-}
-
 /** Sum of monthly totals. */
 export function sumYearlyTotals(totals: MonthTotal[]): number {
   return totals.reduce((s, t) => s + t.total, 0)
 }
 
+/**
+ * Resolve a single comparable currency: the conversion target when set,
+ * otherwise the only currency present (or null when mixed).
+ */
+function singleCurrency(
+  displayCurrency: string | null,
+  byCurrency: Record<string, number>,
+): string | null {
+  if (displayCurrency) return displayCurrency
+  const keys = Object.keys(byCurrency)
+  return keys.length === 1 ? keys[0] : null
+}
+
 export async function handleReport(options: ReportOptions = {}): Promise<void> {
   const year = options.year ?? new Date().getFullYear()
   if (year < 1970 || year > 9999 || !Number.isInteger(year)) {
-    consola.error("year must be a valid year (e.g. 2025)")
-    process.exitCode = 1
+    fail("year must be a valid year (e.g. 2025)")
     return
   }
 
@@ -177,7 +185,7 @@ export async function handleReport(options: ReportOptions = {}): Promise<void> {
   const budgetCurrency = config.defaultCurrency || "USD"
   let budgetInfo: { amount: number; currency: string; remaining: number; over: boolean } | null = null
   if (yearlyBudget > 0) {
-    const chartCcy = displayCurrency ?? (Object.keys(byCurrency).length === 1 ? Object.keys(byCurrency)[0] : null)
+    const chartCcy = singleCurrency(displayCurrency, byCurrency)
     let spending = total
     let ccy = chartCcy
     if (chartCcy && rates && chartCcy !== budgetCurrency) {
@@ -203,7 +211,7 @@ export async function handleReport(options: ReportOptions = {}): Promise<void> {
     const output: Record<string, unknown> = {
       year,
       total: Math.round(total),
-      currency: displayCurrency ?? (Object.keys(byCurrency).length === 1 ? Object.keys(byCurrency)[0] : null),
+      currency: singleCurrency(displayCurrency, byCurrency),
       byCurrency,
       monthly: totals.map((t) => ({ month: t.label, total: t.total })),
       top: top.map((s) => ({
@@ -220,7 +228,9 @@ export async function handleReport(options: ReportOptions = {}): Promise<void> {
         oldCurrency: c.oldCurrency,
         newCurrency: c.newCurrency,
         changedAt: c.changedAt,
-        diff: c.oldPrice !== null && c.oldCurrency === c.newCurrency ? c.newPrice - c.oldPrice : null,
+        diff: c.oldPrice !== null && c.oldCurrency === c.newCurrency && c.oldPrice !== c.newPrice
+          ? c.newPrice - c.oldPrice
+          : null,
       })),
       added: added.map((s) => ({ id: s.id, name: s.name, price: s.price, currency: s.currency, cycle: s.cycle, createdAt: s.createdAt })),
       cancelled,
@@ -249,7 +259,7 @@ export async function handleReport(options: ReportOptions = {}): Promise<void> {
 
   // Monthly chart
   consola.log("")
-  const chartCcy = displayCurrency ?? (Object.keys(byCurrency).length === 1 ? Object.keys(byCurrency)[0] : null)
+  const chartCcy = singleCurrency(displayCurrency, byCurrency)
   if (chartCcy) {
     consola.log(renderBarChart(totals, chartCcy))
   } else {

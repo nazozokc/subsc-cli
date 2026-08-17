@@ -318,3 +318,16 @@ test("handleBudget named budget filters by categories", async () => {
   expect(logMessages.some((m) => m.includes("Monthly spending: ¥2,500/month"))).toBe(true)
   expect(logMessages.some((m) => m.includes("Remaining: ¥500"))).toBe(true)
 })
+
+test("handleBudget named budget uses its own period", async () => {
+  await setConfig({
+    budgets: [{ name: "infra", amount: 60000, currency: "JPY", period: "yearly" }],
+  })
+  insertSub({ name: "AWS", price: 5000, currency: "JPY" })
+
+  const { handleBudget } = await import("../budget.ts")
+  // No explicit period — the named budget's own period (yearly) wins
+  await handleBudget({ name: "infra" })
+  expect(logMessages.some((m) => m.includes("Yearly spending: ¥60,000/year"))).toBe(true)
+  expect(logMessages.some((m) => m.includes("Budget (infra): ¥60,000/year"))).toBe(true)
+})

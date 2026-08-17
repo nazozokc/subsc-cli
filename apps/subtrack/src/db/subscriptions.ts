@@ -285,7 +285,7 @@ export const findSubscriptionByName = (name: string): SharedArgs | undefined => 
  */
 export const mergeSubscriptions = (keepId: number, removeId: number): boolean => {
   const db = getDb()
-  if (keepId === removeId) return true
+  if (keepId === removeId) return false
 
   db.run("BEGIN TRANSACTION")
   try {
