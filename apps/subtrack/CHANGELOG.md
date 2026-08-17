@@ -10,12 +10,12 @@
 - **Guided Cancellation**: `subtrack cancel <id>` cancels with a checklist — optional CSV export, alternative-service check, cancellation-date note, final confirmation. Marks as `cancelled`, sets `contractEnd`, writes audit log. `-f/--force` skips the checklist; `-j/--json` previews without changes. ([PR #104](https://github.com/nazozokc/subtrack/pull/104))
 - **Yearly Report**: `subtrack report` shows total spending, monthly bar chart, top 5 subscriptions by yearly cost, added/cancelled during the year, price changes, and budget comparison. `--year`, `-c/--currency`, `-j/--json`. ([PR #104](https://github.com/nazozokc/subtrack/pull/104))
 - **MCP Server**: tag and usage tools, enum validation, and paging support. ([`ce1dafa`](https://github.com/nazozokc/subtrack/commit/ce1dafa))
-- **Usage Commands**: `usage edit`, token totals, and paging. ([`f2ba913`](https://github.com/nazozokc/subtrack/commit/f2ba913))
+- **Usage Commands**: `usage edit`, token totals, and paging.
 - **List/Analytics/Forecast**: list filters (`--limit`, `--offset`), forecast currency conversion, analytics period options. ([`58aab5b`](https://github.com/nazozokc/subtrack/commit/58aab5b))
 
 ### 🐛 Bug Fixes
 
-- Exclude cancelled subscriptions from payment summaries; validate edit flags. ([`09583ba`](https://github.com/nazozokc/subtrack/commit/09583ba))
+- Exclude cancelled subscriptions from payment summaries; validate edit flags.
 - Correct billing date calculations in `upcoming` and `calendar`. ([`c08ad7f`](https://github.com/nazozokc/subtrack/commit/c08ad7f))
 - Exclude dist output from type check. ([`66c874c`](https://github.com/nazozokc/subtrack/commit/66c874c))
 - Add `--force` flag to bulk tag commands. ([`64751e4`](https://github.com/nazozokc/subtrack/commit/64751e4))
