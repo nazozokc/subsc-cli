@@ -90,7 +90,71 @@ export function estimateTokenSplit(totalTokens: number): { inputTokens: number; 
   return { inputTokens, outputTokens: totalTokens - inputTokens }
 }
 
-const pad = (n: number) => String(n).padStart(2, "0")
+export const pad2 = (n: number) => String(n).padStart(2, "0")
+
+/** Short month names (Jan, Feb, ...) for display formatting. */
+export const SHORT_MONTH_NAMES = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+] as const
+
+/**
+ * Convert a YYYY-MM-DD date string to a local Date.
+ * Invalid input produces an Invalid Date (caller's responsibility).
+ */
+export function toDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split("-").map(Number)
+  return new Date(y, m - 1, d)
+}
+
+/**
+ * Format a Date as YYYY-MM-DD (local timezone).
+ */
+export function formatDate(d: Date): string {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+}
+
+/**
+ * Format a Date as a short display string, e.g. "Jan 5".
+ */
+export function formatShortDate(d: Date): string {
+  return `${SHORT_MONTH_NAMES[d.getMonth()]} ${d.getDate()}`
+}
+
+/**
+ * Days in a month. `month` is 1-12 (human convention).
+ */
+export function daysInMonth(year: number, month: number): number {
+  return new Date(year, month, 0).getDate()
+}
+
+/**
+ * Clamp a day to the length of the given month. `month` is 1-12.
+ */
+export function clampDay(day: number, year: number, month: number): number {
+  return Math.min(day, daysInMonth(year, month))
+}
+
+/**
+ * Build a Date with the given day clamped to the month length,
+ * avoiding JS Date overflow (e.g. day 31 in February -> Feb 28).
+ * `month` is 0-based (JS convention).
+ */
+export function dateWithClampedDay(year: number, month: number, day: number): Date {
+  return new Date(year, month, clampDay(day, year, month + 1))
+}
+
+/**
+ * Days until a target date (YYYY-MM-DD string or Date), relative to today.
+ * Returns 0 for today, negative for past dates.
+ */
+export function daysUntil(target: string | Date): number {
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
+  const parsed = typeof target === "string" ? new Date(target + "T00:00:00") : new Date(target)
+  parsed.setHours(0, 0, 0, 0)
+  return Math.ceil((parsed.getTime() - now.getTime()) / (24 * 60 * 60 * 1000))
+}
 
 /**
  * Returns the [from, to] date range (inclusive, YYYY-MM-DD) for a given period.
@@ -102,11 +166,11 @@ export function getPeriodDateRange(period: Cycle): { from: string; to: string } 
   const y = now.getFullYear()
   const m = now.getMonth() // 0‑based
   const d = now.getDate()
-  const to = `${y}-${pad(m + 1)}-${pad(d)}`
+  const to = `${y}-${pad2(m + 1)}-${pad2(d)}`
 
   switch (period) {
     case "monthly":
-      return { from: `${y}-${pad(m + 1)}-01`, to }
+      return { from: `${y}-${pad2(m + 1)}-01`, to }
     case "yearly":
       return { from: `${y}-01-01`, to }
     case "weekly": {
@@ -115,7 +179,7 @@ export function getPeriodDateRange(period: Cycle): { from: string; to: string } 
       const mon = new Date(now)
       mon.setDate(d - diff)
       return {
-        from: `${mon.getFullYear()}-${pad(mon.getMonth() + 1)}-${pad(mon.getDate())}`,
+        from: `${mon.getFullYear()}-${pad2(mon.getMonth() + 1)}-${pad2(mon.getDate())}`,
         to,
       }
     }
@@ -123,17 +187,17 @@ export function getPeriodDateRange(period: Cycle): { from: string; to: string } 
       const twoWeeksAgo = new Date(now)
       twoWeeksAgo.setDate(d - 13)
       return {
-        from: `${twoWeeksAgo.getFullYear()}-${pad(twoWeeksAgo.getMonth() + 1)}-${pad(twoWeeksAgo.getDate())}`,
+        from: `${twoWeeksAgo.getFullYear()}-${pad2(twoWeeksAgo.getMonth() + 1)}-${pad2(twoWeeksAgo.getDate())}`,
         to,
       }
     }
     case "quarterly": {
       const qs = Math.floor(m / 3) * 3
-      return { from: `${y}-${pad(qs + 1)}-01`, to }
+      return { from: `${y}-${pad2(qs + 1)}-01`, to }
     }
     case "semi-annual": {
       const hs = Math.floor(m / 6) * 6
-      return { from: `${y}-${pad(hs + 1)}-01`, to }
+      return { from: `${y}-${pad2(hs + 1)}-01`, to }
     }
   }
 }
@@ -154,8 +218,8 @@ export function getPreviousPeriodDateRange(period: Cycle): { from: string; to: s
       const prevY = m === 0 ? y - 1 : y
       const lastDay = new Date(prevY, prevM + 1, 0).getDate()
       return {
-        from: `${prevY}-${pad(prevM + 1)}-01`,
-        to: `${prevY}-${pad(prevM + 1)}-${pad(lastDay)}`,
+        from: `${prevY}-${pad2(prevM + 1)}-01`,
+        to: `${prevY}-${pad2(prevM + 1)}-${pad2(lastDay)}`,
       }
     }
     case "yearly": {
@@ -171,8 +235,8 @@ export function getPreviousPeriodDateRange(period: Cycle): { from: string; to: s
       const prevSun = new Date(thisMon)
       prevSun.setDate(thisMon.getDate() - 1)
       return {
-        from: `${prevMon.getFullYear()}-${pad(prevMon.getMonth() + 1)}-${pad(prevMon.getDate())}`,
-        to: `${prevSun.getFullYear()}-${pad(prevSun.getMonth() + 1)}-${pad(prevSun.getDate())}`,
+        from: `${prevMon.getFullYear()}-${pad2(prevMon.getMonth() + 1)}-${pad2(prevMon.getDate())}`,
+        to: `${prevSun.getFullYear()}-${pad2(prevSun.getMonth() + 1)}-${pad2(prevSun.getDate())}`,
       }
     }
     case "bi-weekly": {
@@ -185,8 +249,8 @@ export function getPreviousPeriodDateRange(period: Cycle): { from: string; to: s
       const prevEnd = new Date(thisMon2)
       prevEnd.setDate(thisMon2.getDate() - 1)
       return {
-        from: `${prevStart.getFullYear()}-${pad(prevStart.getMonth() + 1)}-${pad(prevStart.getDate())}`,
-        to: `${prevEnd.getFullYear()}-${pad(prevEnd.getMonth() + 1)}-${pad(prevEnd.getDate())}`,
+        from: `${prevStart.getFullYear()}-${pad2(prevStart.getMonth() + 1)}-${pad2(prevStart.getDate())}`,
+        to: `${prevEnd.getFullYear()}-${pad2(prevEnd.getMonth() + 1)}-${pad2(prevEnd.getDate())}`,
       }
     }
     case "quarterly": {
@@ -196,8 +260,8 @@ export function getPreviousPeriodDateRange(period: Cycle): { from: string; to: s
       const qM = ((prevQStart % 12) + 12) % 12
       const lastDayQ = new Date(qY, qM + 3, 0).getDate()
       return {
-        from: `${qY}-${pad(qM + 1)}-01`,
-        to: `${qY}-${pad(qM + 3)}-${pad(lastDayQ)}`,
+        from: `${qY}-${pad2(qM + 1)}-01`,
+        to: `${qY}-${pad2(qM + 3)}-${pad2(lastDayQ)}`,
       }
     }
     case "semi-annual": {
@@ -207,8 +271,8 @@ export function getPreviousPeriodDateRange(period: Cycle): { from: string; to: s
       const hM = ((prevHStart % 12) + 12) % 12
       const lastDayH = new Date(hY, hM + 6, 0).getDate()
       return {
-        from: `${hY}-${pad(hM + 1)}-01`,
-        to: `${hY}-${pad(hM + 6)}-${pad(lastDayH)}`,
+        from: `${hY}-${pad2(hM + 1)}-01`,
+        to: `${hY}-${pad2(hM + 6)}-${pad2(lastDayH)}`,
       }
     }
   }

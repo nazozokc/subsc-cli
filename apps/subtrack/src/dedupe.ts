@@ -1,6 +1,6 @@
 import { consola } from "consola"
 import pc from "picocolors"
-import { getSubscriptions, getSubscription, mergeSubscriptions } from "./db.ts"
+import { getSubscriptions, getNonCancelledSubscriptions, getSubscription, mergeSubscriptions } from "./db.ts"
 import { logAudit } from "./audit.ts"
 import { fail } from "./error.ts"
 import { formatPrice } from "./price.ts"
@@ -93,7 +93,7 @@ export function handleDedupe(options: DedupeOptions = {}): void {
     return
   }
 
-  const subs = getSubscriptions().filter((s) => s.status !== "cancelled")
+  const subs = getNonCancelledSubscriptions()
   const pairs = findDuplicates(subs, threshold)
 
   if (options.json) {

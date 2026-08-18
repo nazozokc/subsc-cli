@@ -1,31 +1,18 @@
 import { consola } from "consola"
 import pc from "picocolors"
 import type { SharedArgs, Cycle, Currency } from "./types.ts"
-import { getSubscriptions } from "./db.ts"
+import { getSubscriptions, getNonCancelledSubscriptions } from "./db.ts"
 import { formatPrice } from "./price.ts"
-import { fetchFxRates, convertPrice } from "./fx.ts"
+import { fetchFxRates, tryConvert } from "./fx.ts"
 import type { FxRates } from "./fx.ts"
-
-
-function toDate(dateStr: string): Date {
-  const [y, m, d] = dateStr.split("-").map(Number)
-  return new Date(y, m - 1, d)
-}
+import { toDate, formatDate, formatShortDate, dateWithClampedDay, daysUntil } from "./date-utils.ts"
+import { runPreCommandHooks } from "./pre-command.ts"
 
 function getBillingDay(sub: SharedArgs): number {
   if (sub.billingDay) return sub.billingDay
   // Fall back to created_at day
   const created = toDate(sub.createdAt)
   return created.getDate()
-}
-
-/**
- * Build a date with the given day clamped to the last day of the month,
- * avoiding JS Date overflow (e.g. day 31 in February -> Feb 28).
- */
-function dateWithClampedDay(year: number, month: number, day: number): Date {
-  const lastDay = new Date(year, month + 1, 0).getDate()
-  return new Date(year, month, Math.min(day, lastDay))
 }
 
 /**
@@ -82,19 +69,6 @@ export function calculateNextBilling(sub: SharedArgs, fromDate: Date): Date {
   return nextDateForCycle(day, anchorDate, sub.cycle, fromDate)
 }
 
-function formatDate(d: Date): string {
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-  return `${months[d.getMonth()]} ${d.getDate()}`
-}
-
-function daysUntil(d: Date): number {
-  const now = new Date()
-  now.setHours(0, 0, 0, 0)
-  const target = new Date(d)
-  target.setHours(0, 0, 0, 0)
-  return Math.ceil((target.getTime() - now.getTime()) / (24 * 60 * 60 * 1000))
-}
-
 export type UpcomingEntry = {
   sub: SharedArgs
   nextDate: Date
@@ -102,7 +76,7 @@ export type UpcomingEntry = {
 }
 
 export function calcUpcoming(days: number = 7): UpcomingEntry[] {
-  const list = getSubscriptions().filter((s) => s.status !== "cancelled")
+  const list = getNonCancelledSubscriptions()
   if (list.length === 0) return []
 
   const now = new Date()
@@ -131,12 +105,10 @@ export async function calcUpcomingWithCurrency(days: number = 7, targetCurrency?
   try {
     const rates = await fetchFxRates()
     for (const entry of entries) {
-      try {
-        const converted = convertPrice(entry.amount, entry.sub.currency, targetCurrency as Currency, rates.rates)
+      const converted = tryConvert(entry.amount, entry.sub.currency, targetCurrency as Currency, rates.rates)
+      if (converted !== null) {
         entry.amount = Math.round(converted)
         entry.sub = { ...entry.sub, price: Math.round(converted), currency: targetCurrency }
-      } catch {
-        // Keep original currency
       }
     }
   } catch {
@@ -159,7 +131,7 @@ export async function showUpcoming(days: number = 7, options: { currency?: strin
 
   const currencyTotals: Record<string, number> = {}
   for (const entry of entries) {
-    const dateStr = formatDate(entry.nextDate)
+    const dateStr = formatShortDate(entry.nextDate)
     const dayLabel = daysUntil(entry.nextDate) === 0 ? " (today)" : daysUntil(entry.nextDate) === 1 ? " (tomorrow)" : ""
     consola.log(
       `  ${pc.cyan(dateStr)}${pc.dim(dayLabel)}  ${pc.bold(entry.sub.name)}  ${formatPrice(entry.sub.price, entry.sub.currency)}/${entry.sub.cycle}  ${pc.dim(entry.sub.tags.length > 0 ? `[${entry.sub.tags.join(", ")}]` : "")}`,
@@ -180,12 +152,7 @@ export async function showUpcoming(days: number = 7, options: { currency?: strin
 
 export async function handleUpcoming(days: number = 7, options: { json?: boolean; currency?: string } = {}): Promise<void> {
   // Show notification banner for non-JSON output
-  if (!options.json) {
-    const { autoScan } = await import("./suggest/scan.ts")
-    await autoScan()
-    const { showNotificationBanner } = await import("./notifications/banner.ts")
-    showNotificationBanner()
-  }
+  await runPreCommandHooks(options)
 
   if (options.json) {
     const entries = options.currency ? await calcUpcomingWithCurrency(days, options.currency) : calcUpcoming(days)
@@ -195,7 +162,7 @@ export async function handleUpcoming(days: number = 7, options: { json?: boolean
       price: e.sub.price,
       currency: e.sub.currency,
       cycle: e.sub.cycle,
-      nextDate: `${e.nextDate.getFullYear()}-${String(e.nextDate.getMonth() + 1).padStart(2, "0")}-${String(e.nextDate.getDate()).padStart(2, "0")}`,
+      nextDate: formatDate(e.nextDate),
       amount: Math.round(e.amount),
       tags: e.sub.tags,
     }))

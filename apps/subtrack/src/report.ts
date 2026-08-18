@@ -6,7 +6,7 @@ import { getSubscriptions, getAllPriceChanges, getAuditLogs } from "./db.ts"
 import { loadConfig } from "./config.ts"
 import { formatPrice } from "./price.ts"
 import { periodFactor, OCCURRENCES_PER_YEAR } from "./date-utils.ts"
-import { fetchFxRates, convertPrice } from "./fx.ts"
+import { fetchFxRates, convertPrice, convertSubsWithRates } from "./fx.ts"
 import type { FxRates } from "./fx.ts"
 import { renderBarChart } from "./timeline.ts"
 import { fail } from "./error.ts"
@@ -147,11 +147,7 @@ export async function handleReport(options: ReportOptions = {}): Promise<void> {
     try {
       rates = await fetchFxRates()
       displayCurrency = target
-      displaySubs = subs.map((s) => ({
-        ...s,
-        price: Math.round(convertPrice(s.price, s.currency, target as Currency, rates!.rates)),
-        currency: target,
-      }))
+      displaySubs = convertSubsWithRates(subs, target as Currency, rates!)
     } catch {
       consola.warn("Failed to fetch exchange rates; reporting in original currencies")
       displayCurrency = null

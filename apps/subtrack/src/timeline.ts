@@ -3,9 +3,9 @@ import { fail } from "./error.ts"
 import pc from "picocolors"
 import { getSubscriptions } from "./db.ts"
 import type { SharedArgs, Currency } from "./types.ts"
-import { periodFactor } from "./date-utils.ts"
+import { periodFactor, SHORT_MONTH_NAMES } from "./date-utils.ts"
 import { formatPrice } from "./price.ts"
-import { fetchFxRates, convertPrice } from "./fx.ts"
+import { fetchFxRates, convertSubsWithRates } from "./fx.ts"
 import type { FxRates } from "./fx.ts"
 
 export type TimelineOptions = {
@@ -122,17 +122,12 @@ export function renderBarChart(totals: MonthTotal[], currency: string = "USD"): 
   const labelWidth = 4 // "Dec " or "Jun "
   const lines: string[] = []
 
-  const monthNames = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-  ]
-
   lines.push(pc.bold("Monthly spending"))
   lines.push("─".repeat(barWidth + labelWidth + 16))
   lines.push("")
 
   for (const t of totals) {
-    const shortMon = monthNames[t.month]
+    const shortMon = SHORT_MONTH_NAMES[t.month]
     const label = `${shortMon} ${String(t.year).slice(2)}`.padEnd(labelWidth + 3)
     const barLen = Math.round((t.total / max) * barWidth)
     const bar = "█".repeat(barLen) + "░".repeat(barWidth - barLen)
@@ -161,10 +156,7 @@ function renderCategoryChart(
   currency: string = "USD",
 ): string {
   const lines: string[] = []
-  const monthNames = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-  ]
+  const monthNames = SHORT_MONTH_NAMES
 
   lines.push(pc.bold("Monthly spending by category"))
   lines.push("")
@@ -216,11 +208,7 @@ export async function handleTimeline(options: TimelineOptions = {}): Promise<voi
     displayCurrency = options.currency
     try {
       const rates = await fetchFxRates()
-      activeSubs = activeSubs.map((s) => ({
-        ...s,
-        price: Math.round(convertPrice(s.price, s.currency, displayCurrency as Currency, rates.rates)),
-        currency: displayCurrency,
-      }))
+      activeSubs = convertSubsWithRates(activeSubs, displayCurrency as Currency, rates)
     } catch {
       consola.warn("Failed to fetch exchange rates; showing in original currencies")
       displayCurrency = "USD"

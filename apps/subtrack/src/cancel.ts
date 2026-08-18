@@ -9,9 +9,9 @@ import { logAudit } from "./audit.ts"
 import { fail } from "./error.ts"
 import { formatPrice } from "./price.ts"
 import { calculateNextBilling } from "./upcoming.ts"
-import { today } from "./date-utils.ts"
+import { today, formatDate } from "./date-utils.ts"
 import { exportCsv } from "./export.ts"
-import { resolveSafeOutputPath } from "./path-utils.ts"
+import { safeOutputPath } from "./path-utils.ts"
 import type { AddSharedArgs } from "./types.ts"
 
 export type CancelOptions = {
@@ -19,10 +19,6 @@ export type CancelOptions = {
   force?: boolean
   /** Output subscription info as JSON (no changes made) */
   json?: boolean
-}
-
-function formatDate(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
 }
 
 /** Sanitize a subscription name for use in a file name. */
@@ -83,7 +79,7 @@ export async function handleCancel(id: number, options: CancelOptions = {}): Pro
     })
     if (doExport) {
       const exportPath = path.join(os.homedir(), "exports", `${safeFileName(sub.name)}-${cancellationDate}.csv`)
-      const safePath = resolveSafeOutputPath([os.homedir(), os.tmpdir()], exportPath)
+      const safePath = safeOutputPath(exportPath)
       if (!safePath) {
         consola.warn("Cannot export — invalid output path; skipping export")
       } else {

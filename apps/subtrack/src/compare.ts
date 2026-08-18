@@ -2,8 +2,8 @@ import { consola } from "consola"
 import pc from "picocolors"
 import CliTable3 from "cli-table3"
 import type { Currency, Cycle, CompareOptions } from "./types.ts"
-import { periodFactor, getPeriodDateRange, getPreviousPeriodDateRange } from "./date-utils.ts"
-import { getSubscriptions, getLlmUsageTotal, getLlmUsageTotalByProvider, getAllPriceChanges } from "./db.ts"
+import { periodFactor, getPeriodDateRange, getPreviousPeriodDateRange, SHORT_MONTH_NAMES } from "./date-utils.ts"
+import { getNonCancelledSubscriptions, getLlmUsageTotal, getAllPriceChanges } from "./db.ts"
 import { formatPrice } from "./price.ts"
 import { fetchFxRates, convertPrice } from "./fx.ts"
 import type { FxRates } from "./fx.ts"
@@ -37,7 +37,7 @@ function formatDateRange(from: string, to: string): string {
   // Format: "Jun 1–27, 2026"
   const f = new Date(from + "T00:00:00")
   const t = new Date(to + "T00:00:00")
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+  const months = SHORT_MONTH_NAMES
   if (f.getFullYear() === t.getFullYear()) {
     if (f.getMonth() === t.getMonth()) {
       return `${months[f.getMonth()]} ${f.getDate()}–${t.getDate()}, ${f.getFullYear()}`
@@ -96,7 +96,7 @@ export async function showCompare(
   period: Cycle = "monthly",
   options: { currency?: string; api?: boolean } = {},
 ): Promise<void> {
-  const subs = getSubscriptions()
+  const subs = getNonCancelledSubscriptions()
 
   const currentRange = getPeriodDateRange(period)
   const previousRange = getPreviousPeriodDateRange(period)
@@ -118,7 +118,7 @@ export async function showCompare(
 
   const targetCurrency = options.currency as Currency | undefined
 
-  const activeSubs = subs.filter((s) => s.status !== "cancelled")
+  const activeSubs = subs
   if (activeSubs.length === 0) {
     consola.info("No active subscriptions found")
     return
@@ -230,13 +230,13 @@ export async function handleCompare(
   options: CompareOptions = {},
 ): Promise<void> {
   if (options.json) {
-    const subs = getSubscriptions().filter((s) => s.status !== "cancelled")
+    const subs = getNonCancelledSubscriptions()
     if (subs.length === 0) {
       process.stdout.write(JSON.stringify({ period, current: {}, previous: {}, change: {} }, null, 2) + "\n")
       return
     }
 
-    const activeSubs = subs.filter((s) => s.status !== "cancelled")
+    const activeSubs = subs
     const currentTotals: Record<string, number> = {}
     for (const sub of activeSubs) {
       const monthly = sub.price * periodFactor(sub.cycle, "monthly")

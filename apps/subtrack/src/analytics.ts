@@ -1,17 +1,17 @@
 import { consola } from "consola"
 import pc from "picocolors"
-import type { SharedArgs, AnalyticsOptions } from "./types.ts"
-import { getSubscriptions } from "./db.ts"
+import type { AnalyticsOptions } from "./types.ts"
+import { getSubscriptions, getNonCancelledSubscriptions } from "./db.ts"
 import { formatPrice } from "./price.ts"
 import { calcSummary } from "./payment.ts"
 import { loadConfig } from "./config.ts"
 import { periodFactor } from "./date-utils.ts"
-import { fetchFxRates, convertPrice } from "./fx.ts"
+import { fetchFxRates, convertPrice, tryConvert } from "./fx.ts"
 import type { FxRates } from "./fx.ts"
 
 export async function handleAnalytics(options: AnalyticsOptions = {}): Promise<void> {
   if (options.json) {
-    const subs = getSubscriptions().filter((s) => s.status !== "cancelled")
+    const subs = getNonCancelledSubscriptions()
     const data = calcSummary(subs)
 
     const output: Record<string, unknown> = {
@@ -30,12 +30,10 @@ export async function handleAnalytics(options: AnalyticsOptions = {}): Promise<v
       if (rates) {
         for (const [ccy, total] of Object.entries(data.monthlyByCurrency)) {
           if (ccy !== options.currency) {
-            try {
-              const value = convertPrice(total, ccy, options.currency, rates.rates)
+            const value = tryConvert(total, ccy, options.currency, rates.rates)
+            if (value !== null) {
               converted[options.currency] = (converted[options.currency] ?? 0) + value
               continue
-            } catch {
-              // fall through to original currency
             }
           }
           converted[ccy] = (converted[ccy] ?? 0) + total
@@ -54,7 +52,8 @@ export async function handleAnalytics(options: AnalyticsOptions = {}): Promise<v
 }
 
 export async function showAnalytics(options: AnalyticsOptions = {}): Promise<void> {
-  const list = getSubscriptions().filter((s) => s.status !== "cancelled")
+  const all = getSubscriptions()
+  const list = all.filter((s) => s.status !== "cancelled")
   if (list.length === 0) {
     consola.info("No active subscriptions found")
     return
@@ -89,7 +88,7 @@ export async function showAnalytics(options: AnalyticsOptions = {}): Promise<voi
   consola.log(`  Status breakdown:`)
   const activeCount = list.filter((s) => s.status === "active").length
   const pausedCount = list.filter((s) => s.status === "paused").length
-  const cancelledCount = getSubscriptions().filter((s) => s.status === "cancelled").length
+  const cancelledCount = all.filter((s) => s.status === "cancelled").length
   consola.log(`    ${pc.green(`active: ${activeCount}`)}`)
   if (pausedCount > 0) consola.log(`    ${pc.yellow(`paused: ${pausedCount}`)}`)
   if (cancelledCount > 0) consola.log(`    ${pc.red(`cancelled: ${cancelledCount}`)}`)
@@ -108,11 +107,8 @@ export async function showAnalytics(options: AnalyticsOptions = {}): Promise<voi
     const ccy = targetCurrency ?? sub.currency
     let amount = monthly
     if (targetCurrency && rates && sub.currency !== targetCurrency) {
-      try {
-        amount = convertPrice(monthly, sub.currency, targetCurrency, rates.rates)
-      } catch {
-        // keep original
-      }
+      // Keep original on missing rate
+      amount = tryConvert(monthly, sub.currency, targetCurrency, rates.rates) ?? monthly
     }
     byCurrency[ccy] = (byCurrency[ccy] ?? 0) + amount * mult
   }

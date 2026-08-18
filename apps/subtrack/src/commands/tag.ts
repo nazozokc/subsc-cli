@@ -2,7 +2,7 @@
 import { define } from "gunshi"
 import { consola } from "consola"
 import { fail } from "../error.ts"
-import { handleTags } from "../subscription.ts"
+import { handleTags } from "../subscription/core.ts"
 import { handleTagList, handleTagRename, handleTagDelete, handleTagPrune, handleTagMerge } from "../tag.ts"
 
 export const tagsCommand = define({

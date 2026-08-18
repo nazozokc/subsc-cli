@@ -66,6 +66,8 @@ type ColumnConfig = {
   headers: readonly string[]
   minWidths: readonly number[]
   maxWidths: readonly number[]
+  /** Minimum available width (default 40) */
+  minAvail?: number
 }
 
 const BASE_COLS: ColumnConfig = {
@@ -120,7 +122,7 @@ const BORDER_AND_PADDING = 16
 
 function calcColumnWidths(rows: string[][], config: ColumnConfig): number[] {
   const termWidth = process.stdout.columns ?? 80
-  const avail = Math.max(40, termWidth - BORDER_AND_PADDING)
+  const avail = Math.max(config.minAvail ?? 40, termWidth - BORDER_AND_PADDING)
 
   const weights = config.headers.map((hdr, i) => {
     let max = hdr.length
@@ -330,54 +332,11 @@ const USAGE_HEADERS = ["Provider", "Model", "Input", "Output", "Cost", "Date", "
 const USAGE_MIN_WIDTHS = [10, 20, 10, 10, 10, 12, 15] as const
 const USAGE_MAX_WIDTHS = [20, 50, 14, 14, 14, 12, 60] as const
 
-function calcUsageColumnWidths(rows: UsageRow[]): number[] {
-  const termWidth = process.stdout.columns ?? 80
-  const avail = Math.max(50, termWidth - BORDER_AND_PADDING)
-
-  const weights = USAGE_HEADERS.map((hdr, i) => {
-    let max = hdr.length
-    for (const row of rows) {
-      const len = row[i].length
-      if (len > max) max = len
-    }
-    return Math.min(max, USAGE_MAX_WIDTHS[i])
-  })
-
-  const totalWeight = weights.reduce((a, b) => a + b, 0)
-  const widths = weights.map((w, i) =>
-    Math.max(
-      USAGE_MIN_WIDTHS[i],
-      Math.min(USAGE_MAX_WIDTHS[i], Math.round((avail * w) / totalWeight)),
-    ),
-  )
-
-  // Fit to available width
-  let sum = widths.reduce((a, b) => a + b, 0)
-  let diff = sum - avail
-  let iterations = 0
-  while (diff > 0 && iterations < 100) {
-    let idx = -1
-    for (let i = 0; i < widths.length; i++) {
-      if (widths[i] > USAGE_MIN_WIDTHS[i] && (idx === -1 || widths[i] > widths[idx])) idx = i
-    }
-    if (idx === -1) break
-    widths[idx]--
-    diff--
-    iterations++
-  }
-  iterations = 0
-  while (diff < 0 && iterations < 100) {
-    let idx = -1
-    for (let i = 0; i < widths.length; i++) {
-      if (widths[i] < USAGE_MAX_WIDTHS[i] && (idx === -1 || weights[i] > weights[idx])) idx = i
-    }
-    if (idx === -1) break
-    widths[idx]++
-    diff++
-    iterations++
-  }
-
-  return widths
+const USAGE_COLS: ColumnConfig = {
+  headers: USAGE_HEADERS,
+  minWidths: USAGE_MIN_WIDTHS,
+  maxWidths: USAGE_MAX_WIDTHS,
+  minAvail: 50,
 }
 
 function renderUsageTableBody(
@@ -415,22 +374,12 @@ function renderUsageTableBody(
   return table.toString()
 }
 
+/** TABLE_CHARS with a footer-style top border (used for the total row). */
 const TABLE_CHARS_FOOTER = {
-  top: "─",
+  ...TABLE_CHARS,
   "top-mid": "┴",
   "top-left": "├",
   "top-right": "┤",
-  bottom: "─",
-  "bottom-mid": "┴",
-  "bottom-left": "└",
-  "bottom-right": "┘",
-  left: "│",
-  "left-mid": "├",
-  mid: "─",
-  "mid-mid": "┼",
-  right: "│",
-  "right-mid": "┤",
-  middle: "│",
 } as const
 
 export function renderUsageTable(entries: LlmUsageEntry[]): void {
@@ -464,7 +413,7 @@ export function renderUsageTable(entries: LlmUsageEntry[]): void {
     ] as UsageRow,
   ]
 
-  const widths = calcUsageColumnWidths(allRows)
+  const widths = calcColumnWidths(allRows, USAGE_COLS)
   consola.log(renderUsageTableBody(entries, widths))
 
   // Render TOTAL footer row

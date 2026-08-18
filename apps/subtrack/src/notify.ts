@@ -2,7 +2,8 @@ import { consola } from "consola"
 import { calcUpcoming } from "./upcoming.ts"
 import { formatPrice } from "./price.ts"
 import { loadConfig } from "./config.ts"
-import type { Currency, NotifyChannel } from "./types.ts"
+import type { NotifyChannel } from "./types.ts"
+import { formatDate } from "./date-utils.ts"
 
 export type NotifyOptions = {
   days?: number
@@ -41,7 +42,7 @@ export async function handleNotify(options: NotifyOptions = {}): Promise<void> {
       price: e.sub.price,
       currency: e.sub.currency,
       cycle: e.sub.cycle,
-      nextDate: `${e.nextDate.getFullYear()}-${String(e.nextDate.getMonth() + 1).padStart(2, "0")}-${String(e.nextDate.getDate()).padStart(2, "0")}`,
+      nextDate: formatDate(e.nextDate),
       tags: e.sub.tags,
     }))
     process.stdout.write(JSON.stringify({ days, count: entries.length, entries: data }, null, 2) + "\n")
@@ -57,7 +58,7 @@ export async function handleNotify(options: NotifyOptions = {}): Promise<void> {
   if (options.dryRun) {
     consola.info(`Upcoming bills (next ${days} day${days > 1 ? "s" : ""}):`)
     for (const e of entries) {
-      const date = `${e.nextDate.getFullYear()}-${String(e.nextDate.getMonth() + 1).padStart(2, "0")}-${String(e.nextDate.getDate()).padStart(2, "0")}`
+      const date = formatDate(e.nextDate)
       consola.log(`  ${date}  ${e.sub.name}  ${formatPrice(e.sub.price, e.sub.currency)}/${e.sub.cycle}`)
     }
     return

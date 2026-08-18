@@ -122,12 +122,6 @@ export function getActiveFilter(): ProfileFilter | null {
   return profiles[config.activeProfile] ?? null
 }
 
-/** Get the name of the active profile, if any. */
-export function getActiveProfileName(): string | null {
-  const config = loadConfig()
-  return config.activeProfile ?? null
-}
-
 /** Apply a profile filter to a subscription query. Returns filter params. */
 export function buildFilterParams(
   profile: ProfileFilter,

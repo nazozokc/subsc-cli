@@ -5,7 +5,8 @@ import { fail } from "./error.ts"
 import type { UsageImportFlags } from "./types.ts"
 import { addLlmUsageFromLog } from "./db.ts"
 import { safeJsonParse } from "./safe-json.ts"
-import { resolveSafePath } from "./path-utils.ts"
+import { safePath } from "./path-utils.ts"
+import { today } from "./date-utils.ts"
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB
 const MAX_STDIN_SIZE = 10 * 1024 * 1024 // 10 MB (stdin is unbounded)
@@ -19,13 +20,8 @@ import {
 
 // ── Helpers ──────────────────────────────────────────────
 
-export function todayLocal(): string {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
-}
-
 function unixTsToDate(ts: number | undefined): string {
-  if (!ts) return todayLocal()
+  if (!ts) return today()
   return new Date(ts * 1000).toISOString().split("T")[0]
 }
 
@@ -81,7 +77,7 @@ function parseResponseJson(obj: Record<string, unknown>): ParsedLogEntry | null 
       inputTokens,
       outputTokens,
       costCents,
-      date: todayLocal(),
+      date: today(),
     }
   }
 
@@ -113,7 +109,7 @@ function parseResponseJson(obj: Record<string, unknown>): ParsedLogEntry | null 
       inputTokens,
       outputTokens,
       costCents: null,
-      date: todayLocal(),
+      date: today(),
     }
   }
 
@@ -169,7 +165,7 @@ export async function handleUsageImport(flags: UsageImportFlags) {
     if (stdinDestroyed) return
     content = Buffer.concat(chunks).toString("utf-8")
   } else {
-    const safeFile = resolveSafePath([os.homedir(), os.tmpdir()], filePath)
+    const safeFile = safePath(filePath)
     if (!safeFile) {
       fail(
         `File not found or path not allowed — must be within home or temp directory`,

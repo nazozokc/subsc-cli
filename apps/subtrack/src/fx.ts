@@ -1,4 +1,5 @@
 import { safeResponseJson } from "./safe-json.ts"
+import type { SharedArgs } from "./types.ts"
 
 export type FxRates = {
   base: string
@@ -58,4 +59,38 @@ export function convertPrice(
   // Convert via USD base: source → USD → target
   const inUsd = from === "USD" ? price : price / fromRate
   return to === "USD" ? inUsd : inUsd * toRate
+}
+
+/**
+ * Convert each subscription's price to the target currency using fetched rates.
+ * All-or-nothing: throws if any conversion fails (e.g. missing rate),
+ * matching the previous per-site try/catch behavior.
+ */
+export function convertSubsWithRates(
+  subs: SharedArgs[],
+  targetCurrency: string,
+  rates: FxRates,
+): SharedArgs[] {
+  return subs.map((s) => ({
+    ...s,
+    price: Math.round(convertPrice(s.price, s.currency, targetCurrency, rates.rates)),
+    currency: targetCurrency,
+  }))
+}
+
+/**
+ * Convert a single price, returning null (instead of throwing) when
+ * no rate is available. Callers keep the original price on null.
+ */
+export function tryConvert(
+  price: number,
+  from: string,
+  to: string,
+  rates: Record<string, number>,
+): number | null {
+  try {
+    return convertPrice(price, from, to, rates)
+  } catch {
+    return null
+  }
 }

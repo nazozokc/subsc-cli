@@ -1,5 +1,25 @@
 import { resolve, normalize, isAbsolute, dirname, sep } from "node:path"
 import { realpathSync, existsSync } from "node:fs"
+import os from "node:os"
+
+/** Default trusted base directories: home and temp. */
+function defaultBases(): string[] {
+  return [os.homedir(), os.tmpdir()]
+}
+
+/**
+ * resolveSafePath with the default home/tmp base directories.
+ */
+export function safePath(userPath: string): string | null {
+  return resolveSafePath(defaultBases(), userPath)
+}
+
+/**
+ * resolveSafeOutputPath with the default home/tmp base directories.
+ */
+export function safeOutputPath(targetPath: string): string | null {
+  return resolveSafeOutputPath(defaultBases(), targetPath)
+}
 
 /** Check if `child` path starts with `parent` directory, using platform separator. */
 function isWithin(child: string, parent: string): boolean {
