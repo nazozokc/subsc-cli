@@ -29,7 +29,7 @@ subtrack is a Node.js CLI tool for managing subscription services from the termi
 ## Testing
 
 - Framework: `vitest` (`pnpm test` or `vitest run`)
-- Test files are co-located next to source files as `*.test.ts`
+- Test files live under `src/__tests__/` as `*.test.ts` (not co-located)
 - Use `pnpm test:watch` for watch mode
 - Use `__setDb()` from `db.ts` to inject an in-memory SQLite database for tests
 - Mock `consola` via `consola.mockTypes()` for output assertions (see `display.test.ts`)
@@ -41,7 +41,7 @@ subtrack is a Node.js CLI tool for managing subscription services from the termi
 - Import: `import initSqlJs from "sql.js"` and `import type { Database, SqlValue, BindParams } from "sql.js"`
 - Database file location: `$SUBSC_CLI_DB_DIR` env var or `~/.config/subtrack/subtrack.db`
 - State is held in memory (`_db`) and persisted to disk via `saveDb()` on writes
-- Schema has 3 tables: `subscriptions`, `tags`, `subscription_tags` (many-to-many)
+- Schema has 8 tables: `subscriptions`, `tags`, `subscription_tags`, `llm_usage`, `trials`, `price_history`, `suggestions`, `audit_log`
 - Always use transactions for multi-step writes (`BEGIN TRANSACTION` / `COMMIT` / `ROLLBACK`)
 - Use `PRAGMA foreign_keys = ON` at connection time
 
@@ -51,18 +51,22 @@ The source code (`subtrack/src/`) follows a 4-layer separation:
 
 | Layer | File | Responsibility |
 |---|---|---|
-| Entry | `index.ts` | CLI definition (commander), command routing |
-| Commands | `commands.ts` | Command handlers, workflow logic, user interaction |
-| Database | `db.ts` | SQLite CRUD, schema, persistence, `__setDb()` for testing |
+| Entry | `index.ts` | CLI definition (gunshi), command routing |
+| Commands | `commands/` | gunshi command definitions (`define()` + `.run()`) |
+| Handlers | `subscription/`, `menu.ts`, `search.ts`, `payment.ts`, … | Command handlers, workflow logic, user interaction |
+| Database | `db.ts`, `db/` | SQLite CRUD, schema, persistence, `__setDb()` for testing |
 | Display | `display.ts` | Table rendering with cli-table3, FX rate conversion |
 | Prompts | `prompts.ts` | Input validation, interactive prompts, shared choices |
+| FX | `fx.ts` | Exchange rate fetching & conversion (`fetchFxRates`, `convertPrice`, `convertSubsWithRates`, `tryConvert`) |
+| Dates | `date-utils.ts` | Date helpers (`today`, `formatDate`, `daysUntil`, period ranges) |
+| Path safety | `path-utils.ts` | `resolveSafePath` / `resolveSafeOutputPath` (+ `safePath` / `safeOutputPath` shortcuts) |
 
 Keep concerns separated. Don't put DB queries in display logic or prompt logic in command handlers.
 
 ## Import Style
 
 - Use `node:` prefix for Node.js built-ins: `import { readFileSync } from "node:fs"`, `import path from "node:path"`, `import { homedir } from "node:os"`
-- Use `.ts` extension in local imports: `import { handleList } from "./commands.ts"`
+- Use `.ts` extension in local imports: `import { handleList } from "./subscription/core.ts"`
 - Prefer native `fetch` for HTTP requests
 - Prefer native `WebSocket` for WebSocket connections (if needed)
 - Use `type` prefix for type-only imports: `import type { SharedArgs } from "./db.ts"`
