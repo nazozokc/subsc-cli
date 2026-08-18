@@ -397,8 +397,8 @@ test("handleExport with currency falls back when fetch fails", async () => {
 
   const { handleExport } = await import("../commands.ts")
   await handleExport("csv", { currency: "USD" })
-  expect(failMessages.length).toBeGreaterThan(0)
-  expect(failMessages[0]).toContain("Failed to fetch exchange rates")
+  expect(warnMessages.length).toBeGreaterThan(0)
+  expect(warnMessages[0]).toContain("Failed to fetch exchange rates")
 
   globalThis.fetch = async () =>
     new Response(JSON.stringify({ base: "USD", rates: { JPY: 160, USD: 1 } }))
@@ -1346,11 +1346,12 @@ test("handleUsageTotal display shows tokens and by model", async () => {
   const { handleUsageTotal } = await import("../usage-total.ts")
   handleUsageTotal({ from: "2026-06-01", to: "2026-06-30" })
   const combined = logMessages.join("\n")
-  expect(combined).toContain("By provider")
-  expect(combined).toContain("By model")
-  expect(combined).toContain("gpt-4o")
-  expect(combined).toContain("Tokens: 100 in / 50 out")
-  expect(combined).toContain("Total: $0.01") // cost 1.0 = 1 cent
+  const plain = combined.replace(/\x1b\[[0-9;]*m/g, "")
+  expect(plain).toContain("By provider")
+  expect(plain).toContain("By model")
+  expect(plain).toContain("gpt-4o")
+  expect(plain).toContain("Tokens: 100 in / 50 out")
+  expect(plain).toContain("Total: $0.01") // cost 1.0 = 1 cent
 })
 
 test("handleUsageTotal shows info when no usage in range", async () => {

@@ -5,6 +5,7 @@ import type { LlmUsageEntry } from "./types.ts"
 import { getLlmUsage, deleteLlmUsage } from "./db.ts"
 import { logAudit } from "./audit.ts"
 import { renderUsageTable } from "./display.ts"
+import { formatUsdCost } from "./price.ts"
 
 export { handleUsageAdd } from "./usage-add.ts"
 export { handleUsageImport } from "./usage-import.ts"
@@ -58,7 +59,7 @@ export async function handleUsageDelete(ids?: number[]) {
   const selected = await checkbox({
     message: "Select usage entries to delete",
     choices: all.map((e: LlmUsageEntry) => ({
-      name: `${e.date}  ${e.provider}/${e.model}  ${e.input_tokens.toLocaleString()} in / ${e.output_tokens.toLocaleString()} out  $${(e.cost / 100).toFixed(4)}${e.description ? `  — ${e.description}` : ""}`,
+      name: `${e.date}  ${e.provider}/${e.model}  ${e.input_tokens.toLocaleString()} in / ${e.output_tokens.toLocaleString()} out  ${formatUsdCost(e.cost)}${e.description ? `  — ${e.description}` : ""}`,
       value: e,
     })),
     loop: false,

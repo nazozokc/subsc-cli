@@ -134,7 +134,7 @@ export async function handleBudget(options: BudgetOptions = {}): Promise<void> {
     try {
       rates = await fetchFxRates()
     } catch {
-      consola.warn("Failed to fetch exchange rates; comparing in original currencies")
+      consola.warn("Failed to fetch exchange rates; showing in original currencies")
     }
   }
 
@@ -225,10 +225,10 @@ export async function handleBudget(options: BudgetOptions = {}): Promise<void> {
 
   const budgetLabel = budget.name ? `Budget (${budget.name})` : "Budget"
   consola.log(
-    `${periodName} spending: ${pc.bold(formatPrice(Math.round(spending), currency))}/${periodLabel}`,
+    `${periodName} spending: ${pc.bold(pc.yellow(formatPrice(Math.round(spending), currency)))}/${periodLabel}`,
   )
   consola.log(
-    `${budgetLabel}: ${pc.bold(formatPrice(Math.round(budgetDisplay), currency))}/${periodLabel}` +
+    `${budgetLabel}: ${pc.bold(pc.yellow(formatPrice(Math.round(budgetDisplay), currency)))}/${periodLabel}` +
       (budget.currency !== currency ? ` (${budget.currency})` : ""),
   )
   if (over) {

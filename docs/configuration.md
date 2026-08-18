@@ -77,7 +77,7 @@ See the [Commands reference](/commands#config) for full details.
 |-----|-------------|---------|
 | `defaultCurrency` | Default currency for display and analytics | `USD` |
 | `monthlyBudget` | Monthly spending budget in USD (0 = disabled) | `0` |
-| `theme` | Display theme | `default` |
+| `theme` | Display theme preset (`default`, `light`, `high-contrast`, `none`) | `default` |
 | `notifyDays` | Default look-ahead days for `subtrack notify` | `7` |
 | `notifyChannels` | Notification channels (comma-separated: `os`, `slack`, `webhook`) | `os` |
 | `slackWebhook` | Slack webhook URL for Slack notifications | — |
@@ -86,6 +86,15 @@ See the [Commands reference](/commands#config) for full details.
 | `profiles` | Saved filter profiles (stored as JSON object) | `{}` |
 | `activeProfile` | Currently active filter profile name | — |
 | `budgets` | Multiple named budgets for budget-vs-actual tracking | — |
+| `tableBorderColor` | Table border color override (color name) | theme default |
+| `tableHeaderColor` | Table header color override (color name) | theme default |
+| `tableZebraColor` | Zebra stripe background color override (color name) | theme default |
+| `accentColor` | Accent color override for headings (color name) | theme default |
+| `tableZebra` | Enable/disable zebra striping (`on`/`off`) | `on` |
+| `tableMinWidth` | Minimum table width in columns (20–200) | `40` |
+| `dateFormat` | Date display format (`iso` or `short`) | `iso` |
+| `listShowNotes` | Show notes column in `subtrack list` by default (`on`/`off`) | `off` |
+| `listShowMethod` | Show payment method column in `subtrack list` by default (`on`/`off`) | `off` |
 
 Set values with:
 
@@ -95,6 +104,31 @@ subtrack config set defaultCurrency JPY
 ```
 
 The `config set` command validates input (e.g., currency codes must be ISO 4217, budget must be non-negative).
+
+### Display themes
+
+The `theme` key switches between color presets:
+
+| Preset | Best for |
+|--------|----------|
+| `default` | Dark terminal backgrounds (default) |
+| `light` | Light terminal backgrounds |
+| `high-contrast` | Accessibility / high ambient light |
+| `none` | Plain monochrome output (piping, screen readers) |
+
+Individual color keys (`tableBorderColor`, `tableHeaderColor`, `tableZebraColor`, `accentColor`) override the preset. Valid color names: `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, `gray`, and the `bright*` variants.
+
+```bash
+# Switch to the light theme
+subtrack config set theme light
+
+# Or fine-tune a preset
+subtrack config set theme high-contrast
+subtrack config set accentColor yellow
+
+# Disable zebra striping
+subtrack config set tableZebra off
+```
 
 ## No config file
 

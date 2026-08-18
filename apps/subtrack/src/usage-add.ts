@@ -10,6 +10,7 @@ import {
   validateDate,
 } from "./prompts.ts"
 import { today } from "./date-utils.ts"
+import { formatUsdCost } from "./price.ts"
 import {
   ensurePricingCache,
   searchPricingModels,
@@ -179,8 +180,8 @@ async function resolveUsageAddOptions(flags: UsageAddFlags) {
   // Confirm (only when interactive)
   if (prompted) {
     const costDisplay = manualCost
-      ? `$${((costCents ?? 0) / 100).toFixed(2)} (manual)`
-      : `$${((costCents ?? 0) / 100).toFixed(4)}`
+      ? `${formatUsdCost(costCents ?? 0, 2)} (manual)`
+      : `${formatUsdCost(costCents ?? 0)}`
     consola.info(
       `Cost: ${costDisplay} (${(inputTokens ?? 0).toLocaleString()} in / ${(outputTokens ?? 0).toLocaleString()} out)`,
     )
@@ -214,10 +215,10 @@ export async function handleUsageAdd(flags: UsageAddFlags) {
     addLlmUsage(result)
     logAudit("usage.add", {
       targetType: "usage",
-      details: `${result.provider}/${result.model}: $${(result.cost / 100).toFixed(4)} on ${result.date}`,
+      details: `${result.provider}/${result.model}: ${formatUsdCost(result.cost)} on ${result.date}`,
     })
     consola.success(
-      `Added usage: ${result.provider}/${result.model} — $${(result.cost / 100).toFixed(4)} on ${result.date}`,
+      `Added usage: ${result.provider}/${result.model} — ${formatUsdCost(result.cost)} on ${result.date}`,
     )
   } catch (error) {
     fail(`Failed to add usage entry: ${error instanceof Error ? error.message : String(error)}`)

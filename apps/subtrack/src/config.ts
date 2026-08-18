@@ -6,6 +6,7 @@ import { safeJsonParse } from "./safe-json.ts"
 import { encryptBuffer, decryptBuffer, hasEncryptionKey } from "./crypto.ts"
 import { logAudit } from "./audit.ts"
 import { fail } from "./error.ts"
+import { isColorName } from "./color.ts"
 import type { SubtrackConfig } from "./types.ts"
 
 export const CONFIG_KEYS = [
@@ -17,6 +18,15 @@ export const CONFIG_KEYS = [
   "notifyChannels",
   "slackWebhook",
   "webhookUrl",
+  "tableBorderColor",
+  "tableHeaderColor",
+  "tableZebraColor",
+  "accentColor",
+  "tableZebra",
+  "tableMinWidth",
+  "dateFormat",
+  "listShowNotes",
+  "listShowMethod",
 ] as const
 
 /** IMAP-related config keys (not stored directly on SubtrackConfig). */
@@ -131,8 +141,56 @@ export function setConfig(key: string, value: string): boolean {
       config.budgets = parsed
       break
     }
-    case "theme":
+    case "theme": {
+      const validThemes = ["default", "light", "high-contrast", "none"]
+      if (!validThemes.includes(value)) {
+        fail(`theme must be one of: ${validThemes.join(", ")}`)
+        return false
+      }
       config.theme = value
+      break
+    }
+    case "tableBorderColor":
+    case "tableHeaderColor":
+    case "tableZebraColor":
+    case "accentColor": {
+      if (!isColorName(value)) {
+        fail(`"${key}" must be a color name: black, red, green, yellow, blue, magenta, cyan, white, gray, brightRed, brightGreen, brightYellow, brightBlue, brightMagenta, brightCyan, brightWhite`)
+        return false
+      }
+      config[key] = value
+      break
+    }
+    case "tableZebra":
+      if (value !== "on" && value !== "off") {
+        fail("tableZebra must be 'on' or 'off'")
+        return false
+      }
+      config.tableZebra = value
+      break
+    case "tableMinWidth": {
+      const num = Number(value)
+      if (isNaN(num) || num < 20 || num > 200 || !Number.isInteger(num)) {
+        fail("tableMinWidth must be an integer between 20 and 200")
+        return false
+      }
+      config.tableMinWidth = num
+      break
+    }
+    case "dateFormat":
+      if (value !== "iso" && value !== "short") {
+        fail("dateFormat must be 'iso' or 'short'")
+        return false
+      }
+      config.dateFormat = value
+      break
+    case "listShowNotes":
+    case "listShowMethod":
+      if (value !== "on" && value !== "off") {
+        fail(`"${key}" must be 'on' or 'off'`)
+        return false
+      }
+      config[key] = value
       break
     case "notifyDays": {
       const num = Number(value)
@@ -339,7 +397,10 @@ function getConfigDisplayValue(key: string, config: SubtrackConfig): string {
     case "notifyChannels": return config.notifyChannels?.length ? config.notifyChannels.join(",") : "(not set)"
     case "slackWebhook": return maskSecret(config.slackWebhook)
     case "webhookUrl": return maskSecret(config.webhookUrl)
-    default: return String((config as Record<string, unknown>)[key] ?? "")
+    default: {
+      const v = (config as Record<string, unknown>)[key]
+      return v === undefined || v === null || v === "" ? "(not set)" : String(v)
+    }
   }
 }
 

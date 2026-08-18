@@ -10,7 +10,8 @@ import pc from "picocolors"
 import CliTable3 from "cli-table3"
 import { getAuditLogs, getAuditLogCount, pruneAuditLogs, addAuditLog } from "./db/audit.ts"
 import type { AuditAction, AddAuditArgs } from "./db/audit.ts"
-import { TABLE_CHARS, TABLE_STYLE } from "./display-constants.ts"
+import { TABLE_CHARS, getTableStyle, calcColumnWidths, zebraRow } from "./display-constants.ts"
+import type { ColumnConfig } from "./display-constants.ts"
 import { SHORT_MONTH_NAMES, pad2 } from "./date-utils.ts"
 
 // ── Audit log display ───────────────────────────────────
@@ -81,20 +82,19 @@ export function handleAuditList(options: {
 
   const total = getAuditLogCount({ action: options.action, from: options.from, to: options.to })
 
-  const headers = ["ID", "Action", "Target", "Details"]
-  const termWidth = process.stdout.columns ?? 80
-  const colWidths = [
-    Math.min(6, Math.round(termWidth * 0.06)),
-    Math.min(14, Math.round(termWidth * 0.14)),
-    Math.min(18, Math.round(termWidth * 0.18)),
-    Math.max(30, termWidth - 48),
-  ]
+  const headers = ["ID", "Action", "Target", "Details"] as const
+  const AUDIT_COLS: ColumnConfig = {
+    headers,
+    minWidths: [6, 14, 18, 30] as const,
+    maxWidths: [8, 20, 30, 80] as const,
+  }
+  const colWidths = calcColumnWidths(entries.map((e) => [String(e.id), formatAction(e.action), e.target_type ?? "", e.details ?? ""]), AUDIT_COLS)
 
   const table = new CliTable3({
     chars: { ...TABLE_CHARS },
-    style: { ...TABLE_STYLE },
+    style: getTableStyle(),
     colWidths: colWidths,
-    head: headers,
+    head: [...headers],
     colAligns: ["right", "left", "left", "left"],
   })
 
@@ -112,7 +112,7 @@ export function handleAuditList(options: {
     const ts = formatTimestamp(e.created_at)
     const row = [String(e.id), action, target, `${ts} ${details}`]
     if (i % 2 === 0) {
-      table.push(row.map((cell) => `\x1b[48;5;236m${cell}\x1b[0m`))
+      table.push(zebraRow(row))
     } else {
       table.push(row)
     }

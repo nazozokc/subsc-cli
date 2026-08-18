@@ -7,9 +7,10 @@ import path from "node:path"
 import { getSubscription, updateSubscription } from "./db.ts"
 import { logAudit } from "./audit.ts"
 import { fail } from "./error.ts"
+import { loadConfig } from "./config.ts"
 import { formatPrice } from "./price.ts"
 import { calculateNextBilling } from "./upcoming.ts"
-import { today, formatDate } from "./date-utils.ts"
+import { today, formatDate, formatShortDate } from "./date-utils.ts"
 import { exportCsv } from "./export.ts"
 import { safeOutputPath } from "./path-utils.ts"
 import type { AddSharedArgs } from "./types.ts"
@@ -67,7 +68,8 @@ export async function handleCancel(id: number, options: CancelOptions = {}): Pro
 
   consola.log(pc.bold(`Cancelling: ${sub.name}`))
   consola.log(`  Price:        ${formatPrice(sub.price, sub.currency)}/${sub.cycle}`)
-  consola.log(`  Next billing: ${formatDate(nextBilling)}`)
+  const fmt = loadConfig().dateFormat === "short" ? formatShortDate : formatDate
+  consola.log(`  Next billing: ${fmt(nextBilling)}`)
   consola.log("")
 
   let noteCancellationDate = false

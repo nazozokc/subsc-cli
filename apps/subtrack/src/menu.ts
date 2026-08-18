@@ -8,7 +8,8 @@
 
 import { checkbox, confirm, input, select } from "@inquirer/prompts"
 import { consola } from "consola"
-import { getAllTags, getSubscriptions } from "./db.ts"
+import pc from "picocolors"
+import { getAllTags, getSubscriptions, getDbPath } from "./db.ts"
 import { handleList, handleDelete, handleTags, handleClone, handleArchive, handleUnarchive } from "./subscription/core.ts"
 import { handleAdd } from "./subscription/add.ts"
 import { handleEdit } from "./subscription/edit.ts"
@@ -46,11 +47,27 @@ import { handleCurrencyList } from "./currency.ts"
 import { handleMcp } from "./commands.ts"
 import { CYCLE_CHOICES } from "./prompts.ts"
 import { formatPrice } from "./price.ts"
+import { divider } from "./display-constants.ts"
 import type { Cycle, Status } from "./types.ts"
 
 type MainChoice = "view" | "add" | "manage" | "report" | "data" | "config" | "system" | "quit"
 
+/** Show the subtrack header (title, version, subscription count, DB path). */
+function showMenuHeader(): void {
+  const pkg = require("../package.json") as { version: string }
+  const count = getSubscriptions().length
+  console.log(pc.bold(pc.cyan(`subtrack v${pkg.version}`)))
+  console.log(
+    pc.dim(
+      `  ${count} subscription${count === 1 ? "" : "s"} · ${getDbPath()}`,
+    ),
+  )
+  console.log(divider(52))
+  console.log("")
+}
+
 export async function handleMenu(): Promise<void> {
+  showMenuHeader()
   while (true) {
     const choice = await select<MainChoice>({
       message: "subtrack — choose a category",

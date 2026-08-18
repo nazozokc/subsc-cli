@@ -2,10 +2,11 @@ import { consola } from "consola"
 import pc from "picocolors"
 import { getNonCancelledSubscriptions } from "./db.ts"
 import { formatPrice } from "./price.ts"
-import type { SharedArgs, Currency } from "./types.ts"
+import type { SharedArgs, Currency, Status } from "./types.ts"
 import { fetchFxRates, tryConvert } from "./fx.ts"
 import type { FxRates } from "./fx.ts"
 import { toDate, clampDay, daysInMonth } from "./date-utils.ts"
+import { statusColor } from "./display-constants.ts"
 
 /** Options for the calendar command */
 export type CalendarOptions = {
@@ -24,7 +25,7 @@ export type CalendarEntry = {
   /** Day of month (1-31) */
   day: number
   /** Subscriptions billing on this day */
-  subs: { name: string; price: number; currency: string; status: string; id: number }[]
+  subs: { name: string; price: number; currency: string; status: Status; id: number }[]
 }
 
 /**
@@ -201,10 +202,8 @@ export async function showCalendar(options: CalendarOptions): Promise<void> {
 
   for (const entry of entries) {
     for (const sub of entry.subs) {
-      const statusStyle =
-        sub.status === "active" ? pc.green : sub.status === "paused" ? pc.yellow : pc.dim
       consola.log(
-        `  ${pc.cyan(`Day ${String(entry.day).padStart(2)}`)}  ${pc.bold(sub.name)}  ${formatPrice(sub.price, sub.currency)}  ${statusStyle(sub.status)}`,
+        `  ${pc.cyan(`Day ${String(entry.day).padStart(2)}`)}  ${pc.bold(sub.name)}  ${formatPrice(sub.price, sub.currency)}  ${statusColor(sub.status)}`,
       )
       currencyTotals[sub.currency] = (currencyTotals[sub.currency] ?? 0) + sub.price
       totalSubs++

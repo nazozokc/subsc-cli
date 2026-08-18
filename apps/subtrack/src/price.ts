@@ -17,3 +17,11 @@ export function formatPrice(price: number, currency: string): string {
     return `${currency} ${price}`
   }
 }
+
+/**
+ * Format an API usage cost (stored in cents) as a USD string.
+ * Defaults to 4 decimal places because LLM API costs are small.
+ */
+export function formatUsdCost(cents: number, digits = 4): string {
+  return `$${(cents / 100).toFixed(digits)}`
+}

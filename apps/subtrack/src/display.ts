@@ -1,23 +1,21 @@
 import { consola } from "consola"
 import pc from "picocolors"
 import CliTable3 from "cli-table3"
-import type { SharedArgs, Currency, LlmUsageEntry, Status } from "./types.ts"
+import type { SharedArgs, Currency, LlmUsageEntry } from "./types.ts"
 import { getSubscriptions } from "./db.ts"
 import { fetchFxRates, convertPrice } from "./fx.ts"
 import type { FxRates } from "./fx.ts"
 
-import { formatPrice } from "./price.ts"
-import { TABLE_CHARS, TABLE_STYLE } from "./display-constants.ts"
-
-function statusColor(status: Status): string {
-  switch (status) {
-    case "active": return pc.green("active")
-    case "paused": return pc.yellow("paused")
-    case "cancelled": return pc.red("cancelled")
-    case "archived": return pc.dim("archived")
-    default: return status
-  }
-}
+import { formatPrice, formatUsdCost } from "./price.ts"
+import {
+  TABLE_CHARS,
+  getTableStyle,
+  statusColor,
+  zebraRow,
+  sectionTitle,
+  calcColumnWidths,
+} from "./display-constants.ts"
+import type { ColumnConfig } from "./display-constants.ts"
 
 function buildRow(sub: SharedArgs, price: string, showNotes: boolean, showMethod: boolean, showContract?: boolean, showVendor?: boolean): string[] {
   const row = [
@@ -60,14 +58,6 @@ function buildRow(sub: SharedArgs, price: string, showNotes: boolean, showMethod
   }
 
   return row
-}
-
-type ColumnConfig = {
-  headers: readonly string[]
-  minWidths: readonly number[]
-  maxWidths: readonly number[]
-  /** Minimum available width (default 40) */
-  minAvail?: number
 }
 
 const BASE_COLS: ColumnConfig = {
@@ -118,62 +108,6 @@ const ALL_EXTRA_COLS: ColumnConfig = {
   maxWidths: [30, 12, 20, 50, 30, 30, 10, 30, 20, 50, 20] as const,
 }
 
-const BORDER_AND_PADDING = 16
-
-function calcColumnWidths(rows: string[][], config: ColumnConfig): number[] {
-  const termWidth = process.stdout.columns ?? 80
-  const avail = Math.max(config.minAvail ?? 40, termWidth - BORDER_AND_PADDING)
-
-  const weights = config.headers.map((hdr, i) => {
-    let max = hdr.length
-    for (const row of rows) {
-      const len = row[i].length
-      if (len > max) max = len
-    }
-    return Math.min(max, config.maxWidths[i])
-  })
-
-  const totalWeight = weights.reduce((a, b) => a + b, 0)
-  const widths = weights.map((w, i) =>
-    Math.max(
-      config.minWidths[i],
-      Math.min(config.maxWidths[i], Math.round((avail * w) / totalWeight)),
-    ),
-  )
-
-  // Adjust to exactly fit avail
-  let sum = widths.reduce((a, b) => a + b, 0)
-  let diff = sum - avail
-  let iterations = 0
-
-  while (diff > 0 && iterations < 100) {
-    let idx = -1
-    for (let i = 0; i < widths.length; i++) {
-      if (widths[i] > config.minWidths[i] && (idx === -1 || widths[i] > widths[idx]))
-        idx = i
-    }
-    if (idx === -1) break
-    widths[idx]--
-    diff--
-    iterations++
-  }
-
-  iterations = 0
-  while (diff < 0 && iterations < 100) {
-    let idx = -1
-    for (let i = 0; i < widths.length; i++) {
-      if (widths[i] < config.maxWidths[i] && (idx === -1 || weights[i] > weights[idx]))
-        idx = i
-    }
-    if (idx === -1) break
-    widths[idx]++
-    diff++
-    iterations++
-  }
-
-  return widths
-}
-
 function renderTable(rows: string[][], config: ColumnConfig): string {
   const widths = calcColumnWidths(rows, config)
   const colAligns = config.headers.map((h, i) =>
@@ -182,7 +116,7 @@ function renderTable(rows: string[][], config: ColumnConfig): string {
 
   const table = new CliTable3({
     chars: { ...TABLE_CHARS },
-    style: { ...TABLE_STYLE },
+    style: getTableStyle(),
     colWidths: widths,
     head: [...config.headers],
     wordWrap: true,
@@ -205,7 +139,7 @@ function renderTable(rows: string[][], config: ColumnConfig): string {
       }))
     } else {
       if (i % 2 === 0) {
-        table.push(row.map(cell => `\x1b[48;5;236m${cell}\x1b[0m`))
+        table.push(zebraRow(row))
       } else {
         table.push(row)
       }
@@ -255,8 +189,8 @@ export const spreadSubscription = async (
       consola.info("Fetching the latest exchange rates...")
       rates = await fetchFxRates()
       consola.success("Exchange rates updated")
-    } catch (e) {
-      consola.fail(`Failed to fetch exchange rates: ${e}`)
+    } catch {
+      consola.warn("Failed to fetch exchange rates; showing in original currencies")
     }
 
     if (rates) {
@@ -345,7 +279,7 @@ function renderUsageTableBody(
 ): string {
   const table = new CliTable3({
     chars: { ...TABLE_CHARS },
-    style: { ...TABLE_STYLE },
+    style: getTableStyle(),
     colWidths: widths,
     head: [...USAGE_HEADERS],
     wordWrap: true,
@@ -360,12 +294,12 @@ function renderUsageTableBody(
       e.model,
       e.input_tokens.toLocaleString(),
       e.output_tokens.toLocaleString(),
-      `$${(e.cost / 100).toFixed(4)}`,
+      formatUsdCost(e.cost),
       e.date,
       e.description ?? "",
     ]
     if (i % 2 === 0) {
-      table.push(row.map((cell) => `\x1b[48;5;236m${cell}\x1b[0m`))
+      table.push(zebraRow(row))
     } else {
       table.push(row)
     }
@@ -393,7 +327,7 @@ export function renderUsageTable(entries: LlmUsageEntry[]): void {
     e.model,
     e.input_tokens.toLocaleString(),
     e.output_tokens.toLocaleString(),
-    `$${(e.cost / 100).toFixed(4)}`,
+    formatUsdCost(e.cost),
     e.date,
     e.description ?? "",
   ])
@@ -407,7 +341,7 @@ export function renderUsageTable(entries: LlmUsageEntry[]): void {
       "",
       "",
       "",
-      `$${(totalCost / 100).toFixed(2)}`,
+      formatUsdCost(totalCost, 2),
       "",
       `(${entries.length} entr${entries.length === 1 ? "y" : "ies"})`,
     ] as UsageRow,
@@ -419,7 +353,7 @@ export function renderUsageTable(entries: LlmUsageEntry[]): void {
   // Render TOTAL footer row
   const table = new CliTable3({
     chars: { ...TABLE_CHARS_FOOTER },
-    style: { ...TABLE_STYLE },
+    style: getTableStyle(),
     colWidths: widths,
     colAligns: ["left", "left", "right", "right", "right", "left", "left"],
   })
@@ -428,7 +362,7 @@ export function renderUsageTable(entries: LlmUsageEntry[]): void {
     "",
     "",
     "",
-    pc.bold(pc.yellow(`$${(totalCost / 100).toFixed(2)}`)),
+    pc.bold(pc.yellow(formatUsdCost(totalCost, 2))),
     "",
     pc.dim(`(${entries.length} entr${entries.length === 1 ? "y" : "ies"})`),
   ])
@@ -443,7 +377,7 @@ export function showApiUsage(
   periodLabel: string,
 ): void {
   consola.log("")
-  consola.log(pc.bold(pc.cyan(`── API Usage (${periodLabel}) ──`)))
+  consola.log(sectionTitle(`API Usage (${periodLabel})`))
 
   if (total <= 0) {
     consola.info("No API usage found for this month")
@@ -452,17 +386,17 @@ export function showApiUsage(
 
   const apiTable = new CliTable3({
     chars: { ...TABLE_CHARS },
-    style: { ...TABLE_STYLE },
+    style: getTableStyle(),
     head: ["Provider", "Cost"],
     colAligns: ["left", "right"],
   })
 
   for (const p of byProvider) {
-    apiTable.push([p.provider, `$${(p.total / 100).toFixed(2)}`])
+    apiTable.push([p.provider, formatUsdCost(p.total, 2)])
   }
   apiTable.push([
     pc.bold(pc.yellow("Total")),
-    pc.bold(pc.yellow(`$${(total / 100).toFixed(2)}`)),
+    pc.bold(pc.yellow(formatUsdCost(total, 2))),
   ])
 
   consola.log(apiTable.toString())

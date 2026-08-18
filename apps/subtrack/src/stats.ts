@@ -3,6 +3,7 @@
  */
 
 import { consola } from "consola"
+import { sectionTitle } from "./display-constants.ts"
 import { getDb, getDbPath } from "./db.ts"
 import type { Status } from "./types.ts"
 import { execObjs } from "./db/connection.ts"
@@ -72,7 +73,7 @@ export function handleStats(options: { json?: boolean } = {}): void {
     return
   }
 
-  consola.log("── Database Statistics ──")
+  consola.log(sectionTitle("Database Statistics"))
   consola.log(`  Subscriptions: ${total}`)
   consola.log(`    Active:       ${active}`)
   consola.log(`    Paused:       ${paused}`)

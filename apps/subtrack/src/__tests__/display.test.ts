@@ -9,6 +9,7 @@ const logMessages: string[] = []
 const infoMessages: string[] = []
 const failMessages: string[] = []
 const errorMessages: string[] = []
+const warnMessages: string[] = []
 
 let originalFetch: typeof globalThis.fetch
 
@@ -17,6 +18,7 @@ beforeEach(() => {
   infoMessages.length = 0
   failMessages.length = 0
   errorMessages.length = 0
+  warnMessages.length = 0
 
   const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, "")
 
@@ -28,6 +30,7 @@ beforeEach(() => {
       if (_type === "info") infoMessages.push(clean)
       if (_type === "fail") failMessages.push(clean)
       if (_type === "error") errorMessages.push(clean)
+      if (_type === "warn") warnMessages.push(clean)
     }
   })
 
@@ -247,9 +250,9 @@ test("currency falls back when fetch fails", async () => {
     "JPY",
   )
 
-  // Should log fail message
-  expect(failMessages.length).toBeGreaterThan(0)
-  expect(failMessages[0]).toContain("Failed to fetch exchange rates")
+  // Should log warn message
+  expect(warnMessages.length).toBeGreaterThan(0)
+  expect(warnMessages[0]).toContain("Failed to fetch exchange rates")
 
   // Should fall back to grouped-by-currency display
   const table = logMessages.filter(Boolean).join("\n")
@@ -481,9 +484,9 @@ test("showPayment --currency falls back when fetch fails", async () => {
     makeSub({ name: "US", price: 10, currency: "USD" }),
   ])
 
-  // Should log fail message
-  expect(failMessages.length).toBeGreaterThan(0)
-  expect(failMessages[0]).toContain("Failed to fetch exchange rates")
+  // Should log warn message
+  expect(warnMessages.length).toBeGreaterThan(0)
+  expect(warnMessages[0]).toContain("Failed to fetch exchange rates")
 
   // Should fall back to per-currency display
   const combined = logMessages.join("\n")
