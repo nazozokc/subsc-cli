@@ -81,7 +81,7 @@ export function handleMaintenance(options: MaintenanceOptions = {}): void {
       }
     }
 
-    logAudit("subscription.edit", {
+    logAudit("cleanup", {
       targetType: "database",
       details: `VACUUM: ${formatBytes(beforeSize)} → ${formatBytes(afterSize)}`,
     })

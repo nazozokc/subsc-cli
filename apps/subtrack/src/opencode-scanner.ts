@@ -87,11 +87,6 @@ export function scanOpenCodeDb(from?: string, to?: string): ScanResult {
     return { source: "opencode", entries: [] }
   }
 
-  if (!existsSync(dbPath)) {
-    consola.info("OpenCode DB not found — skip")
-    return { source: "opencode", entries: [] }
-  }
-
   consola.info(`Reading OpenCode DB: ${dbPath}`)
 
   let data: Buffer
