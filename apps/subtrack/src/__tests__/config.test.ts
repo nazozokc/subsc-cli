@@ -174,3 +174,80 @@ test("webhook secrets are masked in list, get, and set output", async () => {
   // The real value is still stored
   expect(loadConfig().slackWebhook).toBe(SECRET)
 })
+
+// ── Display theme keys ───────────────────────────────
+
+test("theme accepts preset names and rejects unknown", async () => {
+  const { handleConfigSet, handleConfigGet } = await import("../commands.ts")
+  const { loadConfig, resetConfig } = await import("../config.ts")
+
+  resetConfig()
+  handleConfigSet("theme", "light")
+  expect(loadConfig().theme).toBe("light")
+  expect(successMessages.some((m) => m.includes("theme = light"))).toBe(true)
+
+  resetConfig()
+  handleConfigSet("theme", "vaporwave")
+  expect(errorMessages.some((m) => m.includes("theme must be one of"))).toBe(true)
+  expect(loadConfig().theme).not.toBe("vaporwave")
+})
+
+test("color keys validate color names", async () => {
+  const { handleConfigSet } = await import("../commands.ts")
+  const { loadConfig, resetConfig } = await import("../config.ts")
+
+  resetConfig()
+  handleConfigSet("tableBorderColor", "brightMagenta")
+  expect(loadConfig().tableBorderColor).toBe("brightMagenta")
+
+  resetConfig()
+  handleConfigSet("accentColor", "notacolor")
+  expect(errorMessages.some((m) => m.includes("must be a color name"))).toBe(true)
+  expect(loadConfig().accentColor).toBeUndefined()
+
+  resetConfig()
+  handleConfigSet("tableHeaderColor", "cyan")
+  expect(loadConfig().tableHeaderColor).toBe("cyan")
+})
+
+test("tableZebra and tableMinWidth validate values", async () => {
+  const { handleConfigSet } = await import("../commands.ts")
+  const { loadConfig, resetConfig } = await import("../config.ts")
+
+  resetConfig()
+  handleConfigSet("tableZebra", "off")
+  expect(loadConfig().tableZebra).toBe("off")
+
+  resetConfig()
+  handleConfigSet("tableZebra", "maybe")
+  expect(errorMessages.some((m) => m.includes("tableZebra must be"))).toBe(true)
+
+  resetConfig()
+  handleConfigSet("tableMinWidth", "120")
+  expect(loadConfig().tableMinWidth).toBe(120)
+
+  resetConfig()
+  handleConfigSet("tableMinWidth", "10")
+  expect(errorMessages.some((m) => m.includes("tableMinWidth must be"))).toBe(true)
+})
+
+test("dateFormat and listShow keys validate values", async () => {
+  const { handleConfigSet } = await import("../commands.ts")
+  const { loadConfig, resetConfig } = await import("../config.ts")
+
+  resetConfig()
+  handleConfigSet("dateFormat", "short")
+  expect(loadConfig().dateFormat).toBe("short")
+
+  resetConfig()
+  handleConfigSet("dateFormat", "long")
+  expect(errorMessages.some((m) => m.includes("dateFormat must be"))).toBe(true)
+
+  resetConfig()
+  handleConfigSet("listShowNotes", "on")
+  expect(loadConfig().listShowNotes).toBe("on")
+
+  resetConfig()
+  handleConfigSet("listShowMethod", "yes")
+  expect(errorMessages.some((m) => m.includes("must be 'on' or 'off'"))).toBe(true)
+})

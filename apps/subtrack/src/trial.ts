@@ -6,7 +6,13 @@ import CliTable3 from "cli-table3"
 import type { TrialEntry, AddTrialArgs, TrialAddFlags } from "./types.ts"
 import { writeTrial, getTrials, getTrial, deleteTrial, getTrialsExpiringSoon } from "./db.ts"
 import { formatPrice } from "./price.ts"
-import { TABLE_CHARS, TABLE_STYLE } from "./display-constants.ts"
+import {
+  TABLE_CHARS,
+  getTableStyle,
+  calcColumnWidths,
+  zebraRow,
+} from "./display-constants.ts"
+import type { ColumnConfig } from "./display-constants.ts"
 import {
   CURRENCY_CHOICES,
   CYCLE_CHOICES,
@@ -240,7 +246,7 @@ export async function handleTrialDelete(ids?: number[]): Promise<void> {
 // ── Table rendering ────────────────────────────────────
 
 function renderTrialTable(trials: TrialEntry[]): void {
-  const headers = ["ID", "Name", "Expires", "Days", "Price", "Notes"]
+  const headers = ["ID", "Name", "Expires", "Days", "Price", "Notes"] as const
   const rows: string[][] = trials.map((t) => {
     const days = daysUntil(t.expiresAt)
     const statusLabel = trialStatusLabel(days)
@@ -255,14 +261,17 @@ function renderTrialTable(trials: TrialEntry[]): void {
     ]
   })
 
-  const termWidth = process.stdout.columns ?? 80
-  const avail = Math.max(50, termWidth - 14)
-  const weights = [4, 20, 12, 6, 16, 20]
-  const widths = weights.map((w) => Math.min(w, Math.round((avail * w) / weights.reduce((a, b) => a + b, 0))))
+  const TRIAL_COLS: ColumnConfig = {
+    headers,
+    minWidths: [4, 16, 10, 6, 10, 8] as const,
+    maxWidths: [10, 40, 14, 10, 20, 40] as const,
+    minAvail: 50,
+  }
+  const widths = calcColumnWidths(rows, TRIAL_COLS)
 
   const table = new CliTable3({
     chars: { ...TABLE_CHARS },
-    style: { ...TABLE_STYLE },
+    style: getTableStyle(),
     colWidths: widths,
     head: [...headers],
     colAligns: ["right", "left", "left", "left", "right", "left"],
@@ -270,7 +279,7 @@ function renderTrialTable(trials: TrialEntry[]): void {
 
   for (let i = 0; i < rows.length; i++) {
     if (i % 2 === 0) {
-      table.push(rows[i].map((cell) => `\x1b[48;5;236m${cell}\x1b[0m`))
+      table.push(zebraRow(rows[i]))
     } else {
       table.push(rows[i])
     }

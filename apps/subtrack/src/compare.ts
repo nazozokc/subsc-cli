@@ -8,7 +8,8 @@ import { formatPrice } from "./price.ts"
 import { fetchFxRates, convertPrice } from "./fx.ts"
 import type { FxRates } from "./fx.ts"
 import { calcSubTotal } from "./payment.ts"
-import { TABLE_CHARS, TABLE_STYLE } from "./display-constants.ts"
+import { TABLE_CHARS, getTableStyle, calcColumnWidths } from "./display-constants.ts"
+import type { ColumnConfig } from "./display-constants.ts"
 
 type PeriodLabel = string
 
@@ -60,10 +61,22 @@ function renderCompareTable(
   currentLabel: string,
   previousLabel: string,
 ): void {
+  const headers = ["", currentLabel, previousLabel, "Change"] as const
+  const COMPARE_COLS: ColumnConfig = {
+    headers,
+    minWidths: [10, 12, 12, 16] as const,
+    maxWidths: [40, 20, 20, 30] as const,
+  }
+  const colWidths = calcColumnWidths(
+    rows.map((r) => [r.label, r.current, r.previous, r.change]),
+    COMPARE_COLS,
+  )
+
   const table = new CliTable3({
     chars: { ...TABLE_CHARS },
-    style: { ...TABLE_STYLE },
-    head: ["", currentLabel, previousLabel, "Change"],
+    style: getTableStyle(),
+    colWidths,
+    head: [...headers],
     colAligns: ["left", "right", "right", "right"],
   })
 
@@ -112,7 +125,7 @@ export async function showCompare(
     try {
       rates = await fetchFxRates()
     } catch {
-      consola.fail("Failed to fetch exchange rates; showing per-currency totals")
+      consola.warn("Failed to fetch exchange rates; showing in original currencies")
     }
   }
 

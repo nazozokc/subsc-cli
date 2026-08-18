@@ -3,7 +3,7 @@ import pc from "picocolors"
 import type { SharedArgs, Currency, Cycle } from "./types.ts"
 import { periodFactor, getPeriodDateRange } from "./date-utils.ts"
 import { getSubscriptions, getNonCancelledSubscriptions, getLlmUsageTotal, getLlmUsageTotalByProvider, getAllPriceChanges } from "./db.ts"
-import { formatPrice } from "./price.ts"
+import { formatPrice, formatUsdCost } from "./price.ts"
 import { fetchFxRates, convertPrice } from "./fx.ts"
 import type { FxRates } from "./fx.ts"
 import { runPreCommandHooks } from "./pre-command.ts"
@@ -50,7 +50,7 @@ export const showPayment = async (
     try {
       rates = await fetchFxRates()
     } catch {
-      consola.fail("Failed to fetch exchange rates; falling back to per-currency display")
+      consola.warn("Failed to fetch exchange rates; showing in original currencies")
     }
 
     if (rates) {
@@ -88,7 +88,7 @@ export const showPayment = async (
         }
         const grandTotal = subTotal + apiConverted
         consola.log(
-          `${formatPrice(Math.round(subTotal), currency)}/${fmtPeriod}  ${pc.dim(`+ API ${formatPrice(Math.round(apiConverted), currency)} = ${pc.bold(formatPrice(Math.round(grandTotal), currency))}/${fmtPeriod}`)}`,
+          `${formatPrice(Math.round(subTotal), currency)}/${fmtPeriod}  ${pc.dim(`+ API ${formatPrice(Math.round(apiConverted), currency)} = ${pc.bold(pc.yellow(formatPrice(Math.round(grandTotal), currency)))}/${fmtPeriod}`)}`,
         )
       } else {
         consola.log(`${formatPrice(Math.round(subTotal), currency)}/${fmtPeriod}`)
@@ -139,11 +139,11 @@ export const showPayment = async (
     } else {
       // Show API usage in USD with provider breakdown
       const providerDetails = apiByProvider
-        .map((p) => `${p.provider}: $${(p.total / 100).toFixed(2)}`)
+        .map((p) => `${p.provider}: ${formatUsdCost(p.total, 2)}`)
         .join(", ")
       consola.log(
         pc.dim(
-          `${pc.bold("API usage:")} $${(apiTotal / 100).toFixed(2)}/${fmtPeriod}  ${pc.dim(`(${providerDetails})`)}`,
+          `${pc.bold("API usage:")} ${formatUsdCost(apiTotal, 2)}/${fmtPeriod}  ${pc.dim(`(${providerDetails})`)}`,
         ),
       )
     }
@@ -345,7 +345,7 @@ export async function handlePayment(
     let subTotal = 0
 
     if (targetCurrency) {
-      try { rates = await fetchFxRates() } catch { consola.fail("Failed to fetch exchange rates; reporting in original currencies") }
+      try { rates = await fetchFxRates() } catch { consola.warn("Failed to fetch exchange rates; showing in original currencies") }
       if (rates) {
         for (const entry of entries) {
           try { subTotal += convertPrice(entry.convertedPrice, entry.currency, targetCurrency, rates.rates) }

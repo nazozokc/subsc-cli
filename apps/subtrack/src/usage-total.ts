@@ -4,6 +4,7 @@
 
 import { consola } from "consola"
 import pc from "picocolors"
+import { sectionTitle, divider } from "./display-constants.ts"
 import {
   getLlmUsageTotal,
   getLlmUsageTokenTotal,
@@ -12,6 +13,7 @@ import {
 } from "./db.ts"
 import { getPeriodDateRange } from "./date-utils.ts"
 import type { Cycle } from "./types.ts"
+import { formatUsdCost } from "./price.ts"
 
 export type UsageTotalOptions = {
   from?: string
@@ -55,23 +57,23 @@ export function handleUsageTotal(options: UsageTotalOptions = {}): void {
     return
   }
 
-  consola.log(`── LLM API Usage (${from} → ${to}) ──`)
+  consola.log(sectionTitle(`LLM API Usage (${from} → ${to})`))
   consola.log(pc.bold("  By provider:"))
   for (const p of byProvider) {
-    consola.log(`    ${p.provider}: $${(p.total / 100).toFixed(2)}`)
+    consola.log(`    ${p.provider}: ${formatUsdCost(p.total, 2)}`)
   }
   if (byModel.length > 0) {
     consola.log(pc.bold("  By model:"))
     for (const m of byModel) {
       consola.log(
-        `    ${m.model}: $${(m.total / 100).toFixed(2)} ` +
+        `    ${m.model}: ${formatUsdCost(m.total, 2)} ` +
         `(${m.inputTokens.toLocaleString()} in / ${m.outputTokens.toLocaleString()} out)`,
       )
     }
   }
-  consola.log(`  ${"─".repeat(20)}`)
+  consola.log(`  ${divider(20)}`)
   consola.log(
     `  Tokens: ${tokens.inputTokens.toLocaleString()} in / ${tokens.outputTokens.toLocaleString()} out`,
   )
-  consola.log(`  Total: $${(total / 100).toFixed(2)}`)
+  consola.log(`  Total: ${pc.bold(pc.yellow(formatUsdCost(total, 2)))}`)
 }

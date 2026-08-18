@@ -24,7 +24,7 @@ export async function handleAnalytics(options: AnalyticsOptions = {}): Promise<v
       try {
         rates = await fetchFxRates()
       } catch {
-        consola.warn("Failed to fetch exchange rates; reporting in original currencies")
+        consola.warn("Failed to fetch exchange rates; showing in original currencies")
       }
       const converted: Record<string, number> = {}
       if (rates) {
@@ -69,7 +69,7 @@ export async function showAnalytics(options: AnalyticsOptions = {}): Promise<voi
     try {
       rates = await fetchFxRates()
     } catch {
-      consola.warn("Failed to fetch exchange rates; showing original currencies")
+      consola.warn("Failed to fetch exchange rates; showing in original currencies")
     }
   }
 

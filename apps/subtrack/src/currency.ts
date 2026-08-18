@@ -3,6 +3,7 @@
  */
 
 import { consola } from "consola"
+import { sectionTitle } from "./display-constants.ts"
 import { CURRENCY_CHOICES } from "./prompts.ts"
 
 export type CurrencyListOptions = {
@@ -15,7 +16,7 @@ export function handleCurrencyList(options: CurrencyListOptions = {}): void {
     return
   }
 
-  consola.log("── Supported Currencies ──")
+  consola.log(sectionTitle("Supported Currencies"))
   for (const c of CURRENCY_CHOICES) {
     consola.log(`  ${c.value.padEnd(5)} ${c.name}`)
   }

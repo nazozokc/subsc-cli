@@ -241,4 +241,22 @@ export type SubtrackConfig = {
   slackWebhook?: string
   /** Generic webhook URL for notifications */
   webhookUrl?: string
+  /** Display theme preset name (default | light | high-contrast | none) */
+  tableBorderColor?: string
+  /** Override border color (ColorName) */
+  tableHeaderColor?: string
+  /** Override table header color (ColorName) */
+  tableZebraColor?: string
+  /** Override zebra stripe background color (ColorName) */
+  accentColor?: string
+  /** Override accent color used for headings (ColorName) */
+  tableZebra?: "on" | "off"
+  /** Enable/disable zebra striping */
+  tableMinWidth?: number
+  /** Minimum table width in columns (default 40) */
+  dateFormat?: "iso" | "short"
+  /** Show notes column in `subtrack list` by default */
+  listShowNotes?: "on" | "off"
+  /** Show payment method column in `subtrack list` by default */
+  listShowMethod?: "on" | "off"
 }

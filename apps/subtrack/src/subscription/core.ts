@@ -6,6 +6,7 @@
 import { checkbox, confirm, select } from "@inquirer/prompts"
 import { consola } from "consola"
 import { fail } from "../error.ts"
+import { loadConfig } from "../config.ts"
 import type { Currency, SharedArgs, AddFlags } from "../types.ts"
 import {
   getSubscriptions,
@@ -61,7 +62,10 @@ export async function handleList(options: {
     process.stdout.write(JSON.stringify(list, null, 2) + "\n")
     return
   }
-  await spreadSubscription(list, options.currency as Currency | undefined, options.notes, options.method, options.showContract, options.showVendor)
+  // Flag > config > default (off)
+  const showNotes = options.notes ?? loadConfig().listShowNotes === "on"
+  const showMethod = options.method ?? loadConfig().listShowMethod === "on"
+  await spreadSubscription(list, options.currency as Currency | undefined, showNotes, showMethod, options.showContract, options.showVendor)
 
   if (options.api) {
     const now = new Date()

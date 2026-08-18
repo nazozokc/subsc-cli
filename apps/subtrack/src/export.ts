@@ -277,7 +277,7 @@ export async function handleExport(
       const targetCurrency = options.currency as Currency
       list = convertSubsWithRates(list, targetCurrency, rates)
     } catch (e) {
-      consola.fail(`Failed to fetch exchange rates; exporting in original currencies: ${String(e)}`)
+      consola.warn("Failed to fetch exchange rates; showing in original currencies")
     }
   }
 

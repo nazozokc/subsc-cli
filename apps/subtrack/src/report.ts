@@ -149,7 +149,7 @@ export async function handleReport(options: ReportOptions = {}): Promise<void> {
       displayCurrency = target
       displaySubs = convertSubsWithRates(subs, target as Currency, rates!)
     } catch {
-      consola.warn("Failed to fetch exchange rates; reporting in original currencies")
+      consola.warn("Failed to fetch exchange rates; showing in original currencies")
       displayCurrency = null
     }
   }
@@ -236,20 +236,20 @@ export async function handleReport(options: ReportOptions = {}): Promise<void> {
     return
   }
 
-  consola.log(pc.bold(`📊 Subscription Report — ${year}`))
+  consola.log(pc.bold(pc.cyan(`📊 Subscription Report — ${year}`)))
   consola.log("")
 
   // Total spending
   consola.log(pc.bold("Total spending:"))
   if (displayCurrency) {
-    consola.log(`  ${formatPrice(Math.round(total), displayCurrency)}`)
+    consola.log(`  ${pc.bold(pc.yellow(formatPrice(Math.round(total), displayCurrency)))}`)
   } else if (Object.keys(byCurrency).length === 1) {
     const [ccy, amount] = Object.entries(byCurrency)[0]!
-    consola.log(`  ${formatPrice(amount, ccy)}`)
+    consola.log(`  ${pc.bold(pc.yellow(formatPrice(amount, ccy)))}`)
   } else {
     const parts = Object.entries(byCurrency)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([ccy, amount]) => `${formatPrice(amount, ccy)}`)
+      .map(([ccy, amount]) => `${pc.bold(pc.yellow(formatPrice(amount, ccy)))}`)
     consola.log(`  ${parts.join(" + ")}`)
   }
 

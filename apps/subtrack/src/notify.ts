@@ -3,7 +3,7 @@ import { calcUpcoming } from "./upcoming.ts"
 import { formatPrice } from "./price.ts"
 import { loadConfig } from "./config.ts"
 import type { NotifyChannel } from "./types.ts"
-import { formatDate } from "./date-utils.ts"
+import { formatDate, formatShortDate } from "./date-utils.ts"
 
 export type NotifyOptions = {
   days?: number
@@ -57,8 +57,9 @@ export async function handleNotify(options: NotifyOptions = {}): Promise<void> {
 
   if (options.dryRun) {
     consola.info(`Upcoming bills (next ${days} day${days > 1 ? "s" : ""}):`)
+    const fmt = loadConfig().dateFormat === "short" ? formatShortDate : formatDate
     for (const e of entries) {
-      const date = formatDate(e.nextDate)
+      const date = fmt(e.nextDate)
       consola.log(`  ${date}  ${e.sub.name}  ${formatPrice(e.sub.price, e.sub.currency)}/${e.sub.cycle}`)
     }
     return

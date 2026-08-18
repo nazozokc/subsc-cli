@@ -3,7 +3,8 @@ import { consola } from "consola"
 import pc from "picocolors"
 import CliTable3 from "cli-table3"
 import type { SharedArgs, Currency, Cycle } from "./types.ts"
-import { TABLE_CHARS, TABLE_STYLE } from "./display-constants.ts"
+import { TABLE_CHARS, getTableStyle, sectionTitle, calcColumnWidths, zebraRow } from "./display-constants.ts"
+import type { ColumnConfig } from "./display-constants.ts"
 import { periodFactor } from "./date-utils.ts"
 import { getSubscriptions, getNonCancelledSubscriptions } from "./db.ts"
 import { formatPrice } from "./price.ts"
@@ -132,7 +133,7 @@ export async function handleForecast(
     try {
       rates = await fetchFxRates()
     } catch {
-      consola.fail("Failed to fetch exchange rates; showing original currencies")
+      consola.warn("Failed to fetch exchange rates; showing in original currencies")
       targetCurrency = undefined
     }
   }
@@ -194,7 +195,7 @@ export async function handleForecast(
   for (const [ccy, group] of Object.entries(currencyGroups).sort()) {
     if (Object.keys(currencyGroups).length > 1) {
       consola.log("")
-      consola.log(pc.bold(pc.cyan(`── ${ccy} ──`)))
+      consola.log(sectionTitle(ccy))
     }
 
     const entriesForTable = group.entries
@@ -205,20 +206,21 @@ export async function handleForecast(
     const displayEntries = entriesForTable.slice(0, maxRows)
     const overflow = entriesForTable.length - displayEntries.length
 
-    const headers = ["Subscription", `Monthly`, periodLabel]
+    const headers = ["Subscription", `Monthly`, periodLabel] as const
     const colAligns: ("left" | "right")[] = ["left", "right", "right"]
 
-    const width = process.stdout.columns ?? 80
-    const nameWidth = Math.max(16, Math.round(width * 0.35))
-    const priceWidth = Math.max(10, Math.round(width * 0.2))
-    const totalWidth = Math.max(10, Math.round(width * 0.2))
-    const colWidths: number[] = [nameWidth, priceWidth, totalWidth]
+    const FORECAST_COLS: ColumnConfig = {
+      headers,
+      minWidths: [16, 10, 10] as const,
+      maxWidths: [60, 20, 20] as const,
+    }
+    const colWidths = calcColumnWidths(displayEntries.map((e) => [e.name, formatPrice(e.monthly, e.currency), formatPrice(Math.round(e.monthly * months), e.currency)]), FORECAST_COLS)
 
     const table = new CliTable3({
       chars: { ...TABLE_CHARS },
-      style: { ...TABLE_STYLE },
+      style: getTableStyle(),
       colWidths: colWidths,
-      head: headers,
+      head: [...headers],
       colAligns,
     })
 
@@ -231,7 +233,7 @@ export async function handleForecast(
         formatPrice(monthlyTotal, e.currency),
       ]
       if (i % 2 === 0) {
-        table.push(row.map((cell) => `\x1b[48;5;236m${cell}\x1b[0m`))
+        table.push(zebraRow(row))
       } else {
         table.push(row)
       }
@@ -247,7 +249,7 @@ export async function handleForecast(
 
     // Divider
     table.push([
-      pc.dim("─".repeat(nameWidth - 2)),
+      pc.dim("─".repeat(colWidths[0] - 2)),
       pc.dim("─"),
       pc.dim("─"),
     ])
