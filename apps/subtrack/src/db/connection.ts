@@ -155,7 +155,9 @@ process.on("exit", releaseLock)
 export function getDbDir(): string {
   const dir = process.env.SUBSC_CLI_DB_DIR ?? path.join(homedir(), ".config", "subtrack")
   validateDbDir(dir)
-  return dir
+  // Normalize separators so downstream path.join() produces consistent
+  // paths on all platforms (e.g. "/tmp/x" on Windows becomes "\tmp\x")
+  return path.normalize(dir)
 }
 
 export function getDefaultBackupDir(): string {
