@@ -3,7 +3,7 @@ import type { UsageRefreshFlags } from "./types.ts"
 import { batchAddLlmUsageFromLog } from "./db.ts"
 import { runAllScanners } from "./scanner.ts"
 import { currentMonthStart } from "./date-utils.ts"
-import { todayLocal } from "./usage-import.ts"
+import { today } from "./date-utils.ts"
 import {
   ensurePricingCache,
   lookupModelKey,
@@ -15,7 +15,7 @@ import {
 
 export async function handleUsageRefresh(flags: UsageRefreshFlags = {}) {
   const from = flags.all ? undefined : (flags.from ?? currentMonthStart())
-  const to = flags.all ? undefined : (flags.to ?? todayLocal())
+  const to = flags.all ? undefined : (flags.to ?? today())
 
   const result = runAllScanners(from, to)
 

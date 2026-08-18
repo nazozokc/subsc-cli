@@ -4,7 +4,7 @@ import { getSubscriptions, getAllPriceChanges } from "./db.ts"
 import type { SharedArgs, Currency } from "./types.ts"
 import { periodFactor, OCCURRENCES_PER_YEAR } from "./date-utils.ts"
 import { formatPrice } from "./price.ts"
-import { fetchFxRates, convertPrice } from "./fx.ts"
+import { fetchFxRates, convertSubsWithRates } from "./fx.ts"
 import type { FxRates } from "./fx.ts"
 
 export type OptimizeOptions = {
@@ -388,11 +388,7 @@ export async function handleOptimize(options: OptimizeOptions = {}): Promise<voi
     displayCurrency = options.currency
     try {
       const rates = await fetchFxRates()
-      subs = subs.map((s) => ({
-        ...s,
-        price: Math.round(convertPrice(s.price, s.currency, displayCurrency as Currency, rates.rates)),
-        currency: displayCurrency,
-      }))
+      subs = convertSubsWithRates(subs, displayCurrency as Currency, rates)
     } catch {
       consola.warn("Failed to fetch exchange rates; showing in original currencies")
       displayCurrency = "USD"

@@ -5,9 +5,9 @@ import CliTable3 from "cli-table3"
 import type { SharedArgs, Currency, Cycle } from "./types.ts"
 import { TABLE_CHARS, TABLE_STYLE } from "./display-constants.ts"
 import { periodFactor } from "./date-utils.ts"
-import { getSubscriptions } from "./db.ts"
+import { getSubscriptions, getNonCancelledSubscriptions } from "./db.ts"
 import { formatPrice } from "./price.ts"
-import { fetchFxRates, convertPrice } from "./fx.ts"
+import { fetchFxRates, convertPrice, tryConvert } from "./fx.ts"
 import type { FxRates } from "./fx.ts"
 import {
   CURRENCY_CHOICES,
@@ -60,7 +60,7 @@ export async function handleForecast(
     if (monthsStr.trim()) months = Number(monthsStr)
 
     // Ask for cancellations
-    const allSubs = getSubscriptions().filter((s) => s.status !== "cancelled")
+    const allSubs = getNonCancelledSubscriptions()
     if (allSubs.length > 0) {
       const toCancel = await checkbox({
         message: "Select subscriptions to exclude (optional)",
@@ -101,7 +101,7 @@ export async function handleForecast(
   }
 
   // Calculate entries
-  const subs = getSubscriptions().filter((s) => s.status !== "cancelled")
+  const subs = getNonCancelledSubscriptions()
 
   const entries: ForecastEntry[] = subs
     .filter((s) => !cancelNames.includes(s.name))
@@ -145,17 +145,8 @@ export async function handleForecast(
 
     let monthly = entry.monthly
     if (targetCurrency && rates && entry.currency !== targetCurrency) {
-      try {
-        monthly = convertPrice(
-          entry.monthly,
-          entry.currency,
-          targetCurrency,
-          rates.rates,
-        )
-      } catch {
-        // Keep original
-        monthly = entry.monthly
-      }
+      // Keep original on missing rate
+      monthly = tryConvert(entry.monthly, entry.currency, targetCurrency, rates.rates) ?? entry.monthly
     }
 
     currencyGroups[ccy].entries.push({

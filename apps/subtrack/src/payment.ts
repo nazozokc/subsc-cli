@@ -2,10 +2,11 @@ import { consola } from "consola"
 import pc from "picocolors"
 import type { SharedArgs, Currency, Cycle } from "./types.ts"
 import { periodFactor, getPeriodDateRange } from "./date-utils.ts"
-import { getSubscriptions, getLlmUsageTotal, getLlmUsageTotalByProvider, getAllPriceChanges } from "./db.ts"
+import { getSubscriptions, getNonCancelledSubscriptions, getLlmUsageTotal, getLlmUsageTotalByProvider, getAllPriceChanges } from "./db.ts"
 import { formatPrice } from "./price.ts"
 import { fetchFxRates, convertPrice } from "./fx.ts"
 import type { FxRates } from "./fx.ts"
+import { runPreCommandHooks } from "./pre-command.ts"
 
 // ── JSON options helper ───────────────────────────────
 export type JsonOptions = { json?: boolean }
@@ -17,7 +18,7 @@ export const showPayment = async (
   includeApi?: boolean,
   byMethod?: boolean,
 ): Promise<void> => {
-  const list = subs ?? getSubscriptions().filter((s) => s.status !== "cancelled")
+  const list = subs ?? getNonCancelledSubscriptions()
 
   if (list.length === 0) {
     consola.info("No subscriptions found")
@@ -265,7 +266,7 @@ export function calcSummary(subs: SharedArgs[]): SummaryData {
 }
 
 export function showSummary(subs?: SharedArgs[]): void {
-  const list = subs ?? getSubscriptions().filter((s) => s.status !== "cancelled")
+  const list = subs ?? getNonCancelledSubscriptions()
 
   if (list.length === 0) {
     consola.info("No subscriptions found")
@@ -314,15 +315,10 @@ export async function handlePayment(
   options: { currency?: string; api?: boolean; method?: boolean } & JsonOptions,
 ) {
   // Show notification banner for non-JSON output
-  if (!options.json) {
-    const { autoScan } = await import("./suggest/scan.ts")
-    await autoScan()
-    const { showNotificationBanner } = await import("./notifications/banner.ts")
-    showNotificationBanner()
-  }
+  await runPreCommandHooks(options)
 
   if (options.json) {
-    const subs = getSubscriptions().filter((s) => s.status !== "cancelled")
+    const subs = getNonCancelledSubscriptions()
     if (subs.length === 0) {
       process.stdout.write(JSON.stringify({ period, total: 0, subscriptions: [] }, null, 2) + "\n")
       return
@@ -403,15 +399,10 @@ export async function handlePayment(
 }
 
 export async function handleSummary(options: JsonOptions = {}) {
-  if (!options.json) {
-    const { autoScan } = await import("./suggest/scan.ts")
-    await autoScan()
-    const { showNotificationBanner } = await import("./notifications/banner.ts")
-    showNotificationBanner()
-  }
+  await runPreCommandHooks(options)
 
   if (options.json) {
-    const subs = getSubscriptions().filter((s) => s.status !== "cancelled")
+    const subs = getNonCancelledSubscriptions()
     const data = calcSummary(subs)
     process.stdout.write(JSON.stringify(data, null, 2) + "\n")
     return

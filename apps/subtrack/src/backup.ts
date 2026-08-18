@@ -9,12 +9,10 @@ import { logAudit } from "./audit.ts"
 import path from "node:path"
 import os from "node:os"
 import type { BackupFileInfo } from "./types.ts"
-import { resolveSafePath, resolveSafeOutputPath } from "./path-utils.ts"
+import { safePath, safeOutputPath } from "./path-utils.ts"
 import {
   getSubscriptions,
-  getDbPath,
   getDb,
-  getDbDir,
   getDefaultBackupDir,
   getBackupFiles,
   restoreDb,
@@ -22,14 +20,14 @@ import {
   writeBackupHash,
   verifyBackupHash,
 } from "./db.ts"
-import { input, confirm, select } from "@inquirer/prompts"
+import { confirm, select } from "@inquirer/prompts"
 import { formatBytes } from "./format.ts"
+import { pad2 } from "./date-utils.ts"
 
 /** Generate a compact timestamp string for backup filenames. */
 function getTimestamp(): string {
   const now = new Date()
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+  return `${now.getFullYear()}${pad2(now.getMonth() + 1)}${pad2(now.getDate())}_${pad2(now.getHours())}${pad2(now.getMinutes())}${pad2(now.getSeconds())}`
 }
 
 /**
@@ -99,7 +97,7 @@ export async function handleBackup(destination?: string, options: { encrypt?: bo
   try {
     // Validate the backup destination path (directory may not exist yet)
     if (destination) {
-      const safeDest = resolveSafeOutputPath([os.homedir(), os.tmpdir()], destination)
+      const safeDest = safeOutputPath(destination)
       if (!safeDest) {
         fail(`Invalid backup destination — must be within home directory`)
         return
@@ -139,65 +137,71 @@ export async function handleBackup(destination?: string, options: { encrypt?: bo
   }
 }
 
+/**
+ * Restore a backup file with confirmation (unless `force`), integrity check,
+ * and an automatic safety backup of the current data.
+ */
+async function restoreFromFile(filePath: string, force: boolean): Promise<void> {
+  const currentCount = getSubscriptions().length
+  if (!force) {
+    const ok = await confirm({
+      message:
+        `Restore "${path.basename(filePath)}"? Current data (${currentCount} subscription${currentCount !== 1 ? "s" : ""}) will be backed up automatically.`,
+      default: false,
+    })
+    if (!ok) {
+      consola.info("Cancelled")
+      return
+    }
+  }
+
+  if (!verifyBackupHash(filePath)) {
+    consola.warn("Backup integrity check failed (SHA256 mismatch)")
+    if (!force) {
+      const ok = await confirm({
+        message: "SHA256 mismatch — restore anyway?",
+        default: false,
+      })
+      if (!ok) { consola.info("Cancelled"); return }
+    }
+  }
+
+  await safeAutoBackup()
+
+  try {
+    restoreDb(filePath)
+    const subs = getSubscriptions()
+    logAudit("backup.restore", {
+      details: `Restored ${subs.length} subscriptions from ${path.basename(filePath)}`,
+    })
+    consola.success(
+      `Restored ${subs.length} subscription${subs.length !== 1 ? "s" : ""} from: ${filePath}`,
+    )
+  } catch (e) {
+    fail(`Restore failed: ${String(e)}`)
+  }
+}
+
 export async function handleRestore(
   file?: string,
   options: { force?: boolean; dir?: string } = {},
 ) {
   if (file) {
     // ── Non-interactive ──────────────────────────────────
-    const safePath = resolveSafePath([os.homedir(), os.tmpdir()], path.resolve(file))
-    if (!safePath) {
+    const resolvedPath = safePath(path.resolve(file))
+    if (!resolvedPath) {
       fail(`Invalid backup file — must be within home directory`)
       return
     }
 
-    const resolvedPath = safePath
-
-    const currentCount = getSubscriptions().length
-    if (!options.force) {
-      const ok = await confirm({
-        message:
-          `Restore "${path.basename(resolvedPath)}"? Current data (${currentCount} subscription${currentCount !== 1 ? "s" : ""}) will be backed up automatically.`,
-        default: false,
-      })
-      if (!ok) {
-        consola.info("Cancelled")
-        return
-      }
-    }
-
-    if (!verifyBackupHash(resolvedPath)) {
-      consola.warn("Backup integrity check failed (SHA256 mismatch)")
-      if (!options.force) {
-        const ok = await confirm({
-          message: "SHA256 mismatch — restore anyway?",
-          default: false,
-        })
-        if (!ok) { consola.info("Cancelled"); return }
-      }
-    }
-
-    await safeAutoBackup()
-
-    try {
-      restoreDb(resolvedPath)
-      const subs = getSubscriptions()
-      logAudit("backup.restore", {
-        details: `Restored ${subs.length} subscriptions from ${path.basename(resolvedPath)}`,
-      })
-      consola.success(
-        `Restored ${subs.length} subscription${subs.length !== 1 ? "s" : ""} from: ${resolvedPath}`,
-      )
-    } catch (e) {
-      fail(`Restore failed: ${String(e)}`)
-    }
+    await restoreFromFile(resolvedPath, options.force ?? false)
     return
   }
 
   // ── Interactive ────────────────────────────────────────
   let searchDir: string
   if (options.dir) {
-    const safeDir = resolveSafePath([os.homedir(), os.tmpdir()], path.resolve(options.dir))
+    const safeDir = safePath(path.resolve(options.dir))
     if (!safeDir) {
       fail(`Invalid search directory — must be within home directory`)
       return
@@ -230,39 +234,5 @@ export async function handleRestore(
     })),
   })
 
-  const currentCount = getSubscriptions().length
-  const ok = await confirm({
-    message:
-      `Restore "${path.basename(selected)}"? Current data (${currentCount} subscription${currentCount !== 1 ? "s" : ""}) will be backed up automatically.`,
-    default: false,
-  })
-
-  if (!ok) {
-    consola.info("Cancelled")
-    return
-  }
-
-  if (!verifyBackupHash(selected)) {
-    consola.warn("Backup integrity check failed (SHA256 mismatch)")
-    const proceed = await confirm({
-      message: "SHA256 mismatch — restore anyway?",
-      default: false,
-    })
-    if (!proceed) { consola.info("Cancelled"); return }
-  }
-
-  await safeAutoBackup()
-
-  try {
-    restoreDb(selected)
-    const subs = getSubscriptions()
-    logAudit("backup.restore", {
-      details: `Restored ${subs.length} subscriptions from ${path.basename(selected)}`,
-    })
-    consola.success(
-      `Restored ${subs.length} subscription${subs.length !== 1 ? "s" : ""} from: ${selected}`,
-    )
-  } catch (e) {
-    fail(`Restore failed: ${String(e)}`)
-  }
+  await restoreFromFile(selected, false)
 }

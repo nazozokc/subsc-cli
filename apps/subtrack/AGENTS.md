@@ -32,7 +32,7 @@ CLI tool to manage subscription services from the terminal. Node.js + TypeScript
 ## Testing
 
 - `pnpm test` (vitest)
-- Test files co-located as `*.test.ts`
+- Test files under `src/__tests__/` as `*.test.ts`
 - Use `__setDb()` from `db.ts` to inject in-memory SQLite for tests
 - Mock `consola` via `consola.mockTypes()`
 - Mock `globalThis.fetch` for FX rate API
@@ -43,12 +43,16 @@ CLI tool to manage subscription services from the terminal. Node.js + TypeScript
 |---|---|
 | `src/index.ts` | CLI definition (gunshi), command routing |
 | `src/menu.ts` | Interactive main menu (@inquirer select, launched by bare `subtrack`) |
-| `src/commands.ts` | Command handlers, workflow logic |
-| `src/db.ts` | SQLite CRUD, schema, persistence |
+| `src/commands/` | gunshi command definitions (`define()` + `.run()`) |
+| `src/subscription/` | Core subscription handlers (list/add/edit/delete/clone/archive/tags) |
+| `src/db.ts`, `src/db/` | SQLite CRUD, schema, persistence |
 | `src/display.ts` | Table rendering, formatting |
 | `src/prompts.ts` | Input validation, interactive prompts |
 | `src/payment.ts` | Payment/summary calculations |
 | `src/fx.ts` | Exchange rate fetching & conversion |
+| `src/date-utils.ts` | Date helpers (today, formatDate, daysUntil, period ranges) |
+| `src/pre-command.ts` | Pre-command hooks (auto-scan + notification banner) |
+| `src/path-utils.ts` | Path safety validation (resolveSafePath / safeOutputPath) |
 | `src/usage.ts` | LLM API usage tracking |
 | `src/export.ts` | CSV/JSON/MD export |
 | `src/import-csv.ts` | CSV import |

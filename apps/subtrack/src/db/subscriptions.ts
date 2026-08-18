@@ -108,6 +108,10 @@ export const getSubscriptions = (
   return mapTags(subs)
 }
 
+/** All subscriptions except cancelled ones — the "payable" set used by analytics. */
+export const getNonCancelledSubscriptions = (): SharedArgs[] =>
+  getSubscriptions().filter((s) => s.status !== "cancelled")
+
 export const writeSubscription = (data: AddSharedArgs): number => {
   const db = getDb()
   const uniqueTags = Array.from(new Set(data.tags))

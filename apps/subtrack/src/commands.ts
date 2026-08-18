@@ -2,7 +2,9 @@
 // This file exists for backward compatibility — new code should import directly
 // from the domain module.
 
-export { handleList, handleAdd, handleDelete, handleEdit, handleTags, handleClone, handleArchive, handleUnarchive } from "./subscription.ts"
+export { handleList, handleDelete, handleTags, handleClone, handleArchive, handleUnarchive } from "./subscription/core.ts"
+export { handleAdd } from "./subscription/add.ts"
+export { handleEdit } from "./subscription/edit.ts"
 export { handleSearch } from "./search.ts"
 export { handleTrialAdd, handleTrialList, handleTrialExpiring, handleTrialDelete } from "./trial.ts"
 export { handleBulkStatus, handleBulkDelete, handleBulkTagAdd, handleBulkTagRemove } from "./bulk.ts"

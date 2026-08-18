@@ -7,8 +7,8 @@ import { formatPrice } from "./price.ts"
 import ExcelJS from "exceljs"
 import { calculateNextBilling } from "./upcoming.ts"
 import { tagsSubscription, getSubscriptions } from "./db.ts"
-import { fetchFxRates, convertPrice } from "./fx.ts"
-import { resolveSafeOutputPath } from "./path-utils.ts"
+import { fetchFxRates, convertSubsWithRates } from "./fx.ts"
+import { safeOutputPath } from "./path-utils.ts"
 
 /**
  * Escape a value for CSV output, protecting against CSV injection attacks.
@@ -275,11 +275,7 @@ export async function handleExport(
     try {
       const rates = await fetchFxRates()
       const targetCurrency = options.currency as Currency
-      list = list.map((sub) => ({
-        ...sub,
-        price: Math.round(convertPrice(sub.price, sub.currency, targetCurrency, rates.rates)),
-        currency: targetCurrency,
-      }))
+      list = convertSubsWithRates(list, targetCurrency, rates)
     } catch (e) {
       consola.fail(`Failed to fetch exchange rates; exporting in original currencies: ${String(e)}`)
     }
@@ -288,7 +284,7 @@ export async function handleExport(
   if (format === "excel") {
     const buf = await exportExcel(list)
     if (options.output) {
-      const safePath = resolveSafeOutputPath([os.homedir(), os.tmpdir()], options.output)
+      const safePath = safeOutputPath(options.output)
       if (!safePath) { fail(`Invalid output path — must be within home directory`); return }
       writeFileSync(safePath, buf, { mode: 0o600 })
       consola.success(`Exported to: ${safePath}`)
@@ -307,7 +303,7 @@ export async function handleExport(
         : exportIcs(list)
 
   if (options.output) {
-    const safePath = resolveSafeOutputPath([os.homedir(), os.tmpdir()], options.output)
+    const safePath = safeOutputPath(options.output)
     if (!safePath) { fail(`Invalid output path — must be within home directory`); return }
     writeFileSync(safePath, content, { mode: 0o600 })
     consola.success(`Exported to: ${safePath}`)

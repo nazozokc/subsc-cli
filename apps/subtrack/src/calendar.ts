@@ -1,10 +1,11 @@
 import { consola } from "consola"
 import pc from "picocolors"
-import { getSubscriptions } from "./db.ts"
+import { getNonCancelledSubscriptions } from "./db.ts"
 import { formatPrice } from "./price.ts"
 import type { SharedArgs, Currency } from "./types.ts"
-import { fetchFxRates, convertPrice } from "./fx.ts"
+import { fetchFxRates, tryConvert } from "./fx.ts"
 import type { FxRates } from "./fx.ts"
+import { toDate, clampDay, daysInMonth } from "./date-utils.ts"
 
 /** Options for the calendar command */
 export type CalendarOptions = {
@@ -24,19 +25,6 @@ export type CalendarEntry = {
   day: number
   /** Subscriptions billing on this day */
   subs: { name: string; price: number; currency: string; status: string; id: number }[]
-}
-
-function daysInMonth(year: number, month: number): number {
-  return new Date(year, month, 0).getDate()
-}
-
-function clampDay(day: number, year: number, month: number): number {
-  return Math.min(day, daysInMonth(year, month))
-}
-
-function toDate(dateStr: string): Date {
-  const [y, m, d] = dateStr.split("-").map(Number)
-  return new Date(y, m - 1, d)
 }
 
 /**
@@ -96,12 +84,11 @@ export function billingDaysInMonth(sub: SharedArgs, year: number, month: number)
  * @returns Array of calendar entries keyed by day
  */
 export function calcCalendarEntries(month: number, year: number): CalendarEntry[] {
-  const subs = getSubscriptions()
-  const active = subs.filter((s) => s.status !== "cancelled")
+  const subs = getNonCancelledSubscriptions()
 
   const dayMap = new Map<number, CalendarEntry["subs"]>()
 
-  for (const sub of active) {
+  for (const sub of subs) {
     for (const day of billingDaysInMonth(sub, year, month)) {
       if (!dayMap.has(day)) {
         dayMap.set(day, [])
@@ -151,12 +138,8 @@ export async function showCalendar(options: CalendarOptions): Promise<void> {
       entries = entries.map((entry) => ({
         day: entry.day,
         subs: entry.subs.map((sub) => {
-          try {
-            const converted = convertPrice(sub.price, sub.currency, targetCcy as Currency, rates.rates)
-            return { ...sub, price: Math.round(converted), currency: targetCcy }
-          } catch {
-            return sub
-          }
+          const converted = tryConvert(sub.price, sub.currency, targetCcy as Currency, rates.rates)
+          return converted !== null ? { ...sub, price: Math.round(converted), currency: targetCcy } : sub
         }),
       }))
     } catch {

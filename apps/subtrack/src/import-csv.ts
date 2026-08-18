@@ -16,7 +16,7 @@ import {
   validateDateString,
 } from "./prompts.ts"
 import os from "node:os"
-import { resolveSafePath } from "./path-utils.ts"
+import { safePath } from "./path-utils.ts"
 import type { Status, DiscountType } from "./types.ts"
 
 const MAX_CSV_SIZE = 10 * 1024 * 1024 // 10 MB
@@ -67,7 +67,7 @@ export async function handleImport(
   }
 
   // Validate path is within allowed base directories (also verifies existence)
-  const safeFile = resolveSafePath([os.homedir(), os.tmpdir()], file)
+  const safeFile = safePath(file)
   if (!safeFile) {
     fail(`File not found or path not allowed — must be within home or temp directory`)
     return

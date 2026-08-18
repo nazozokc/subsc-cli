@@ -9,6 +9,7 @@ import {
   validateTokens,
   validateDate,
 } from "./prompts.ts"
+import { today } from "./date-utils.ts"
 import {
   ensurePricingCache,
   searchPricingModels,
@@ -126,13 +127,13 @@ async function resolveUsageAddOptions(flags: UsageAddFlags) {
 
   // Date
   let date: string
-  const today = new Date().toISOString().split("T")[0]
+  const todayStr = today()
   if (flags.date !== undefined) {
     const result = validateDate(flags.date)
     if (result !== true) { fail(result); return null }
     date = flags.date
   } else {
-    date = today
+    date = todayStr
   }
 
   // Description

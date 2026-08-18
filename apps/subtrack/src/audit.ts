@@ -11,6 +11,7 @@ import CliTable3 from "cli-table3"
 import { getAuditLogs, getAuditLogCount, pruneAuditLogs, addAuditLog } from "./db/audit.ts"
 import type { AuditAction, AddAuditArgs } from "./db/audit.ts"
 import { TABLE_CHARS, TABLE_STYLE } from "./display-constants.ts"
+import { SHORT_MONTH_NAMES, pad2 } from "./date-utils.ts"
 
 // ── Audit log display ───────────────────────────────────
 
@@ -49,9 +50,7 @@ function formatTimestamp(ts: string): string {
   // "2026-07-05 12:34:56" → "Jul 05 12:34"
   const d = new Date(ts + "Z")
   if (isNaN(d.getTime())) return ts
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${months[d.getMonth()]} ${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+  return `${SHORT_MONTH_NAMES[d.getMonth()]} ${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`
 }
 
 // ── Command handlers ────────────────────────────────────

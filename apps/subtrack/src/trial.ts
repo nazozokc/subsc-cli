@@ -3,7 +3,7 @@ import { consola } from "consola"
 import { fail } from "./error.ts"
 import pc from "picocolors"
 import CliTable3 from "cli-table3"
-import type { TrialEntry, AddTrialArgs, TrialAddFlags, Cycle } from "./types.ts"
+import type { TrialEntry, AddTrialArgs, TrialAddFlags } from "./types.ts"
 import { writeTrial, getTrials, getTrial, deleteTrial, getTrialsExpiringSoon } from "./db.ts"
 import { formatPrice } from "./price.ts"
 import { TABLE_CHARS, TABLE_STYLE } from "./display-constants.ts"
@@ -16,16 +16,9 @@ import {
   promptString,
   promptSelect,
 } from "./prompts.ts"
+import { daysUntil } from "./date-utils.ts"
 
 // ── Helpers ────────────────────────────────────────────
-
-function daysUntil(dateStr: string): number {
-  const now = new Date()
-  now.setHours(0, 0, 0, 0)
-  const target = new Date(dateStr + "T00:00:00")
-  target.setHours(0, 0, 0, 0)
-  return Math.ceil((target.getTime() - now.getTime()) / (24 * 60 * 60 * 1000))
-}
 
 function formatPriceOrDash(price: number | null, currency: string | null, cycle: string | null): string {
   if (price === null || price === undefined) return "—"

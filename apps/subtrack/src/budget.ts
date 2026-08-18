@@ -1,7 +1,7 @@
 import { consola } from "consola"
 import pc from "picocolors"
 import type { Currency, SharedArgs } from "./types.ts"
-import { getSubscriptions } from "./db.ts"
+import { getSubscriptions, getNonCancelledSubscriptions } from "./db.ts"
 import { loadConfig } from "./config.ts"
 import { formatPrice } from "./price.ts"
 import { calcSubTotal } from "./payment.ts"
@@ -94,7 +94,7 @@ export function convertTotals(
 
 export async function handleBudget(options: BudgetOptions = {}): Promise<void> {
   const period = options.period ?? "monthly"
-  const subs = getSubscriptions().filter((s) => s.status !== "cancelled")
+  const subs = getNonCancelledSubscriptions()
 
   const budget = resolveBudget(period, options.name)
   if (!budget) {

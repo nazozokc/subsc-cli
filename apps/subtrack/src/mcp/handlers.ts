@@ -8,6 +8,7 @@ import type { FxRates } from "../fx.ts"
 import type { McpResponse } from "./types.ts"
 import {
   getSubscriptions,
+  getNonCancelledSubscriptions,
   getSubscription,
   writeSubscription,
   deleteSubscription,
@@ -106,7 +107,7 @@ export async function handleDeleteSubscription(args?: Record<string, unknown>): 
 }
 
 export async function handleGetSummary(_args?: Record<string, unknown>): Promise<McpResponse> {
-  const subs = getSubscriptions().filter((s) => s.status !== "cancelled")
+  const subs = getNonCancelledSubscriptions()
   const summary = calcSummary(subs)
   return { content: [{ type: "text", text: JSON.stringify(summary) }] }
 }

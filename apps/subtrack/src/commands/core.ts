@@ -1,15 +1,9 @@
 // ── Core subscription commands ──────────────────────────
 import { define } from "gunshi"
 import { consola } from "consola"
-import {
-  handleList,
-  handleAdd,
-  handleEdit,
-  handleDelete,
-  handleClone,
-  handleArchive,
-  handleUnarchive,
-} from "../subscription.ts"
+import { handleList, handleDelete, handleClone, handleArchive, handleUnarchive } from "../subscription/core.ts"
+import { handleAdd } from "../subscription/add.ts"
+import { handleEdit } from "../subscription/edit.ts"
 import { handleSearch } from "../search.ts"
 import { handleCancel } from "../cancel.ts"
 import { saveDb } from "../db.ts"
