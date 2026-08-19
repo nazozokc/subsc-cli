@@ -553,6 +553,75 @@ subtrack stats
 
 Shows subscription counts by status, tag count, trial count, usage entry count, database file size, and price range information.
 
+## Customizing the display
+
+subtrack's tables and headings are themeable via `subtrack config set`. Everything is stored in `config.json` and validated on write, so an invalid value never breaks your terminal.
+
+### Choosing a theme preset
+
+The `theme` key picks a preset tuned for your terminal:
+
+```bash
+# Dark terminal backgrounds (default)
+subtrack config set theme default
+
+# Light terminal backgrounds
+subtrack config set theme light
+
+# Maximum contrast for accessibility or bright environments
+subtrack config set theme high-contrast
+
+# Plain monochrome — ideal for piping output or screen readers
+subtrack config set theme none
+```
+
+### Overriding individual colors
+
+Any color key overrides the active preset. Valid color names are `black`, `red`,
+`green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, `gray`, plus the `bright*`
+variants (`brightRed`, `brightGreen`, ...).
+
+```bash
+# Accent color used for section headings
+subtrack config set accentColor brightCyan
+
+# Table chrome: border, header, and zebra stripe background
+subtrack config set tableBorderColor blue
+subtrack config set tableHeaderColor brightBlue
+subtrack config set tableZebraColor gray
+```
+
+### Table sizing and zebra stripes
+
+```bash
+# Turn zebra striping off (or back on)
+subtrack config set tableZebra off
+
+# Minimum table width in columns (20–200); tables still grow
+# to fit the terminal width when content requires it
+subtrack config set tableMinWidth 60
+```
+
+### Dates and list columns
+
+```bash
+# Compact MM/DD dates in cancel/notify messages
+# (JSON output always stays ISO 8601)
+subtrack config set dateFormat short
+
+# Show notes / payment method columns in `subtrack list` by default
+subtrack config set listShowNotes on
+subtrack config set listShowMethod on
+```
+
+CLI flags (`subtrack list --notes --method`) always take precedence over these defaults.
+
+### Seeing the current configuration
+
+```bash
+subtrack config list
+```
+
 ## MCP integration
 
 subtrack runs an MCP (Model Context Protocol) server, allowing AI assistants to manage your subscriptions:

@@ -670,7 +670,16 @@ Manages subtrack configuration. Configuration is stored in `~/.config/subtrack/c
 | `monthlyBudget` | Monthly spending budget in USD (0 = disabled) | `0` |
 | `yearlyBudget` | Yearly spending budget (used by `budget --period yearly` and `report`) | — |
 | `budgets` | JSON array of named budgets (see below) | — |
-| `theme` | Display theme | `default` |
+| `theme` | Display theme preset: `default`, `light`, `high-contrast`, `none` | `default` |
+| `tableBorderColor` | Table border color override (color name) | theme default |
+| `tableHeaderColor` | Table header color override (color name) | theme default |
+| `tableZebraColor` | Zebra stripe background color override (color name) | theme default |
+| `accentColor` | Accent color override for headings (color name) | theme default |
+| `tableZebra` | Zebra striping on/off | `on` |
+| `tableMinWidth` | Minimum table width in columns (20–200) | `40` |
+| `dateFormat` | Date display format: `iso` or `short` | `iso` |
+| `listShowNotes` | Show notes column in `list` by default | `off` |
+| `listShowMethod` | Show payment method column in `list` by default | `off` |
 | `notifyDays` | Notification look-ahead in days | `7` |
 | `notifyChannels` | Comma-separated channels: `os`, `slack`, `webhook` | `os` |
 | `slackWebhook` | Slack webhook URL for `slack` notifications | — |
@@ -706,11 +715,24 @@ subtrack config set defaultCurrency JPY
 subtrack config set notifyChannels os,slack
 subtrack config set slackWebhook https://hooks.slack.com/services/...
 
+# Switch to the light theme (for light terminal backgrounds)
+subtrack config set theme light
+
+# Override a single color on top of a preset
+subtrack config set accentColor yellow
+
+# Disable zebra striping entirely
+subtrack config set tableZebra off
+
 # Reset all config to defaults
 subtrack config reset
 ```
 
 The `config set` command validates input (e.g., currency codes must be ISO 4217, budget must be non-negative, channels must be one of `os`/`slack`/`webhook`).
+
+The `theme` key switches between four presets: `default` (dark backgrounds), `light`, `high-contrast`, and `none` (plain monochrome). Individual color keys (`tableBorderColor`, `tableHeaderColor`, `tableZebraColor`, `accentColor`) override the preset. Valid color names: `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, `gray`, and the `bright*` variants.
+
+`dateFormat` controls human-facing dates in `cancel` and `notify` (`short` uses `MM/DD` style); machine-readable output (JSON) always uses ISO 8601. `listShowNotes` / `listShowMethod` enable the notes and payment method columns in `subtrack list` by default — CLI flags still take precedence.
 
 ## `usage`
 
