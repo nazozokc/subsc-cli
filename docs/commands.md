@@ -44,6 +44,15 @@ subtrack provides the following commands. Most support both interactive and non-
 - [`config`](#config)
 - [`usage`](#usage)
 - [`mcp`](#mcp)
+- [`pause`](#pause)
+- [`resume`](#resume)
+- [`renew`](#renew)
+- [`review`](#review)
+- [`yearly`](#yearly)
+- [`check`](#check)
+- [`changes`](#changes)
+- [`receipt`](#receipt)
+- [`template`](#template)
 
 </details>
 
@@ -1503,3 +1512,94 @@ subtrack report --json
 ```
 
 The monthly chart requires a single currency — use `--currency` to convert. Cancelled subscriptions are counted only until their contract end date. The report compares yearly spending against `yearlyBudget` when configured.
+
+## `pause` and `resume`
+
+Pause or resume one or more subscriptions by ID. Both commands prompt for confirmation unless `--force` is supplied. `resume` accepts paused or cancelled subscriptions.
+
+```bash
+subtrack pause 3
+subtrack pause 3 5 --force
+subtrack resume 3 --force
+```
+
+## `renew <id>`
+
+Renews a subscription and records the change in its price history. Existing values are kept when an option is omitted.
+
+| Option | Description |
+|--------|-------------|
+| `--price <n>` | New price |
+| `--currency <code>` | New currency |
+| `--cycle <cycle>` | New billing cycle |
+| `--contractEnd <date>` | New contract end date (`YYYY-MM-DD`) |
+| `--planTier <tier>` | New plan tier |
+| `--autoRenewal` | Enable automatic renewal |
+
+```bash
+subtrack renew 3 --price 1980 --contractEnd 2027-08-31
+```
+
+## `review`
+
+Displays upcoming bills, contract expirations, and expiring trials. Use the day-range options to customize the review window.
+
+| Option | Description |
+|--------|-------------|
+| `--billDays <n>` | Days ahead for bills |
+| `--contractDays <n>` | Days ahead for contract expirations |
+| `--trialDays <n>` | Days ahead for trials |
+| `-j, --json` | Output as JSON |
+
+```bash
+subtrack review
+subtrack review --billDays 30 --contractDays 60 --json
+```
+
+## `yearly`
+
+Shows annual spending for a year, optionally converted to one currency.
+
+```bash
+subtrack yearly 2026
+subtrack yearly 2026 --currency JPY --json
+```
+
+## `check`
+
+Checks subscription data integrity. `--strict` exits with code 1 when problems are found.
+
+```bash
+subtrack check --strict
+subtrack check --json
+```
+
+## `changes`
+
+Shows audit-log changes to subscriptions. Filter by subscription ID or date range.
+
+```bash
+subtrack changes --from 2026-01-01 --to 2026-12-31
+subtrack changes --id 3 --json
+```
+
+## `receipt <file>`
+
+Imports subscription candidates from a receipt file. Use `--dryRun` to inspect without writing, or `--review` to review candidates interactively.
+
+```bash
+subtrack receipt receipt.txt --dryRun
+subtrack receipt receipt.txt --review
+```
+
+## `template`
+
+Manages reusable subscription templates. Templates can be listed, added, edited, deleted, or used to create a subscription.
+
+```bash
+subtrack template add spotify --price 980 --currency JPY --cycle monthly --tags music
+subtrack template list
+subtrack template use spotify
+subtrack template edit spotify --price 1080
+subtrack template delete spotify
+```

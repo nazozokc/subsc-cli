@@ -38,6 +38,10 @@ A CLI tool to manage your subscription services from the terminal.
 - **Budget tracking** — compare spending against monthly/yearly/named budgets with `subtrack budget` (overrun detection for scripts via `--check`)
 - **Duplicate detection** — find and merge duplicate subscriptions with `subtrack dedupe`
 - **Guided cancellation** — cancel subscriptions with a checklist via `subtrack cancel`
+- **Subscription lifecycle** — pause, resume, and renew subscriptions while preserving price history
+- **Renewal review** — review upcoming bills, contract expirations, and trials with `subtrack review`
+- **Reusable templates** — create subscriptions from saved templates with `subtrack template`
+- **Audit and integrity tools** — inspect changes with `subtrack changes` and validate data with `subtrack check`
 - **Yearly report** — spending overview, monthly chart, price changes, and budget comparison via `subtrack report`
 - **SQLite** storage — portable, zero-config, lives in `~/.config/subtrack/subtrack.db`
 - **Input validation** — name length, price bounds, tag limits
@@ -123,6 +127,25 @@ subtrack config set defaultCurrency JPY
 
 # Track LLM API usage
 subtrack usage add --provider openai --model gpt-4o --inputTokens 1000 --outputTokens 500
+
+# Review upcoming bills, contracts, and trials
+subtrack review
+
+# Pause, resume, or renew a subscription
+subtrack pause 1 --force
+subtrack resume 1 --force
+subtrack renew 1 --price 1200
+
+# Show annual spending and audit changes
+subtrack yearly 2026
+subtrack changes --from 2026-01-01
+
+# Check data integrity
+subtrack check --strict
+
+# Create and use a reusable template
+subtrack template add spotify --price 980 --currency JPY --cycle monthly
+subtrack template use spotify
 ```
 
 ## npx usage
