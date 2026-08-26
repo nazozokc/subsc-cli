@@ -28,6 +28,7 @@ export { handleCleanup } from "./cleanup.ts"
 export { handleStats } from "./stats.ts"
 export { handleCurrencyList } from "./currency.ts"
 export { handleConfigList, handleConfigGet, handleConfigSet, handleConfigReset } from "./config.ts"
+export { handlePause, handleResume, handleRenew, handleReview, handleYearly, handleCheck, handleChanges, handleReceipt, handleTemplate } from "./features.ts"
 
 // Lazy-import wrappers to avoid loading MCP SDK WASM at module load time
 export async function handleMcp(): Promise<void> {

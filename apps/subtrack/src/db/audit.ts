@@ -23,6 +23,9 @@ export type AuditAction =
   | "subscription.clone"
   | "subscription.merge"
   | "subscription.cancel"
+  | "subscription.pause"
+  | "subscription.resume"
+  | "subscription.renew"
   | "trial.add"
   | "trial.delete"
   | "tag.rename"
@@ -36,6 +39,11 @@ export type AuditAction =
   | "usage.edit"
   | "usage.delete"
   | "cleanup"
+  | "suggestion.receipt"
+  | "template.add"
+  | "template.edit"
+  | "template.delete"
+  | "template.use"
 
 export type AuditEntry = {
   id: number
