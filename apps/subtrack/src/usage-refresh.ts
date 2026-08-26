@@ -1,6 +1,6 @@
 import { consola } from "consola"
 import type { UsageRefreshFlags } from "./types.ts"
-import { batchAddLlmUsageFromLog } from "./db.ts"
+import { usageRepository } from "./application/repositories.ts"
 import { runAllScanners } from "./scanner.ts"
 import { currentMonthStart } from "./date-utils.ts"
 import { today } from "./date-utils.ts"
@@ -49,7 +49,7 @@ export async function handleUsageRefresh(flags: UsageRefreshFlags = {}) {
     consola.info(`Estimated cost for ${resolvedCount} entr${resolvedCount === 1 ? "y" : "ies"} via pricing`)
   }
 
-  const { added, skipped } = batchAddLlmUsageFromLog(result.entries)
+  const { added, skipped } = usageRepository.addBatch(result.entries)
 
   if (added === 0 && skipped === 0) {
     consola.info("No new usage entries found")

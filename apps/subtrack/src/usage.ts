@@ -2,10 +2,11 @@ import { checkbox, confirm } from "@inquirer/prompts"
 import { consola } from "consola"
 import { fail } from "./error.ts"
 import type { LlmUsageEntry } from "./types.ts"
-import { getLlmUsage, deleteLlmUsage } from "./db.ts"
+import { usageRepository } from "./application/repositories.ts"
 import { logAudit } from "./audit.ts"
 import { renderUsageTable } from "./display.ts"
 import { formatUsdCost } from "./price.ts"
+import { writeJson } from "./presentation/output.ts"
 
 export { handleUsageAdd } from "./usage-add.ts"
 export { handleUsageImport } from "./usage-import.ts"
@@ -16,7 +17,7 @@ export { handleUsageEdit } from "./usage-edit.ts"
 export async function handleUsageList(
   options: { provider?: string; from?: string; to?: string; json?: boolean; limit?: number; offset?: number },
 ) {
-  const entries = getLlmUsage({
+  const entries = usageRepository.list({
     provider: options.provider,
     from: options.from,
     to: options.to,
@@ -26,7 +27,7 @@ export async function handleUsageList(
   })
 
   if (options.json) {
-    process.stdout.write(JSON.stringify(entries, null, 2) + "\n")
+    writeJson(entries)
     return
   }
 
@@ -38,7 +39,7 @@ export async function handleUsageList(
 export async function handleUsageDelete(ids?: number[]) {
   if (ids && ids.length > 0) {
     for (const id of ids) {
-      const deleted = deleteLlmUsage(id)
+      const deleted = usageRepository.remove(id)
       if (deleted) {
         logAudit("usage.delete", { targetType: "usage", targetId: id })
         consola.success(`Deleted usage entry: ${id}`)
@@ -49,7 +50,7 @@ export async function handleUsageDelete(ids?: number[]) {
     return
   }
 
-  const all = getLlmUsage({ limit: 500 })
+  const all = usageRepository.list({ limit: 500 })
 
   if (all.length === 0) {
     consola.info("No usage entries found")
@@ -82,7 +83,7 @@ export async function handleUsageDelete(ids?: number[]) {
   }
 
   for (const entry of selected) {
-    deleteLlmUsage(entry.id)
+    usageRepository.remove(entry.id)
     logAudit("usage.delete", {
       targetType: "usage",
       targetId: entry.id,

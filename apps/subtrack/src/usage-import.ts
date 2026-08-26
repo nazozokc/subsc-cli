@@ -3,7 +3,7 @@ import os from "node:os"
 import { consola } from "consola"
 import { fail } from "./error.ts"
 import type { UsageImportFlags } from "./types.ts"
-import { addLlmUsageFromLog } from "./db.ts"
+import { usageRepository } from "./application/repositories.ts"
 import { safeJsonParse } from "./safe-json.ts"
 import { safePath } from "./path-utils.ts"
 import { today } from "./date-utils.ts"
@@ -279,7 +279,7 @@ export async function handleUsageImport(flags: UsageImportFlags) {
     }
 
     // Write to DB (dedup by generation_id)
-    const added = addLlmUsageFromLog({
+    const added = usageRepository.addFromLog({
       provider: entry.provider,
       model: entry.model,
       input_tokens: entry.inputTokens,

@@ -4,6 +4,17 @@ import type { SharedArgs, AddSharedArgs } from "../types.ts"
 
 const SORT_FIELDS = ["id", "name", "price", "currency", "cycle", "status"] as const
 
+export type SubscriptionQueryOptions = {
+  sort?: string
+  desc?: boolean
+  limit?: number
+  offset?: number
+  includeArchived?: boolean
+  status?: string
+  minPrice?: number
+  maxPrice?: number
+}
+
 /** Column projection shared by all subscription queries. */
 const SUB_COLUMNS = `
   id, name, price, currency, cycle, status,
@@ -48,16 +59,7 @@ export function mapTags(subs: SharedArgs[]): SharedArgs[] {
 }
 
 export const getSubscriptions = (
-  options?: {
-    sort?: string
-    desc?: boolean
-    limit?: number
-    offset?: number
-    includeArchived?: boolean
-    status?: string
-    minPrice?: number
-    maxPrice?: number
-  },
+  options?: SubscriptionQueryOptions,
 ): SharedArgs[] => {
   const db = getDb()
   const field = options?.sort && (SORT_FIELDS as readonly string[]).includes(options.sort) ? options.sort : "id"
