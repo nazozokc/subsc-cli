@@ -51,6 +51,21 @@ export type AddSharedArgs = {
   discountType?: DiscountType
 }
 
+export type SubscriptionTemplate = {
+  name: string
+  price: number
+  currency: Currency
+  cycle: Cycle
+  tags: string[]
+  billingDay?: number | null
+  notes?: string | null
+  paymentMethod?: string | null
+  vendorName?: string | null
+  vendorUrl?: string | null
+  planTier?: string | null
+  autoRenewal?: boolean
+}
+
 export type LlmUsageEntry = {
   id: number
   provider: string
@@ -259,4 +274,5 @@ export type SubtrackConfig = {
   listShowNotes?: "on" | "off"
   /** Show payment method column in `subtrack list` by default */
   listShowMethod?: "on" | "off"
+  templates?: Record<string, SubscriptionTemplate>
 }

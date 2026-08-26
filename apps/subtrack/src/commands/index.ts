@@ -25,6 +25,7 @@ import {
   dedupeCommand,
 } from "./misc.ts"
 import { suggestCommand } from "./suggest.ts"
+import { pauseCommand, resumeCommand, renewCommand, reviewCommand, yearlyCommand, checkCommand, changesCommand, receiptCommand, templateCommand } from "./features.ts"
 
 export {
   listCommand, addCommand, editCommand, deleteCommand, cancelCommand,
@@ -46,6 +47,8 @@ export {
   maintenanceCommand, cleanupCommand, currencyCommand,
   dedupeCommand,
   suggestCommand,
+  pauseCommand, resumeCommand, renewCommand, reviewCommand, yearlyCommand,
+  checkCommand, changesCommand, receiptCommand, templateCommand,
 }
 
 /** The flat sub-commands map for the main CLI */
@@ -91,4 +94,13 @@ export const subCommands = {
   config: configCommand,
   usage: usageCommand,
   suggest: suggestCommand,
+  pause: pauseCommand,
+  resume: resumeCommand,
+  renew: renewCommand,
+  review: reviewCommand,
+  yearly: yearlyCommand,
+  check: checkCommand,
+  changes: changesCommand,
+  receipt: receiptCommand,
+  template: templateCommand,
 }

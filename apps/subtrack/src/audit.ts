@@ -29,6 +29,9 @@ const ACTION_LABELS: Record<string, string> = {
   "subscription.bulk_tag_add": "Bulk Tag+",
   "subscription.bulk_tag_remove": "Bulk Tag-",
   "subscription.clone": "Clone",
+  "subscription.pause": "Pause",
+  "subscription.resume": "Resume",
+  "subscription.renew": "Renew",
   "trial.add": "Trial Add",
   "trial.delete": "Trial Delete",
   "tag.rename": "Tag Rename",
@@ -41,6 +44,11 @@ const ACTION_LABELS: Record<string, string> = {
   "usage.add": "Usage Add",
   "usage.delete": "Usage Delete",
   "cleanup": "Cleanup",
+  "suggestion.receipt": "Receipt",
+  "template.add": "Template Add",
+  "template.edit": "Template Edit",
+  "template.delete": "Template Delete",
+  "template.use": "Template Use",
 }
 
 function formatAction(action: string): string {
