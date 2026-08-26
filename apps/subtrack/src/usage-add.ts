@@ -2,7 +2,7 @@ import { input, select, confirm, search } from "@inquirer/prompts"
 import { consola } from "consola"
 import { fail } from "./error.ts"
 import type { UsageAddFlags } from "./types.ts"
-import { addLlmUsage } from "./db.ts"
+import { usageRepository } from "./application/repositories.ts"
 import { logAudit } from "./audit.ts"
 import {
   LLM_PROVIDER_CHOICES,
@@ -212,7 +212,7 @@ export async function handleUsageAdd(flags: UsageAddFlags) {
   const result = await resolveUsageAddOptions(flags)
   if (!result) return
   try {
-    addLlmUsage(result)
+    usageRepository.add(result)
     logAudit("usage.add", {
       targetType: "usage",
       details: `${result.provider}/${result.model}: ${formatUsdCost(result.cost)} on ${result.date}`,

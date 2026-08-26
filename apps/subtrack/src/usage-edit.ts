@@ -6,7 +6,7 @@
 import { consola } from "consola"
 import { fail } from "./error.ts"
 import type { UsageAddFlags, AddLlmUsageArgs } from "./types.ts"
-import { updateLlmUsage } from "./db.ts"
+import { usageRepository } from "./application/repositories.ts"
 import { logAudit } from "./audit.ts"
 import {
   LLM_PROVIDER_CHOICES,
@@ -90,7 +90,7 @@ export async function handleUsageEdit(id: number, flags: UsageAddFlags): Promise
     return
   }
 
-  const ok = updateLlmUsage(id, fields)
+  const ok = usageRepository.update(id, fields)
   if (!ok) {
     fail(`Usage entry with id ${id} not found`)
     return

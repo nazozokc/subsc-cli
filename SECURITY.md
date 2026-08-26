@@ -9,7 +9,7 @@ If you discover a security vulnerability in subtrack, please report it privately
 Instead, send a description of the issue (including steps to reproduce, affected versions, and any relevant code context) to one of the following:
 
 - Open a **private security advisory** at: https://github.com/nazozokc/subtrack/security/advisories/new
-- Email: **nazozokc@icloud.com**
+- Email: **nazozokc@gmail.com**
 
 You should receive a response within **48 hours**. If you don't hear back, follow up via the advisory thread.
 

@@ -9,16 +9,11 @@ import { fail } from "../error.ts"
 import { loadConfig } from "../config.ts"
 import type { Currency, SharedArgs, AddFlags } from "../types.ts"
 import {
-  getSubscriptions,
-  getSubscription,
-  deleteSubscription,
-  writeSubscription,
-  archiveSubscription,
-  unarchiveSubscription,
   tagsSubscription,
   getLlmUsageTotal,
   getLlmUsageTotalByProvider,
 } from "../db.ts"
+import { subscriptionRepository } from "../application/repositories.ts"
 import { formatPrice } from "../price.ts"
 import { spreadSubscription, showApiUsage } from "../display.ts"
 import { logAudit } from "../audit.ts"
@@ -47,7 +42,7 @@ export async function handleList(options: {
 
   const list = options.tags
     ? tagsSubscription(options.tags.split(",").map((t) => t.trim()))
-    : getSubscriptions({
+    : subscriptionRepository.list({
         sort: options.sort,
         desc: options.desc,
         limit: options.limit,
@@ -84,12 +79,12 @@ export async function handleList(options: {
 export async function handleDelete(ids?: number[]) {
   if (ids && ids.length > 0) {
     for (const id of ids) {
-      const sub = getSubscription(id)
+      const sub = subscriptionRepository.get(id)
       if (!sub) {
         fail(`Subscription with id ${id} not found`)
         continue
       }
-      deleteSubscription(id)
+      subscriptionRepository.remove(id)
       logAudit("subscription.delete", {
         targetType: "subscription",
         targetId: id,
@@ -100,7 +95,7 @@ export async function handleDelete(ids?: number[]) {
     return
   }
 
-  const all = getSubscriptions()
+  const all = subscriptionRepository.list()
 
   if (all.length === 0) {
     consola.info("No subscriptions found")
@@ -132,7 +127,7 @@ export async function handleDelete(ids?: number[]) {
   }
 
   for (const sub of selected) {
-    deleteSubscription(sub.id)
+    subscriptionRepository.remove(sub.id)
     logAudit("subscription.delete", {
       targetType: "subscription",
       targetId: sub.id,
@@ -150,7 +145,7 @@ export async function handleTags(taglist: string[]) {
 // ── Clone ──────────────────────────────────────────────
 
 export async function handleClone(id: number, flags: Partial<AddFlags> = {}): Promise<void> {
-  const sub = getSubscription(id)
+  const sub = subscriptionRepository.get(id)
   if (!sub) {
     fail(`Subscription with id ${id} not found`)
     return
@@ -179,7 +174,7 @@ export async function handleClone(id: number, flags: Partial<AddFlags> = {}): Pr
   }
 
   try {
-    const newId = writeSubscription(newData)
+    const newId = subscriptionRepository.add(newData)
     logAudit("subscription.clone", {
       targetType: "subscription",
       targetId: newId,
@@ -194,7 +189,7 @@ export async function handleClone(id: number, flags: Partial<AddFlags> = {}): Pr
 // ── Archive / Unarchive ──────────────────────────────────
 
 export function handleArchive(id: number) {
-  const sub = getSubscription(id)
+  const sub = subscriptionRepository.get(id)
   if (!sub) {
     fail(`Subscription with id ${id} not found`)
     return
@@ -203,7 +198,7 @@ export function handleArchive(id: number) {
     consola.info(`"${sub.name}" is already archived`)
     return
   }
-  if (archiveSubscription(id)) {
+  if (subscriptionRepository.archive(id)) {
     logAudit("subscription.archive", {
       targetType: "subscription",
       targetId: id,
@@ -214,7 +209,7 @@ export function handleArchive(id: number) {
 }
 
 export function handleUnarchive(id: number) {
-  const sub = getSubscription(id)
+  const sub = subscriptionRepository.get(id)
   if (!sub) {
     fail(`Subscription with id ${id} not found`)
     return
@@ -223,7 +218,7 @@ export function handleUnarchive(id: number) {
     consola.info(`"${sub.name}" is not archived (status: ${sub.status})`)
     return
   }
-  if (unarchiveSubscription(id)) {
+  if (subscriptionRepository.unarchive(id)) {
     logAudit("subscription.unarchive", {
       targetType: "subscription",
       targetId: id,

@@ -2,11 +2,13 @@ import { consola } from "consola"
 import pc from "picocolors"
 import type { SharedArgs, Currency, Cycle } from "./types.ts"
 import { periodFactor, getPeriodDateRange } from "./date-utils.ts"
-import { getSubscriptions, getNonCancelledSubscriptions, getLlmUsageTotal, getLlmUsageTotalByProvider, getAllPriceChanges } from "./db.ts"
+import { getNonCancelledSubscriptions, getLlmUsageTotal, getLlmUsageTotalByProvider, getAllPriceChanges } from "./db.ts"
 import { formatPrice, formatUsdCost } from "./price.ts"
 import { fetchFxRates, convertPrice } from "./fx.ts"
 import type { FxRates } from "./fx.ts"
 import { runPreCommandHooks } from "./pre-command.ts"
+import { calculateTotals } from "./domain/billing.ts"
+import { writeJson } from "./presentation/output.ts"
 
 // ── JSON options helper ───────────────────────────────
 export type JsonOptions = { json?: boolean }
@@ -102,10 +104,7 @@ export const showPayment = async (
   }
 
   // Group by currency
-  const groups: Record<string, number> = {}
-  for (const entry of entries) {
-    groups[entry.currency] = (groups[entry.currency] ?? 0) + entry.convertedPrice
-  }
+  const groups = calculateTotals(list, period)
 
   for (const ccy of Object.keys(groups).sort()) {
     const total = groups[ccy]
@@ -392,7 +391,7 @@ export async function handlePayment(
     }
     if (options.api && apiTotal > 0) { output.apiUsage = { total: apiTotal, byProvider: apiByProvider } }
     if (options.method && Object.keys(byMethod).length > 0) { output.byMethod = byMethod }
-    process.stdout.write(JSON.stringify(output, null, 2) + "\n")
+    writeJson(output)
     return
   }
   await showPayment(period, options.currency as Currency | undefined, undefined, options.api, options.method)
